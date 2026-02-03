@@ -1,2 +1,2 @@
 # Aquality-Arduino-based-water-quality-monitoring
-Desciption:
+Description:
