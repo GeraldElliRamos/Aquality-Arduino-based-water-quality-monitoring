@@ -6,11 +6,11 @@ Aquality is an Arduino‑based IoT water quality monitoring system for freshwate
 Dart, Flutter, C++, Cloud Computing, Github, Git, Swift, Visual Studio Code, Android Studio
 
 **Features:**
-*Real-Time Water Monitoring 
-*Automated Alerts and Notifications 
-*Logs and Reports 
-*Remote Access 
-*Supports Sustainable Aquaculture
+* Real-Time Water Monitoring 
+* Automated Alerts and Notifications 
+* Logs and Reports 
+* Remote Access 
+* Supports Sustainable Aquaculture
 
 
 
