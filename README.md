@@ -20,10 +20,10 @@ Dart, Flutter, C++, Cloud Computing, Github, Git, Swift, Visual Studio Code, And
 4. Open the repository
 
 **Setup**
-1. Step 1: Create a Firebase project and register the app.
-2. Step 2: Install the SDK and initialize Firebase.
-3. Step 3: Access Firebase in the app.
-4. Step 4: Use a module bundler (webpack/rollup) for size reduction.
+* Step 1: Create a Firebase project and register the app.
+* Step 2: Install the SDK and initialize Firebase.
+* Step 3: Access Firebase in the app.
+* Step 4: Use a module bundler (webpack/rollup) for size reduction.
 
  
 
