@@ -1,16 +1,26 @@
-# aquality_arduino_based_water_quality_monitoring
+# Aquality-Arduino-based-water-quality-monitoring
+**Description:**
+Aquality is an Arduino‑based IoT water quality monitoring system for freshwater tilapia ponds, providing continuous, remote sensing, alerts, and basic analytics to optimize fish health and align with Sustainable Development Goal 6 on clean water and sanitation.
 
-A new Flutter project.
+**Technologies Used:**
+Dart, Flutter, C++, Cloud Computing, Github, Git, Swift, Visual Studio Code, Android Studio
 
-## Getting Started
+**Features:**
+* Real-Time Water Monitoring 
+* Automated Alerts and Notifications 
+* Logs and Reports 
+* Remote Access 
+* Supports Sustainable Aquaculture
 
-This project is a starting point for a Flutter application.
+**Installation Instructions**
 
-A few resources to get you started if this is your first Flutter project:
+1. Navigate to the Code Button on the top right side
+2. Copy the HTTPS URL
+3. Paste it on the Github Desktop
+4. Open the repository
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+**Setup**
+* Step 1: Create a Firebase project and register the app.
+* Step 2: Install the SDK and initialize Firebase.
+* Step 3: Access Firebase in the app.
+* Step 4: Use a module bundler (webpack/rollup) for size reduction.
