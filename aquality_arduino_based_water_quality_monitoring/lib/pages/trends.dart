@@ -186,7 +186,7 @@ class LineChartPainter extends CustomPainter {
     final maxV = points.reduce((a, b) => a > b ? a : b);
     final range = (maxV - minV) == 0 ? 1 : (maxV - minV);
 
-    final stepX = size.width / (points.length - 1);
+    final stepX = points.length > 1 ? size.width / (points.length - 1) : 0.0;
     final path = Path();
     for (int i = 0; i < points.length; i++) {
       final dx = i * stepX;
@@ -226,6 +226,35 @@ abstract class IoTDataService {
 }
 
 class PlaceholderIoTService implements IoTDataService {
+  final _rnd = Random();
+
   @override
-  Stream<IoTReading> readings() => Stream<IoTReading>.empty();
+  Stream<IoTReading> readings() {
+    // Emit a reading every 800ms with varying params and realistic ranges
+    const params = ['Temperature', 'pH Level', 'Chlorine', 'Dissolved Oxygen', 'Ammonia'];
+    return Stream<IoTReading>.periodic(const Duration(milliseconds: 800), (_) {
+      final p = params[_rnd.nextInt(params.length)];
+      double value;
+      switch (p) {
+        case 'Temperature':
+          value = 24 + _rnd.nextDouble() * 6 - 3; // around 24-30 +/- small noise
+          break;
+        case 'pH Level':
+          value = 6.5 + _rnd.nextDouble() * 1.5 - 0.25; // 6.25-8-ish
+          break;
+        case 'Chlorine':
+          value = _rnd.nextDouble() * 2.0; // 0-2
+          break;
+        case 'Dissolved Oxygen':
+          value = 5 + _rnd.nextDouble() * 6; // 5-11
+          break;
+        case 'Ammonia':
+          value = _rnd.nextDouble() * 1.5; // 0-1.5
+          break;
+        default:
+          value = _rnd.nextDouble() * 10;
+      }
+      return IoTReading(param: p, value: double.parse(value.toStringAsFixed(2)));
+    });
+  }
 }
