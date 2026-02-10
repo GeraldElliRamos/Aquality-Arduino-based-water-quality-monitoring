@@ -46,7 +46,7 @@ class _SignupViewState extends State<SignupView> {
               Text(_error!, style: const TextStyle(color: Colors.red)),
             ],
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: _submit, child: const Text('Sign up'), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB))),
+            ElevatedButton(onPressed: _submit, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)), child: const Text('Sign up')),
             const SizedBox(height: 12),
             const Text('Dev note: this is a placeholder signup. Replace with backend signup flow.'),
           ],

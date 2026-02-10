@@ -44,7 +44,7 @@ class _AdminLoginViewState extends State<AdminLoginView> {
               onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: _submit, child: const Text('Sign in'), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB))),
+            ElevatedButton(onPressed: _submit, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)), child: const Text('Sign in')),
             const SizedBox(height: 12),
             const Text('Development note: password is "admin123". Replace with real auth in production.'),
           ],

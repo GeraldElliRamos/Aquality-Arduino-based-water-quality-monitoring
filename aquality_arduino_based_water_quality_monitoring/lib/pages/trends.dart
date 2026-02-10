@@ -192,7 +192,11 @@ class LineChartPainter extends CustomPainter {
       final dx = i * stepX;
       final normalized = (points[i] - minV) / range;
       final dy = size.height - (normalized * size.height);
-      if (i == 0) path.moveTo(dx, dy); else path.lineTo(dx, dy);
+      if (i == 0) {
+        path.moveTo(dx, dy);
+      } else {
+        path.lineTo(dx, dy);
+      }
     }
 
     final fillPath = Path.from(path)..lineTo(size.width, size.height)..lineTo(0, size.height)..close();

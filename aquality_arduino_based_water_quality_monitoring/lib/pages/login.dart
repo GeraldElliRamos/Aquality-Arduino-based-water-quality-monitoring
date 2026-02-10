@@ -54,7 +54,7 @@ class _LoginViewState extends State<LoginView> {
               Text(_error!, style: const TextStyle(color: Colors.red)),
             ],
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: _submit, child: const Text('Login'), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB))),
+            ElevatedButton(onPressed: _submit, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)), child: const Text('Login')),
             const SizedBox(height: 12),
             TextButton(
               onPressed: () => Navigator.of(context).pushNamed('/signup'),

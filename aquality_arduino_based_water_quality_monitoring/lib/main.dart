@@ -163,8 +163,8 @@ class _AppScreenState extends State<AppScreen> {
           return FloatingActionButton(
             backgroundColor: const Color(0xFF2563EB),
             onPressed: () => Navigator.of(context).pushNamed('/admin'),
-            child: const Icon(Icons.admin_panel_settings),
             tooltip: 'Admin',
+            child: const Icon(Icons.admin_panel_settings),
           );
         },
       ),
