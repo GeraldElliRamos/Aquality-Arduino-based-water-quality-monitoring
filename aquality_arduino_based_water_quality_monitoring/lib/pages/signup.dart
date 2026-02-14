@@ -21,7 +21,7 @@ class _SignupViewState extends State<SignupView> {
       return;
     }
 
-    // Development-only: simply sign the user up and navigate to dashboard.
+    
     AuthService.setAdmin(false);
     AuthService.setLoggedIn(true);
     Navigator.of(context).pushReplacementNamed('/app');

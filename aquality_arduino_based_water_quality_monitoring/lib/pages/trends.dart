@@ -217,7 +217,7 @@ class LineChartPainter extends CustomPainter {
   }
 }
 
-// IoT placeholder types
+
 class IoTReading {
   final String param;
   final double value;

@@ -12,7 +12,6 @@ class _AdminLoginViewState extends State<AdminLoginView> {
   final _controller = TextEditingController();
   String? _error;
 
-  // NOTE: for production, replace this with real auth.
   static const _devPassword = 'admin123';
 
   void _submit() {
@@ -20,7 +19,7 @@ class _AdminLoginViewState extends State<AdminLoginView> {
     if (txt == _devPassword) {
       AuthService.setAdmin(true);
       AuthService.setLoggedIn(true);
-      Navigator.of(context).pushReplacementNamed('/app');
+      Navigator.of(context).pushReplacementNamed('/admin-user');
     } else {
       setState(() => _error = 'Invalid password');
     }

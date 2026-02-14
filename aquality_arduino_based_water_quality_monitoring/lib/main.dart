@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
-import 'dart:math';
 
 import 'pages/dashboard.dart';
 import 'pages/trends.dart';
 import 'pages/alerts.dart';
 import 'pages/history.dart';
 import 'pages/user.dart';
+import 'pages/admin_user.dart';
 import 'pages/login.dart';
 import 'pages/signup.dart';
 import 'pages/splash.dart';
@@ -29,6 +28,7 @@ class AqualityApp extends StatelessWidget {
       home: const SplashView(),
       routes: {
         '/admin': (context) => const AdminView(),
+        '/admin-user': (context) => const AdminUserView(),
         '/admin-login': (context) => const AdminLoginView(),
         '/login': (context) => const LoginView(),
         '/signup': (context) => const SignupView(),
@@ -78,7 +78,7 @@ class _AppScreenState extends State<AppScreen> {
             constraints: const BoxConstraints(maxWidth: 428),
             child: Column(
               children: [
-                // Mobile Header
+                
                 SafeArea(
                   child: Container(
                     color: Colors.white,
@@ -113,24 +113,29 @@ class _AppScreenState extends State<AppScreen> {
                           ],
                         ),
 
-                        // User button (separate user side)
+                       
                         IconButton(
                           icon: const Icon(Icons.person, color: Color(0xFF2563EB)),
                           onPressed: () {
                             if (AuthService.isLoggedIn.value) {
-                              Navigator.of(context).pushNamed('/app');
+                              // If admin, open admin user page; otherwise open regular user page
+                              if (AuthService.isAdmin.value) {
+                                Navigator.of(context).pushNamed('/admin-user');
+                              } else {
+                                Navigator.of(context).pushNamed('/user');
+                              }
                             } else {
                               Navigator.of(context).pushNamed('/login');
                             }
                           },
-                          tooltip: 'User',
+                          tooltip: 'Profile',
                         ),
                       ],
                     ),
                   ),
                 ),
 
-                // Main Content
+              
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -155,7 +160,7 @@ class _AppScreenState extends State<AppScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
         ],
       ),
-      // Admin only floating action button
+  
       floatingActionButton: ValueListenableBuilder<bool>(
         valueListenable: AuthService.isAdmin,
         builder: (context, isAdmin, _) {

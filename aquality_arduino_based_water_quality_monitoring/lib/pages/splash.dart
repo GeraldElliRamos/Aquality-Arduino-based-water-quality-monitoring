@@ -13,7 +13,7 @@ class _SplashViewState extends State<SplashView> {
   @override
   void initState() {
     super.initState();
-    // short delay to show splash, then route based on auth state
+  
     Timer(const Duration(milliseconds: 900), _finish);
   }
 

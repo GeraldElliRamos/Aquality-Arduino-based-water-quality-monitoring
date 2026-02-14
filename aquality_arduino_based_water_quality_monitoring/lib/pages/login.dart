@@ -13,7 +13,7 @@ class _LoginViewState extends State<LoginView> {
   final _passCtrl = TextEditingController();
   String? _error;
 
-  // Development credentials: admin/admin123
+
   void _submit() {
     final u = _userCtrl.text.trim();
     final p = _passCtrl.text;
@@ -29,7 +29,7 @@ class _LoginViewState extends State<LoginView> {
       return;
     }
 
-    // treat as normal user -> go to app dashboard
+
     AuthService.setAdmin(false);
     AuthService.setLoggedIn(true);
     Navigator.of(context).pushReplacementNamed('/app');
