@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
+import 'package:fl_chart/fl_chart.dart';
 
 class TrendsView extends StatefulWidget {
   const TrendsView({super.key});
@@ -8,7 +9,7 @@ class TrendsView extends StatefulWidget {
   State<TrendsView> createState() => _TrendsViewState();
 }
 
-class _TrendsViewState extends State<TrendsView> {
+class _TrendsViewState extends State<TrendsView> with SingleTickerProviderStateMixin {
   String _range = '24h';
   String _selectedParam = 'pH Level';
 
@@ -22,10 +23,17 @@ class _TrendsViewState extends State<TrendsView> {
 
   late final IoTDataService iotService;
   StreamSubscription<IoTReading>? _sub;
+  late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _animationController.forward();
+    
     iotService = PlaceholderIoTService();
     _sub = iotService.readings().listen((r) {
       setState(() {
@@ -39,6 +47,7 @@ class _TrendsViewState extends State<TrendsView> {
   @override
   void dispose() {
     _sub?.cancel();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -102,21 +111,56 @@ class _TrendsViewState extends State<TrendsView> {
           const SizedBox(height: 12),
           Container(
             margin: const EdgeInsets.only(top: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
             child: Column(children: [
-              SizedBox(height: 220, child: CustomPaint(painter: LineChartPainter(points: points, lineColor: color), child: Container(padding: const EdgeInsets.all(8)))),
-              const SizedBox(height: 12),
+              SizedBox(
+                height: 220,
+                child: points.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.show_chart, size: 48, color: Colors.grey.shade300),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Waiting for data...',
+                              style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      )
+                    : AnimatedBuilder(
+                        animation: _animationController,
+                        builder: (context, child) {
+                          return LineChart(
+                            _buildChartData(points, color),
+                            duration: const Duration(milliseconds: 300),
+                          );
+                        },
+                      ),
+              ),
+              const SizedBox(height: 16),
               Row(children: [
-                _summaryBox('Current', points.isNotEmpty ? _format(points.last) : '-', background: Colors.blue.shade50),
+                _summaryBox('Current', points.isNotEmpty ? _format(points.last) : '-', background: Colors.blue.shade50, icon: Icons.show_chart),
                 const SizedBox(width: 8),
-                _summaryBox('Average', points.isNotEmpty ? _format(_avg(points)) : '-', background: Colors.grey.shade50),
+                _summaryBox('Average', points.isNotEmpty ? _format(_avg(points)) : '-', background: Colors.grey.shade50, icon: Icons.analytics_outlined),
               ]),
               const SizedBox(height: 8),
               Row(children: [
-                _summaryBox('Minimum', points.isNotEmpty ? _format(_min(points)) : '-', background: Colors.cyan.shade50),
+                _summaryBox('Minimum', points.isNotEmpty ? _format(_min(points)) : '-', background: Colors.cyan.shade50, icon: Icons.arrow_downward),
                 const SizedBox(width: 8),
-                _summaryBox('Maximum', points.isNotEmpty ? _format(_max(points)) : '-', background: Colors.orange.shade50),
+                _summaryBox('Maximum', points.isNotEmpty ? _format(_max(points)) : '-', background: Colors.orange.shade50, icon: Icons.arrow_upward),
               ]),
             ]),
           ),
@@ -125,13 +169,189 @@ class _TrendsViewState extends State<TrendsView> {
     );
   }
 
-  Widget _summaryBox(String label, String value, {required Color background}) {
+  LineChartData _buildChartData(List<double> points, Color lineColor) {
+    final spots = <FlSpot>[];
+    for (int i = 0; i < points.length; i++) {
+      spots.add(FlSpot(i.toDouble(), points[i]));
+    }
+
+    final minY = points.isEmpty ? 0.0 : _min(points);
+    final maxY = points.isEmpty ? 10.0 : _max(points);
+    final range = maxY - minY;
+    final padding = range * 0.1;
+
+    return LineChartData(
+      gridData: FlGridData(
+        show: true,
+        drawVerticalLine: false,
+        horizontalInterval: (maxY - minY) / 4,
+        getDrawingHorizontalLine: (value) {
+          return FlLine(
+            color: Colors.grey.shade200,
+            strokeWidth: 1,
+          );
+        },
+      ),
+      titlesData: FlTitlesData(
+        show: true,
+        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        bottomTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            reservedSize: 28,
+            interval: points.length > 10 ? (points.length / 5).floorToDouble() : 1,
+            getTitlesWidget: (value, meta) {
+              if (value.toInt() >= points.length || value < 0) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  '${value.toInt() + 1}',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 10,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            reservedSize: 40,
+            interval: (maxY - minY) / 4,
+            getTitlesWidget: (value, meta) {
+              return Text(
+                _format(value),
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 10,
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+      borderData: FlBorderData(
+        show: true,
+        border: Border.all(color: Colors.grey.shade200, width: 1),
+      ),
+      minX: 0,
+      maxX: points.length > 1 ? (points.length - 1).toDouble() : 10,
+      minY: minY - padding,
+      maxY: maxY + padding,
+      lineTouchData: LineTouchData(
+        enabled: true,
+        touchTooltipData: LineTouchTooltipData(
+          getTooltipColor: (touchedSpot) => lineColor.withOpacity(0.9),
+          tooltipRoundedRadius: 8,
+          tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          getTooltipItems: (List<LineBarSpot> touchedSpots) {
+            return touchedSpots.map((spot) {
+              return LineTooltipItem(
+                '${_format(spot.y)}\n',
+                const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+                children: [
+                  TextSpan(
+                    text: 'Reading ${spot.x.toInt() + 1}',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ],
+              );
+            }).toList();
+          },
+        ),
+        handleBuiltInTouches: true,
+        getTouchedSpotIndicator: (LineChartBarData barData, List<int> spotIndexes) {
+          return spotIndexes.map((index) {
+            return TouchedSpotIndicatorData(
+              FlLine(
+                color: lineColor.withOpacity(0.5),
+                strokeWidth: 2,
+                dashArray: [5, 5],
+              ),
+              FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) {
+                  return FlDotCirclePainter(
+                    radius: 6,
+                    color: Colors.white,
+                    strokeWidth: 3,
+                    strokeColor: lineColor,
+                  );
+                },
+              ),
+            );
+          }).toList();
+        },
+      ),
+      lineBarsData: [
+        LineChartBarData(
+          spots: spots,
+          isCurved: true,
+          curveSmoothness: 0.35,
+          color: lineColor,
+          barWidth: 3,
+          isStrokeCapRound: true,
+          dotData: FlDotData(
+            show: true,
+            getDotPainter: (spot, percent, barData, index) {
+              return FlDotCirclePainter(
+                radius: 4,
+                color: lineColor,
+                strokeWidth: 0,
+              );
+            },
+          ),
+          belowBarData: BarAreaData(
+            show: true,
+            gradient: LinearGradient(
+              colors: [
+                lineColor.withOpacity(0.15),
+                lineColor.withOpacity(0.05),
+                lineColor.withOpacity(0.0),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _summaryBox(String label, String value, {required Color background, required IconData icon}) {
     return Expanded(
-      child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(10)), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-        const SizedBox(height: 8),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-      ])),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 14, color: Colors.black54),
+                const SizedBox(width: 4),
+                Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+      ),
     );
   }
 
@@ -160,61 +380,6 @@ class _TrendsViewState extends State<TrendsView> {
   double _avg(List<double> list) => list.isEmpty ? 0 : list.reduce((a, b) => a + b) / list.length;
   double _min(List<double> list) => list.isEmpty ? 0 : list.reduce((a, b) => a < b ? a : b);
   double _max(List<double> list) => list.isEmpty ? 0 : list.reduce((a, b) => a > b ? a : b);
-}
-
-class LineChartPainter extends CustomPainter {
-  final List<double> points;
-  final Color lineColor;
-  LineChartPainter({required this.points, required this.lineColor});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paintGrid = Paint()..color = Colors.grey.shade200..strokeWidth = 1;
-    final paintLine = Paint()..color = lineColor..strokeWidth = 3..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
-    final paintFill = Paint()..color = lineColor.withOpacity(0.06);
-    final paintDot = Paint()..color = lineColor;
-
-    final int gridLines = 4;
-    for (int i = 0; i <= gridLines; i++) {
-      final y = size.height * i / gridLines;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paintGrid);
-    }
-
-    if (points.isEmpty) return;
-
-    final minV = points.reduce((a, b) => a < b ? a : b);
-    final maxV = points.reduce((a, b) => a > b ? a : b);
-    final range = (maxV - minV) == 0 ? 1 : (maxV - minV);
-
-    final stepX = points.length > 1 ? size.width / (points.length - 1) : 0.0;
-    final path = Path();
-    for (int i = 0; i < points.length; i++) {
-      final dx = i * stepX;
-      final normalized = (points[i] - minV) / range;
-      final dy = size.height - (normalized * size.height);
-      if (i == 0) {
-        path.moveTo(dx, dy);
-      } else {
-        path.lineTo(dx, dy);
-      }
-    }
-
-    final fillPath = Path.from(path)..lineTo(size.width, size.height)..lineTo(0, size.height)..close();
-    canvas.drawPath(fillPath, paintFill);
-    canvas.drawPath(path, paintLine);
-
-    for (int i = 0; i < points.length; i++) {
-      final dx = i * stepX;
-      final normalized = (points[i] - minV) / range;
-      final dy = size.height - (normalized * size.height);
-      canvas.drawCircle(Offset(dx, dy), 3.5, paintDot);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant LineChartPainter oldDelegate) {
-    return oldDelegate.points != points || oldDelegate.lineColor != lineColor;
-  }
 }
 
 

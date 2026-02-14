@@ -9,22 +9,42 @@ import 'pages/admin_user.dart';
 import 'pages/login.dart';
 import 'pages/signup.dart';
 import 'pages/splash.dart';
+import 'pages/settings.dart';
 import 'admin/admin.dart';
 import 'admin/admin_login.dart';
 import 'services/auth_service.dart';
+import 'services/theme_service.dart';
 
 void main() {
   runApp(const AqualityApp());
 }
 
-class AqualityApp extends StatelessWidget {
+class AqualityApp extends StatefulWidget {
   const AqualityApp({super.key});
+
+  @override
+  State<AqualityApp> createState() => _AqualityAppState();
+}
+
+class _AqualityAppState extends State<AqualityApp> {
+  final themeService = ThemeService();
+
+  @override
+  void initState() {
+    super.initState();
+    themeService.addListener(() {
+      setState(() {});
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Aquality',
+      theme: themeService.lightTheme,
+      darkTheme: themeService.darkTheme,
+      themeMode: themeService.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: const SplashView(),
       routes: {
         '/admin': (context) => const AdminView(),
@@ -33,6 +53,7 @@ class AqualityApp extends StatelessWidget {
         '/login': (context) => const LoginView(),
         '/signup': (context) => const SignupView(),
         '/user': (context) => const UserView(),
+        '/settings': (context) => const SettingsView(),
         '/app': (context) => const AppScreen(),
       },
     );
@@ -64,13 +85,16 @@ class _AppScreenState extends State<AppScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFE6F0FF), Color(0xFFE6FFFB)],
+            colors: isDark
+                ? [Color(0xFF1A1A2E), Color(0xFF16213E)]
+                : [Color(0xFFE6F0FF), Color(0xFFE6FFFB)],
           ),
         ),
         child: Center(
@@ -81,7 +105,7 @@ class _AppScreenState extends State<AppScreen> {
                 
                 SafeArea(
                   child: Container(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -104,31 +128,42 @@ class _AppScreenState extends State<AppScreen> {
                             const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
+                              children: [
                                 Text('Aquality', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                 SizedBox(height: 2),
-                                Text('Tilapia Pond Monitor', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                                Text('Tilapia Pond Monitor', style: TextStyle(fontSize: 12, color: Colors.grey)),
                               ],
                             ),
                           ],
                         ),
 
                        
-                        IconButton(
-                          icon: const Icon(Icons.person, color: Color(0xFF2563EB)),
-                          onPressed: () {
-                            if (AuthService.isLoggedIn.value) {
-                              // If admin, open admin user page; otherwise open regular user page
-                              if (AuthService.isAdmin.value) {
-                                Navigator.of(context).pushNamed('/admin-user');
-                              } else {
-                                Navigator.of(context).pushNamed('/user');
-                              }
-                            } else {
-                              Navigator.of(context).pushNamed('/login');
-                            }
-                          },
-                          tooltip: 'Profile',
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.settings_outlined, color: Color(0xFF2563EB)),
+                              onPressed: () {
+                                Navigator.of(context).pushNamed('/settings');
+                              },
+                              tooltip: 'Settings',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.person, color: Color(0xFF2563EB)),
+                              onPressed: () {
+                                if (AuthService.isLoggedIn.value) {
+                                  // If admin, open admin user page; otherwise open regular user page
+                                  if (AuthService.isAdmin.value) {
+                                    Navigator.of(context).pushNamed('/admin-user');
+                                  } else {
+                                    Navigator.of(context).pushNamed('/user');
+                                  }
+                                } else {
+                                  Navigator.of(context).pushNamed('/login');
+                                }
+                              },
+                              tooltip: 'Profile',
+                            ),
+                          ],
                         ),
                       ],
                     ),

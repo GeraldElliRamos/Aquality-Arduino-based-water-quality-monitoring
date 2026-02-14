@@ -31,6 +31,7 @@ class _HistoryViewState extends State<HistoryView> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -48,11 +49,11 @@ class _HistoryViewState extends State<HistoryView> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                       decoration: BoxDecoration(
-                        color: selected ? const Color(0xFF2563EB) : Colors.white,
+                        color: selected ? const Color(0xFF2563EB) : (isDark ? Colors.grey.shade800 : Colors.white),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: selected ? Colors.transparent : Colors.grey.shade300),
+                        border: Border.all(color: selected ? Colors.transparent : (isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
                       ),
-                      child: Text(r, style: TextStyle(color: selected ? Colors.white : Colors.black87)),
+                      child: Text(r, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.grey.shade300 : Colors.black87))),
                     ),
                   ),
                 );
@@ -83,9 +84,9 @@ class _HistoryViewState extends State<HistoryView> {
               final r = _records[i];
               return Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDark ? Colors.grey.shade800 : Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
                 child: Row(
@@ -123,12 +124,13 @@ class _HistoryViewState extends State<HistoryView> {
   }
 
   Widget _metricColumn(String value, String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(value, style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.black54)),
+        Text(label, style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.black54)),
       ],
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/empty_state.dart';
 
 class AlertsView extends StatefulWidget {
   const AlertsView({super.key});
@@ -8,6 +9,24 @@ class AlertsView extends StatefulWidget {
 
 class _AlertsViewState extends State<AlertsView> {
   String _filter = 'All';
+  final _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl.addListener(() {
+      setState(() {
+        _searchQuery = _searchCtrl.text.toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   final List<Map<String, dynamic>> alerts = [
     {'level': 'critical', 'title': 'Dissolved oxygen critically low', 'subtitle': 'Dissolved Oxygen: 3.919 mg/L', 'time': '09:32 PM'},
@@ -19,19 +38,35 @@ class _AlertsViewState extends State<AlertsView> {
   ];
 
   List<Map<String, dynamic>> get _filteredAlerts {
-    if (_filter == 'All') return alerts;
-    return alerts.where((a) {
-      if (_filter == 'Critical') return a['level'] == 'critical';
-      if (_filter == 'Warning') return a['level'] == 'warning';
-      if (_filter == 'Info') return a['level'] == 'info';
-      return true;
-    }).toList();
+    var filtered = alerts;
+    
+    // Filter by level
+    if (_filter != 'All') {
+      filtered = filtered.where((a) {
+        if (_filter == 'Critical') return a['level'] == 'critical';
+        if (_filter == 'Warning') return a['level'] == 'warning';
+        if (_filter == 'Info') return a['level'] == 'info';
+        return true;
+      }).toList();
+    }
+    
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((a) {
+        final title = (a['title'] as String).toLowerCase();
+        final subtitle = (a['subtitle'] as String).toLowerCase();
+        return title.contains(_searchQuery) || subtitle.contains(_searchQuery);
+      }).toList();
+    }
+    
+    return filtered;
   }
 
   int countBy(String level) => alerts.where((a) => a['level'] == level.toLowerCase()).length;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final critical = countBy('critical');
     final warning = countBy('warning');
     final info = countBy('info');
@@ -40,12 +75,32 @@ class _AlertsViewState extends State<AlertsView> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(children: [
-          _summaryCard(critical, 'Critical', Colors.red.shade50, Colors.red),
+          _summaryCard(critical, 'Critical', isDark ? Colors.red.shade900.withOpacity(0.3) : Colors.red.shade50, Colors.red, isDark),
           const SizedBox(width: 8),
-          _summaryCard(warning, 'Warning', Colors.yellow.shade50, Colors.orange),
+          _summaryCard(warning, 'Warning', isDark ? Colors.orange.shade900.withOpacity(0.3) : Colors.yellow.shade50, Colors.orange, isDark),
           const SizedBox(width: 8),
-          _summaryCard(info, 'Info', Colors.blue.shade50, Colors.blue),
+          _summaryCard(info, 'Info', isDark ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade50, Colors.blue, isDark),
         ]),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _searchCtrl,
+          decoration: InputDecoration(
+            hintText: 'Search alerts...',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () => _searchCtrl.clear(),
+                  )
+                : null,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            filled: true,
+            fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          ),
+        ),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -59,11 +114,11 @@ class _AlertsViewState extends State<AlertsView> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                     decoration: BoxDecoration(
-                      color: selected ? Colors.black : Colors.white,
+                      color: selected ? (isDark ? Colors.white : Colors.black) : (isDark ? Colors.grey.shade800 : Colors.white),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: selected ? Colors.transparent : Colors.grey.shade300),
+                      border: Border.all(color: selected ? Colors.transparent : (isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
                     ),
-                    child: Text(t, style: TextStyle(color: selected ? Colors.white : Colors.black54)),
+                    child: Text(t, style: TextStyle(color: selected ? (isDark ? Colors.black : Colors.white) : (isDark ? Colors.grey.shade400 : Colors.black54))),
                   ),
                 ),
               );
@@ -72,31 +127,39 @@ class _AlertsViewState extends State<AlertsView> {
         ),
         const SizedBox(height: 8),
         Expanded(
-          child: ListView.separated(
-            itemCount: _filteredAlerts.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            padding: const EdgeInsets.only(top: 8),
-            itemBuilder: (context, i) {
-              final a = _filteredAlerts[i];
-              return AlertCard(level: a['level'] as String, title: a['title'] as String, subtitle: a['subtitle'] as String, time: a['time'] as String);
-            },
-          ),
+          child: _filteredAlerts.isEmpty
+              ? EmptyState(
+                  icon: _searchQuery.isNotEmpty ? Icons.search_off : Icons.notifications_off,
+                  title: _searchQuery.isNotEmpty ? 'No Results' : 'No Alerts',
+                  message: _searchQuery.isNotEmpty
+                      ? 'Try different search terms'
+                      : 'No alerts for this filter',
+                )
+              : ListView.separated(
+                  itemCount: _filteredAlerts.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  padding: const EdgeInsets.only(top: 8),
+                  itemBuilder: (context, i) {
+                    final a = _filteredAlerts[i];
+                    return AlertCard(level: a['level'] as String, title: a['title'] as String, subtitle: a['subtitle'] as String, time: a['time'] as String, isDark: isDark);
+                  },
+                ),
         ),
       ],
     );
   }
 
-  Widget _summaryCard(int count, String label, Color bg, Color accent) {
+  Widget _summaryCard(int count, String label, Color bg, Color accent, bool isDark) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black12)),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.black12)),
         child: Column(children: [
           CircleAvatar(backgroundColor: accent, radius: 16, child: Icon(Icons.close, color: Colors.white, size: 18)),
           const SizedBox(height: 8),
           Text('$count', style: TextStyle(color: accent, fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          Text(label, style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.black54)),
         ]),
       ),
     );
@@ -108,7 +171,8 @@ class AlertCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final String time;
-  const AlertCard({super.key, required this.level, required this.title, required this.subtitle, required this.time});
+  final bool isDark;
+  const AlertCard({super.key, required this.level, required this.title, required this.subtitle, required this.time, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -117,18 +181,18 @@ class AlertCard extends StatelessWidget {
     Icon icon;
     switch (level) {
       case 'critical':
-        borderColor = Colors.red.shade200;
-        bg = Colors.red.shade50;
+        borderColor = isDark ? Colors.red.shade900 : Colors.red.shade200;
+        bg = isDark ? Colors.red.shade900.withOpacity(0.3) : Colors.red.shade50;
         icon = Icon(Icons.cancel, color: Colors.red.shade700);
         break;
       case 'warning':
-        borderColor = Colors.orange.shade200;
-        bg = Colors.yellow.shade50;
+        borderColor = isDark ? Colors.orange.shade900 : Colors.orange.shade200;
+        bg = isDark ? Colors.orange.shade900.withOpacity(0.3) : Colors.yellow.shade50;
         icon = Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800);
         break;
       default:
-        borderColor = Colors.blue.shade200;
-        bg = Colors.blue.shade50;
+        borderColor = isDark ? Colors.blue.shade900 : Colors.blue.shade200;
+        bg = isDark ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade50;
         icon = Icon(Icons.info, color: Colors.blue.shade700);
     }
 
@@ -136,10 +200,10 @@ class AlertCard extends StatelessWidget {
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: borderColor)),
       padding: const EdgeInsets.all(12),
       child: Row(children: [
-        Container(width: 44, height: 44, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)), child: icon),
+        Container(width: 44, height: 44, decoration: BoxDecoration(color: isDark ? Colors.grey.shade800 : Colors.white, borderRadius: BorderRadius.circular(8)), child: icon),
         const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w600)), const SizedBox(height: 6), Text(subtitle, style: const TextStyle(color: Colors.black54, fontSize: 12))])),
-        Text(time, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w600)), const SizedBox(height: 6), Text(subtitle, style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.black54, fontSize: 12))])),
+        Text(time, style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.black54, fontSize: 12)),
       ]),
     );
   }
