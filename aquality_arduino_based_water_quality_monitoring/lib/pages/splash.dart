@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../services/auth_service.dart';
+import '../services/preferences_service.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -49,6 +50,12 @@ class _SplashViewState extends State<SplashView> with SingleTickerProviderStateM
   }
 
   void _finish() {
+    // Check if onboarding has been completed
+    if (!PreferencesService.instance.hasCompletedOnboarding) {
+      Navigator.of(context).pushReplacementNamed('/onboarding');
+      return;
+    }
+
     if (AuthService.isLoggedIn.value) {
       if (AuthService.isAdmin.value) {
         Navigator.of(context).pushReplacementNamed('/admin');

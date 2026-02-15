@@ -10,12 +10,17 @@ import 'pages/login.dart';
 import 'pages/signup.dart';
 import 'pages/splash.dart';
 import 'pages/settings.dart';
+import 'pages/onboarding.dart';
+import 'pages/faq.dart';
 import 'admin/admin.dart';
 import 'admin/admin_login.dart';
 import 'services/auth_service.dart';
 import 'services/theme_service.dart';
+import 'services/preferences_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await PreferencesService.instance.init();
   runApp(const AqualityApp());
 }
 
@@ -47,6 +52,7 @@ class _AqualityAppState extends State<AqualityApp> {
       themeMode: themeService.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: const SplashView(),
       routes: {
+        '/onboarding': (context) => const OnboardingView(),
         '/admin': (context) => const AdminView(),
         '/admin-user': (context) => const AdminUserView(),
         '/admin-login': (context) => const AdminLoginView(),
@@ -54,6 +60,7 @@ class _AqualityAppState extends State<AqualityApp> {
         '/signup': (context) => const SignupView(),
         '/user': (context) => const UserView(),
         '/settings': (context) => const SettingsView(),
+        '/faq': (context) => const FAQView(),
         '/app': (context) => const AppScreen(),
       },
     );

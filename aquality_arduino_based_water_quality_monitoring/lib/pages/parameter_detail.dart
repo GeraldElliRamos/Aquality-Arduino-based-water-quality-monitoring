@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:math';
+import '../widgets/info_tooltip.dart';
 
 class ParameterDetailView extends StatelessWidget {
   final String title;
@@ -103,12 +104,24 @@ class ParameterDetailView extends StatelessWidget {
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(
-                      'Normal Range: $range',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Normal Range: $range',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        InfoTooltip(
+                          message: _getRangeExplanation(title),
+                          icon: Icons.help_outline,
+                          iconColor: Colors.white70,
+                          iconSize: 16,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -418,5 +431,22 @@ class ParameterDetailView extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _getRangeExplanation(String parameterTitle) {
+    switch (parameterTitle.toLowerCase()) {
+      case 'temperature':
+        return 'Optimal water temperature for tilapia is 26-30°C. Temperatures outside this range can stress fish and affect their growth rate.';
+      case 'ph level':
+        return 'pH measures acidity/alkalinity. Tilapia thrive in slightly alkaline water (7-9). Values outside this range can harm fish health.';
+      case 'dissolved oxygen':
+        return 'Dissolved oxygen (DO) is essential for fish respiration. Tilapia need at least 5 mg/L, with 5-8 mg/L being optimal.';
+      case 'chlorine':
+        return 'Chlorine is toxic to fish even at low levels. Keep chlorine below 0.003 mg/L to ensure fish safety.';
+      case 'ammonia':
+        return 'Ammonia is toxic waste from fish metabolism. Keep NH₃ below 0.02 mg/L to prevent fish stress and disease.';
+      default:
+        return 'This parameter should be kept within the normal range for optimal fish health and water quality.';
+    }
   }
 }

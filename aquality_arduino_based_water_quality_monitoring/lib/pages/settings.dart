@@ -78,30 +78,31 @@ class _SettingsViewState extends State<SettingsView> {
             context,
             title: 'Data',
             children: [
-              _buildTile(
-                context,
-                icon: Icons.download,
-                title: 'Export Data',
-                subtitle: 'Download readings as CSV',
-                onTap: () async {
-                  try {
-                    InfoSnackBar.show(context, 'Exporting data...');
-                    
-                    final path = await ExportService.exportToCSV();
-                    
-                    if (context.mounted) {
-                      SuccessSnackBar.show(
-                        context,
-                        'Data exported to ${path.split('/').last}',
-                      );
+              if (isAdmin)
+                _buildTile(
+                  context,
+                  icon: Icons.download,
+                  title: 'Export Data',
+                  subtitle: 'Download readings as CSV',
+                  onTap: () async {
+                    try {
+                      InfoSnackBar.show(context, 'Exporting data...');
+                      
+                      final path = await ExportService.exportToCSV();
+                      
+                      if (context.mounted) {
+                        SuccessSnackBar.show(
+                          context,
+                          'Data exported to ${path.split('/').last}',
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ErrorSnackBar.show(context, 'Export failed: $e');
+                      }
                     }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ErrorSnackBar.show(context, 'Export failed: $e');
-                    }
-                  }
-                },
-              ),
+                  },
+                ),
               _buildTile(
                 context,
                 icon: Icons.refresh,
@@ -152,12 +153,10 @@ class _SettingsViewState extends State<SettingsView> {
               _buildTile(
                 context,
                 icon: Icons.help,
-                title: 'Help & Support',
-                subtitle: 'Get help with the app',
+                title: 'Help & FAQ',
+                subtitle: 'Frequently asked questions',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Help documentation coming soon')),
-                  );
+                  Navigator.of(context).pushNamed('/faq');
                 },
               ),
             ],
