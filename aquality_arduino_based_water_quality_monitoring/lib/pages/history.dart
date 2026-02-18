@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'parameter_detail.dart';
 import '../services/auth_service.dart';
 import '../services/preferences_service.dart';
 import '../widgets/dialogs.dart';
@@ -142,6 +143,102 @@ class _HistoryViewState extends State<HistoryView> {
     SuccessSnackBar.show(context, 'Data exported (${csv.length} chars)');
   }
 
+  Map<String, Object> _fieldMeta(String field) {
+    switch (field) {
+      case 'temp':
+        return {'title': 'Temperature', 'unit': '°C', 'range': '27-30°C', 'icon': Icons.thermostat, 'color': Colors.orange};
+      case 'ph':
+        return {'title': 'pH Level', 'unit': '', 'range': '6.5-9.0', 'icon': Icons.water_drop, 'color': Colors.purple};
+      case 'cl':
+        return {'title': 'Chlorine', 'unit': 'mg/L', 'range': '<0.02 mg/L', 'icon': Icons.warning_amber_rounded, 'color': Colors.amber};
+      case 'do':
+        return {'title': 'Dissolved Oxygen', 'unit': 'mg/L', 'range': '>5 mg/L', 'icon': Icons.air, 'color': Colors.blue};
+      case 'nh3':
+        return {'title': 'Ammonia', 'unit': 'mg/L', 'range': '<0.3 mg/L', 'icon': Icons.waves, 'color': Colors.green};
+      default:
+        return {'title': field, 'unit': '', 'range': '-', 'icon': Icons.show_chart, 'color': Colors.blue};
+    }
+  }
+
+  void _showRecordDetail(BuildContext context, Map<String, dynamic> r, int index) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text('Record ${r['date']}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(DateFormat.yMMMd().format(DateTime.now()), style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade400 : Colors.grey.shade600)),
+            ]),
+            const SizedBox(height: 12),
+            Wrap(spacing: 12, runSpacing: 8, children: [
+              _detailChip(ctx, 'temp', r['temp']),
+              _detailChip(ctx, 'ph', r['ph']),
+              _detailChip(ctx, 'cl', r['cl']),
+              _detailChip(ctx, 'do', r['do']),
+              _detailChip(ctx, 'nh3', r['nh3']),
+            ]),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // Delete record
+                    final removed = Map<String, dynamic>.from(r);
+                    setState(() => _records.removeAt(index));
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: const Text('Record deleted'),
+                      action: SnackBarAction(label: 'Undo', onPressed: () {
+                        setState(() => _records.insert(index, removed));
+                      }),
+                    ));
+                  },
+                  icon: const Icon(Icons.delete_forever),
+                  label: const Text('Delete'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    final csv = 'date,metric,value\n${r['date']},temp,${r['temp']}';
+                    SuccessSnackBar.show(context, 'Prepared CSV snippet (${csv.length} chars)');
+                    Navigator.of(ctx).pop();
+                  },
+                  icon: const Icon(Icons.share),
+                  label: const Text('Share'),
+                ),
+              ),
+            ])
+          ]),
+        );
+      },
+    );
+  }
+
+  Widget _detailChip(BuildContext ctx, String key, dynamic value) {
+    final meta = _fieldMeta(key);
+    return ActionChip(
+      avatar: Icon(meta['icon'] as IconData, size: 18, color: meta['color'] as Color),
+      label: Text('${meta['title']}: ${value.toString()} ${meta['unit'] as String}'),
+      onPressed: () {
+        Navigator.of(ctx).pop();
+        Navigator.of(context).push(MaterialPageRoute(builder: (c) => ParameterDetailView(
+          title: meta['title'] as String,
+          value: value.toString(),
+          unit: meta['unit'] as String,
+          range: meta['range'] as String,
+          icon: meta['icon'] as IconData,
+          color: meta['color'] as Color,
+        )));
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -236,37 +333,67 @@ class _HistoryViewState extends State<HistoryView> {
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, i) {
               final r = _records[i];
-              return Container(
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey.shade800 : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
+              final key = '${r['date']}_$i';
+              return Dismissible(
+                key: ValueKey(key),
+                direction: DismissDirection.endToStart,
+                background: Container(),
+                secondaryBackground: Container(
+                  padding: const EdgeInsets.only(right: 16),
+                  alignment: Alignment.centerRight,
+                  decoration: BoxDecoration(color: Colors.red.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.end, children: const [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('Delete')]),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 72,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(r['date'], style: const TextStyle(fontWeight: FontWeight.w600)),
-                        ],
+                onDismissed: (direction) {
+                  final removed = Map<String, dynamic>.from(r);
+                  setState(() => _records.removeAt(i));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: const Text('Record deleted'),
+                    action: SnackBarAction(label: 'Undo', onPressed: () {
+                      setState(() => _records.insert(i, removed));
+                    }),
+                  ));
+                },
+                child: Semantics(
+                  button: true,
+                  label: 'Record ${r['date']}. Tap for details.',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _showRecordDetail(context, r, i),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.grey.shade800 : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
                       ),
-                    ),
-                    Expanded(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _metricColumn('${r['temp']}', '°C'),
-                          _metricColumn('${r['ph']}', 'pH'),
-                          _metricColumn('${r['cl']}', 'Cl'),
-                          _metricColumn('${r['do']}', 'DO'),
-                          _metricColumn('${r['nh3']}', 'NH₃'),
+                          SizedBox(
+                            width: 72,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(r['date'], style: const TextStyle(fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                GestureDetector(onTap: () => _openParamFromRecord('temp', r['temp'].toString()), child: _metricColumn('${r['temp']}', '°C')),
+                                GestureDetector(onTap: () => _openParamFromRecord('ph', r['ph'].toString()), child: _metricColumn('${r['ph']}', 'pH')),
+                                GestureDetector(onTap: () => _openParamFromRecord('cl', r['cl'].toString()), child: _metricColumn('${r['cl']}', 'Cl')),
+                                GestureDetector(onTap: () => _openParamFromRecord('do', r['do'].toString()), child: _metricColumn('${r['do']}', 'DO')),
+                                GestureDetector(onTap: () => _openParamFromRecord('nh3', r['nh3'].toString()), child: _metricColumn('${r['nh3']}', 'NH₃')),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               );
             },
@@ -287,6 +414,18 @@ class _HistoryViewState extends State<HistoryView> {
         Text(label, style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.black54)),
       ],
     );
+  }
+
+  void _openParamFromRecord(String key, String value) {
+    final meta = _fieldMeta(key);
+    Navigator.of(context).push(MaterialPageRoute(builder: (c) => ParameterDetailView(
+      title: meta['title'] as String,
+      value: value,
+      unit: meta['unit'] as String,
+      range: meta['range'] as String,
+      icon: meta['icon'] as IconData,
+      color: meta['color'] as Color,
+    )));
   }
 
   Widget _quickFilterChip(String label, String value, bool isDark) {

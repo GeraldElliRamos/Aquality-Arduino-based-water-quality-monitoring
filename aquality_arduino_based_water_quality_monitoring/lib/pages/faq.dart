@@ -269,7 +269,7 @@ class _FAQViewState extends State<FAQView> {
             ],
           ),
         ),
-        ...category.questions.map((faq) => _buildFAQTile(faq, isDark)).toList(),
+        ...category.questions.map((faq) => _buildFAQTile(faq, isDark)),
       ],
     );
   }

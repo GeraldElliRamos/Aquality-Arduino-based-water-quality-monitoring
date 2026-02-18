@@ -64,6 +64,57 @@ class _AlertsViewState extends State<AlertsView> {
 
   int countBy(String level) => alerts.where((a) => a['level'] == level.toLowerCase()).length;
 
+  void _showAlertDetail(BuildContext context, Map<String, dynamic> a) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Expanded(child: Text(a['title'] as String, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                Text(a['time'] as String, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade400 : Colors.grey.shade600)),
+              ]),
+              const SizedBox(height: 8),
+              Text(a['subtitle'] as String, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade300 : Colors.grey.shade700)),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // Acknowledge: remove alert
+                      setState(() {
+                        alerts.removeAt(alerts.indexWhere((it) => it['title'] == a['title'] && it['time'] == a['time']));
+                      });
+                      Navigator.of(ctx).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alert acknowledged')));
+                    },
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: const Text('Acknowledge'),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                    },
+                    child: const Text('Close'),
+                  ),
+                ),
+              ])
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -135,15 +186,60 @@ class _AlertsViewState extends State<AlertsView> {
                       ? 'Try different search terms'
                       : 'No alerts for this filter',
                 )
-              : ListView.separated(
-                  itemCount: _filteredAlerts.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  padding: const EdgeInsets.only(top: 8),
-                  itemBuilder: (context, i) {
-                    final a = _filteredAlerts[i];
-                    return AlertCard(level: a['level'] as String, title: a['title'] as String, subtitle: a['subtitle'] as String, time: a['time'] as String, isDark: isDark);
-                  },
-                ),
+                : ListView.separated(
+                    itemCount: _filteredAlerts.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    padding: const EdgeInsets.only(top: 8),
+                    itemBuilder: (context, i) {
+                      final a = _filteredAlerts[i];
+                      final key = '${a['title']}_${a['time']}_$i';
+                      return Dismissible(
+                        key: ValueKey(key),
+                        background: Container(
+                          padding: const EdgeInsets.only(left: 16),
+                          alignment: Alignment.centerLeft,
+                          decoration: BoxDecoration(color: Colors.green.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                          child: Row(children: const [Icon(Icons.check, color: Colors.green), SizedBox(width: 8), Text('Acknowledge')]),
+                        ),
+                        secondaryBackground: Container(
+                          padding: const EdgeInsets.only(right: 16),
+                          alignment: Alignment.centerRight,
+                          decoration: BoxDecoration(color: Colors.red.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.end, children: const [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('Dismiss')]),
+                        ),
+                        confirmDismiss: (direction) async {
+                          if (direction == DismissDirection.startToEnd) {
+                            // Acknowledge
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Acknowledge Alert'),
+                                content: Text('Mark "${a['title']}" as acknowledged?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+                                  ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Acknowledge')),
+                                ],
+                              ),
+                            );
+                            return confirmed == true;
+                          }
+                          // Dismiss on end-to-start without confirm
+                          return true;
+                        },
+                        onDismissed: (direction) {
+                          setState(() {
+                            alerts.removeAt(alerts.indexWhere((it) => it['title'] == a['title'] && it['time'] == a['time']));
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(direction == DismissDirection.startToEnd ? 'Alert acknowledged' : 'Alert dismissed')));
+                        },
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => _showAlertDetail(context, a),
+                          child: AlertCard(level: a['level'] as String, title: a['title'] as String, subtitle: a['subtitle'] as String, time: a['time'] as String, isDark: isDark),
+                        ),
+                      );
+                    },
+                  ),
         ),
       ],
     );
@@ -196,15 +292,19 @@ class AlertCard extends StatelessWidget {
         icon = Icon(Icons.info, color: Colors.blue.shade700);
     }
 
-    return Container(
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: borderColor)),
-      padding: const EdgeInsets.all(12),
-      child: Row(children: [
-        Container(width: 44, height: 44, decoration: BoxDecoration(color: isDark ? Colors.grey.shade800 : Colors.white, borderRadius: BorderRadius.circular(8)), child: icon),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w600)), const SizedBox(height: 6), Text(subtitle, style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.black54, fontSize: 12))])),
-        Text(time, style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.black54, fontSize: 12)),
-      ]),
+    return Semantics(
+      button: true,
+      label: '$title. $subtitle. Time: $time. Level: $level',
+      child: Container(
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: borderColor)),
+        padding: const EdgeInsets.all(12),
+        child: Row(children: [
+          Container(width: 44, height: 44, decoration: BoxDecoration(color: isDark ? Colors.grey.shade800 : Colors.white, borderRadius: BorderRadius.circular(8)), child: icon),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w600)), const SizedBox(height: 6), Text(subtitle, style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.black54, fontSize: 12))])),
+          Text(time, style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.black54, fontSize: 12)),
+        ]),
+      ),
     );
   }
 }

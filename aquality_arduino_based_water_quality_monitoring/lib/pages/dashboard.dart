@@ -101,11 +101,14 @@ class _DashboardState extends State<Dashboard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(_updatedAt, style: TextStyle(color: Colors.grey)),
-              ElevatedButton.icon(
-                onPressed: _onRefresh,
-                icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
-                label: const Text('Refresh', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(elevation: 0, backgroundColor: const Color.fromARGB(255, 20, 73, 231)),
+              Tooltip(
+                message: 'Refresh data',
+                child: ElevatedButton.icon(
+                  onPressed: _onRefresh,
+                  icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
+                  label: const Text('Refresh', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(elevation: 0, backgroundColor: const Color.fromARGB(255, 20, 73, 231)),
+                ),
               )
             ],
           ),
@@ -136,44 +139,50 @@ class _DashboardState extends State<Dashboard> {
             }).toList(),
           ),
           const SizedBox(height: 16),
-          Column(
-            children: params.map((p) {
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: params.length,
+            itemBuilder: (context, index) {
+              final p = params[index];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => ParameterDetailView(
+                child: RepaintBoundary(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => ParameterDetailView(
+                            title: p['title'] as String,
+                            value: p['value'] as String,
+                            unit: p['unit'] as String,
+                            range: p['range'] as String,
+                            icon: p['icon'] as IconData,
+                            color: p['color'] as Color,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Hero(
+                      tag: 'parameter_${p['title']}',
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: ParameterCard(
                           title: p['title'] as String,
+                          range: p['range'] as String,
                           value: p['value'] as String,
                           unit: p['unit'] as String,
-                          range: p['range'] as String,
                           icon: p['icon'] as IconData,
-                          color: p['color'] as Color,
+                          statusLabel: p['status'] as String,
+                          statusColor: p['statusColor'] as Color,
+                          background: p['bg'] as Color,
                         ),
-                      ),
-                    );
-                  },
-                  child: Hero(
-                    tag: 'parameter_${p['title']}',
-                    child: Material(
-                      type: MaterialType.transparency,
-                      child: ParameterCard(
-                        title: p['title'] as String,
-                        range: p['range'] as String,
-                        value: p['value'] as String,
-                        unit: p['unit'] as String,
-                        icon: p['icon'] as IconData,
-                        statusLabel: p['status'] as String,
-                        statusColor: p['statusColor'] as Color,
-                        background: p['bg'] as Color,
                       ),
                     ),
                   ),
                 ),
               );
-            }).toList(),
+            },
           ),
         ],
         ),

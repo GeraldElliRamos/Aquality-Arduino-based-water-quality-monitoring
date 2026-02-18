@@ -22,6 +22,16 @@ class _UserViewState extends State<UserView> {
     super.dispose();
   }
 
+  Future<void> _onRefresh() async {
+    // Simulate fetching profile updates
+    await Future.delayed(const Duration(seconds: 1));
+    // In a real app, fetch from backend or PreferencesService and update controllers
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile refreshed')));
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,10 +59,12 @@ class _UserViewState extends State<UserView> {
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        color: const Color(0xFF2563EB),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16.0),
           children: [
             Center(
               child: Stack(

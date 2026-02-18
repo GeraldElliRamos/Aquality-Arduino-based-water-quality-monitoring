@@ -233,7 +233,11 @@ class _SettingsViewState extends State<SettingsView> {
     Widget? trailing,
     VoidCallback? onTap,
   }) {
-    return ListTile(
+    return Semantics(
+      button: true,
+      label: '$title. $subtitle',
+      hint: 'Tap to open $title',
+      child: ListTile(
       leading: Container(
         width: 40,
         height: 40,
@@ -243,10 +247,11 @@ class _SettingsViewState extends State<SettingsView> {
         ),
         child: Icon(icon, color: const Color(0xFF2563EB), size: 22),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-      trailing: trailing ?? const Icon(Icons.chevron_right, color: Colors.grey),
-      onTap: onTap,
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+        trailing: trailing ?? const Icon(Icons.chevron_right, color: Colors.grey),
+        onTap: onTap,
+      ),
     );
   }
 
@@ -258,7 +263,12 @@ class _SettingsViewState extends State<SettingsView> {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    return ListTile(
+    return Semantics(
+      toggled: value,
+      button: true,
+      label: '$title. $subtitle',
+      hint: value ? 'Enabled' : 'Disabled',
+      child: ListTile(
       leading: Container(
         width: 40,
         height: 40,
@@ -268,12 +278,13 @@ class _SettingsViewState extends State<SettingsView> {
         ),
         child: Icon(icon, color: const Color(0xFF2563EB), size: 22),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-      trailing: Switch(
-        value: value,
-        onChanged: onChanged,
-        activeColor: const Color(0xFF2563EB),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+        trailing: Switch(
+          value: value,
+          onChanged: onChanged,
+          activeThumbColor: const Color(0xFF2563EB),
+        ),
       ),
     );
   }

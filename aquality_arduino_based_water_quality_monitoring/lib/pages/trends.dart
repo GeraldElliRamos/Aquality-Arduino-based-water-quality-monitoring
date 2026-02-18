@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:fl_chart/fl_chart.dart';
+import 'parameter_detail.dart';
+// ignore_for_file: unused_import
 
 class TrendsView extends StatefulWidget {
   const TrendsView({super.key});
@@ -25,6 +27,9 @@ class _TrendsViewState extends State<TrendsView> with SingleTickerProviderStateM
   StreamSubscription<IoTReading>? _sub;
   late AnimationController _animationController;
 
+  // Debounce: batch rapid stream events, redraw at most every 500 ms
+  Timer? _debounce;
+
   @override
   void initState() {
     super.initState();
@@ -33,19 +38,25 @@ class _TrendsViewState extends State<TrendsView> with SingleTickerProviderStateM
       duration: const Duration(milliseconds: 800),
     );
     _animationController.forward();
-    
+
     iotService = PlaceholderIoTService();
     _sub = iotService.readings().listen((r) {
-      setState(() {
-        final list = sampleData.putIfAbsent(r.param, () => []);
-        list.add(r.value);
-        if (list.length > 30) list.removeAt(0);
+      // Update data buffer immediately (no rebuild yet)
+      final list = sampleData.putIfAbsent(r.param, () => []);
+      list.add(r.value);
+      if (list.length > 30) list.removeAt(0);
+
+      // Coalesce redraws: only rebuild once per 500 ms
+      _debounce?.cancel();
+      _debounce = Timer(const Duration(milliseconds: 500), () {
+        if (mounted) setState(() {});
       });
     });
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _sub?.cancel();
     _animationController.dispose();
     super.dispose();
@@ -124,32 +135,58 @@ class _TrendsViewState extends State<TrendsView> with SingleTickerProviderStateM
               ],
             ),
             child: Column(children: [
-              SizedBox(
-                height: 220,
-                child: points.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.show_chart, size: 48, color: Colors.grey.shade300),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Waiting for data...',
-                              style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                            ),
-                          ],
-                        ),
-                      )
-                    : AnimatedBuilder(
-                        animation: _animationController,
-                        builder: (context, child) {
-                          return LineChart(
-                            _buildChartData(points, color),
-                            duration: const Duration(milliseconds: 300),
-                          );
-                        },
+                      SizedBox(
+                        height: 220,
+                        child: points.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.show_chart, size: 48, color: Colors.grey.shade300),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Waiting for data...',
+                                      style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : Semantics(
+                                button: true,
+                                label: 'Trends chart for $_selectedParam. Double tap to open details.',
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () {
+                                    final meta = _paramMeta(_selectedParam);
+                                    final latest = points.isNotEmpty ? points.last.toString() : '0';
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) => ParameterDetailView(
+                                          title: _selectedParam,
+                                          value: latest,
+                                          unit: meta['unit'] as String,
+                                          range: meta['range'] as String,
+                                          icon: meta['icon'] as IconData,
+                                          color: meta['color'] as Color,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  // RepaintBoundary isolates chart repaints from the rest of the tree
+                                  child: RepaintBoundary(
+                                    child: AnimatedBuilder(
+                                      animation: _animationController,
+                                      builder: (context, child) {
+                                        return LineChart(
+                                          _buildChartData(points, color),
+                                          duration: const Duration(milliseconds: 300),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
                       ),
-              ),
               const SizedBox(height: 16),
               Row(children: [
                 _summaryBox('Current', points.isNotEmpty ? _format(points.last) : '-', background: Colors.blue.shade50, icon: Icons.show_chart),
@@ -334,7 +371,7 @@ class _TrendsViewState extends State<TrendsView> with SingleTickerProviderStateM
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: background,
+          color: Theme.of(context).brightness == Brightness.dark ? background.withOpacity(0.08) : background,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
@@ -342,13 +379,13 @@ class _TrendsViewState extends State<TrendsView> with SingleTickerProviderStateM
           children: [
             Row(
               children: [
-                Icon(icon, size: 14, color: Colors.black54),
+                Icon(icon, size: 14, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54),
                 const SizedBox(width: 4),
-                Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54)),
               ],
             ),
             const SizedBox(height: 8),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)),
           ],
         ),
       ),
@@ -369,6 +406,23 @@ class _TrendsViewState extends State<TrendsView> with SingleTickerProviderStateM
         return Colors.green;
       default:
         return Colors.blue;
+    }
+  }
+
+  Map<String, Object> _paramMeta(String p) {
+    switch (p) {
+      case 'Temperature':
+        return {'unit': '°C', 'range': '27-30°C', 'icon': Icons.thermostat, 'color': Colors.orange};
+      case 'pH Level':
+        return {'unit': '', 'range': '6.5-9.0', 'icon': Icons.water_drop, 'color': Colors.purple};
+      case 'Chlorine':
+        return {'unit': 'mg/L', 'range': '<0.02 mg/L', 'icon': Icons.warning_amber_rounded, 'color': Colors.amber.shade700};
+      case 'Dissolved Oxygen':
+        return {'unit': 'mg/L', 'range': '>5 mg/L', 'icon': Icons.air, 'color': Colors.blue};
+      case 'Ammonia':
+        return {'unit': 'mg/L', 'range': '<0.3 mg/L', 'icon': Icons.waves, 'color': Colors.green};
+      default:
+        return {'unit': '', 'range': '-', 'icon': Icons.show_chart, 'color': Colors.blue};
     }
   }
 
