@@ -14,22 +14,23 @@ class PreferencesService {
   }
 
   // Onboarding
-  bool get hasCompletedOnboarding => _prefs?.getBool('onboarding_completed') ?? false;
-  
+  bool get hasCompletedOnboarding =>
+      _prefs?.getBool('onboarding_completed') ?? false;
+
   Future<bool> setOnboardingCompleted(bool value) async {
     return await _prefs?.setBool('onboarding_completed', value) ?? false;
   }
 
   // Theme
   bool? get isDarkMode => _prefs?.getBool('is_dark_mode');
-  
+
   Future<bool> setDarkMode(bool value) async {
     return await _prefs?.setBool('is_dark_mode', value) ?? false;
   }
 
   // History Time Range
   String get lastTimeRange => _prefs?.getString('last_time_range') ?? '24h';
-  
+
   Future<bool> setLastTimeRange(String value) async {
     return await _prefs?.setString('last_time_range', value) ?? false;
   }
@@ -37,18 +38,26 @@ class PreferencesService {
   // History Date Range
   DateTime? get historyStartDate {
     final timestamp = _prefs?.getInt('history_start_date');
-    return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+    return timestamp != null
+        ? DateTime.fromMillisecondsSinceEpoch(timestamp)
+        : null;
   }
 
   DateTime? get historyEndDate {
     final timestamp = _prefs?.getInt('history_end_date');
-    return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+    return timestamp != null
+        ? DateTime.fromMillisecondsSinceEpoch(timestamp)
+        : null;
   }
 
   Future<bool> setHistoryDateRange(DateTime? start, DateTime? end) async {
     if (start != null && end != null) {
       await _prefs?.setInt('history_start_date', start.millisecondsSinceEpoch);
-      return await _prefs?.setInt('history_end_date', end.millisecondsSinceEpoch) ?? false;
+      return await _prefs?.setInt(
+            'history_end_date',
+            end.millisecondsSinceEpoch,
+          ) ??
+          false;
     } else {
       await _prefs?.remove('history_start_date');
       await _prefs?.remove('history_end_date');
@@ -64,5 +73,15 @@ class PreferencesService {
   // Clear specific preference
   Future<bool> remove(String key) async {
     return await _prefs?.remove(key) ?? false;
+  }
+
+  static const String _userTypeKey = 'user_type';
+
+  Future<void> setUserType(String userType) async {
+    await _prefs?.setString(_userTypeKey, userType);
+  }
+
+  String? getUserType() {
+    return _prefs?.getString(_userTypeKey);
   }
 }

@@ -109,11 +109,13 @@ class _AppScreenState extends State<AppScreen> {
             constraints: const BoxConstraints(maxWidth: 428),
             child: Column(
               children: [
-                
                 SafeArea(
                   child: Container(
                     color: Theme.of(context).cardColor,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -124,43 +126,71 @@ class _AppScreenState extends State<AppScreen> {
                               height: 40,
                               decoration: const BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [Color(0xFF2563EB), Color(0xFF06B6D4)],
+                                  colors: [
+                                    Color(0xFF2563EB),
+                                    Color(0xFF06B6D4),
+                                  ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
-                                borderRadius: BorderRadius.all(Radius.circular(12)),
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
+                                ),
                               ),
-                              child: const Icon(Icons.dashboard, color: Colors.white, size: 20),
+                              child: const Icon(
+                                Icons.dashboard,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Aquality', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                Text(
+                                  'Aquality',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                                 SizedBox(height: 2),
-                                Text('Tilapia Pond Monitor', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                Text(
+                                  'Tilapia Pond Monitor',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                               ],
                             ),
                           ],
                         ),
 
-                       
                         Row(
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.settings_outlined, color: Color(0xFF2563EB)),
+                              icon: const Icon(
+                                Icons.settings_outlined,
+                                color: Color(0xFF2563EB),
+                              ),
                               onPressed: () {
                                 Navigator.of(context).pushNamed('/settings');
                               },
                               tooltip: 'Settings',
                             ),
                             IconButton(
-                              icon: const Icon(Icons.person, color: Color(0xFF2563EB)),
+                              icon: const Icon(
+                                Icons.person,
+                                color: Color(0xFF2563EB),
+                              ),
                               onPressed: () {
                                 if (AuthService.isLoggedIn.value) {
                                   // If admin, open admin user page; otherwise open regular user page
                                   if (AuthService.isAdmin.value) {
-                                    Navigator.of(context).pushNamed('/admin-user');
+                                    Navigator.of(
+                                      context,
+                                    ).pushNamed('/admin-user');
                                   } else {
                                     Navigator.of(context).pushNamed('/user');
                                   }
@@ -177,7 +207,6 @@ class _AppScreenState extends State<AppScreen> {
                   ),
                 ),
 
-              
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -196,13 +225,22 @@ class _AppScreenState extends State<AppScreen> {
         unselectedItemColor: Colors.grey[600],
         onTap: _onItemTapped,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Trends'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.show_chart),
+            label: 'Trends',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: 'Alerts',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
         ],
       ),
-  
+
       floatingActionButton: ValueListenableBuilder<bool>(
         valueListenable: AuthService.isAdmin,
         builder: (context, isAdmin, _) {
