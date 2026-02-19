@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/theme_service.dart';
 import '../services/auth_service.dart';
-import '../services/export_service.dart';
-import '../widgets/dialogs.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -13,278 +11,186 @@ class SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<SettingsView> {
   final themeService = ThemeService();
+  final Color primaryBlue = const Color(0xFF2563EB); // Your requested Blue
 
   @override
   Widget build(BuildContext context) {
     final isDark = themeService.isDarkMode;
     final isAdmin = AuthService.isAdmin.value;
+    
+    final Color textColor = isDark ? Colors.white : Colors.black;
+    final Color subTextColor = isDark ? Colors.white70 : Colors.grey.shade600;
+    final Color iconBg = isDark ? primaryBlue.withOpacity(0.15) : const Color(0xFFE0F7FF);
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
       appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: const Color(0xFF2563EB),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: BackButton(color: textColor),
+        centerTitle: true,
+        title: Text('Profile', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(onPressed: () {}, icon: Icon(Icons.more_horiz, color: textColor)),
+        ],
       ),
-      body: ListView(
-        children: [
-          _buildSection(
-            context,
-            title: 'Appearance',
-            children: [
-              _buildSwitchTile(
-                context,
-                icon: isDark ? Icons.dark_mode : Icons.light_mode,
-                title: 'Dark Mode',
-                subtitle: 'Toggle dark theme',
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            /// 👤 PROFILE HEADER
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Row(
+                children: [
+                  const CircleAvatar(
+                    radius: 38,
+                    backgroundColor: Color(0xFF2563EB),
+                    child: Icon(Icons.person, color: Colors.white, size: 40),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isAdmin ? 'Admin User' : 'Standard User',
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
+                        ),
+                        Text(
+                          'admin@profile.com',
+                          style: TextStyle(color: subTextColor, fontSize: 15),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            /// 🔵 EDIT PROFILE BUTTON
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pushNamed(isAdmin ? '/admin-user' : '/user');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryBlue,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            /// 🛠 SETTINGS LIST
+            _buildRow(
+              icon: Icons.location_on_outlined,
+              title: 'My addresses',
+              isDark: isDark,
+              iconBg: iconBg,
+            ),
+            _buildRow(
+              icon: Icons.notifications_none_rounded,
+              title: 'Notifications',
+              isDark: isDark,
+              iconBg: iconBg,
+            ),
+            _buildRow(
+              icon: Icons.settings_outlined,
+              title: 'Scan settings',
+              isDark: isDark,
+              iconBg: iconBg,
+            ),
+            
+            // DARK MODE TOGGLE (FUNCTIONAL)
+            _buildRow(
+              icon: isDark ? Icons.dark_mode : Icons.light_mode_outlined,
+              title: 'Dark Mode',
+              isDark: isDark,
+              iconBg: iconBg,
+              trailing: Switch.adaptive(
                 value: isDark,
-                onChanged: (value) {
+                activeColor: primaryBlue,
+                onChanged: (v) {
                   setState(() {
                     themeService.toggleTheme();
                   });
                 },
               ),
-            ],
-          ),
-          _buildSection(
-            context,
-            title: 'Notifications',
-            children: [
-              _buildSwitchTile(
-                context,
-                icon: Icons.notifications_active,
-                title: 'Push Notifications',
-                subtitle: 'Receive alerts for critical parameters',
-                value: true,
-                onChanged: (value) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Notifications feature coming soon')),
-                  );
-                },
-              ),
-              _buildSwitchTile(
-                context,
-                icon: Icons.email,
-                title: 'Email Alerts',
-                subtitle: 'Get email for daily summaries',
-                value: false,
-                onChanged: (value) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Email alerts feature coming soon')),
-                  );
-                },
-              ),
-            ],
-          ),
-          _buildSection(
-            context,
-            title: 'Data',
-            children: [
-              if (isAdmin)
-                _buildTile(
-                  context,
-                  icon: Icons.download,
-                  title: 'Export Data',
-                  subtitle: 'Download readings as CSV',
-                  onTap: () async {
-                    try {
-                      InfoSnackBar.show(context, 'Exporting data...');
-                      
-                      final path = await ExportService.exportToCSV();
-                      
-                      if (context.mounted) {
-                        SuccessSnackBar.show(
-                          context,
-                          'Data exported to ${path.split('/').last}',
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ErrorSnackBar.show(context, 'Export failed: $e');
-                      }
-                    }
-                  },
-                ),
-              _buildTile(
-                context,
-                icon: Icons.refresh,
-                title: 'Auto Refresh',
-                subtitle: 'Every 30 seconds',
-                trailing: const Text('30s', style: TextStyle(color: Colors.grey)),
-                onTap: () {},
-              ),
-            ],
-          ),
-          _buildSection(
-            context,
-            title: 'Account',
-            children: [
-              _buildTile(
-                context,
-                icon: Icons.person,
-                title: 'Profile',
-                subtitle: 'Edit your profile information',
-                onTap: () {
-                  Navigator.of(context).pushNamed(isAdmin ? '/admin-user' : '/user');
-                },
-              ),
-              _buildTile(
-                context,
-                icon: Icons.lock,
-                title: 'Change Password',
-                subtitle: 'Update your password',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Password change coming soon')),
-                  );
-                },
-              ),
-            ],
-          ),
-          _buildSection(
-            context,
-            title: 'About',
-            children: [
-              _buildTile(
-                context,
-                icon: Icons.info,
-                title: 'App Version',
-                subtitle: 'v1.0.0',
-                onTap: () {},
-              ),
-              _buildTile(
-                context,
-                icon: Icons.help,
-                title: 'Help & FAQ',
-                subtitle: 'Frequently asked questions',
-                onTap: () {
-                  Navigator.of(context).pushNamed('/faq');
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                final confirmed = await ConfirmDialog.show(
-                  context,
-                  title: 'Logout',
-                  message: 'Are you sure you want to logout?',
-                  confirmText: 'Logout',
-                  isDangerous: true,
-                );
-                if (confirmed && context.mounted) {
-                  AuthService.logout();
-                  Navigator.of(context).pushReplacementNamed('/login');
-                  SuccessSnackBar.show(context, 'Logged out successfully');
-                }
-              },
-              icon: const Icon(Icons.logout),
-              label: const Text('Logout'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
             ),
-          ),
-          const SizedBox(height: 32),
-        ],
+
+            _buildRow(
+              icon: Icons.language_rounded,
+              title: 'Language',
+              value: 'English',
+              isDark: isDark,
+              iconBg: iconBg,
+            ),
+
+            _buildRow(
+              icon: Icons.logout_rounded,
+              title: 'Log out',
+              isDark: isDark,
+              iconBg: isDark ? Colors.red.withOpacity(0.1) : const Color(0xFFFFEBEE),
+              iconColor: Colors.redAccent,
+              onTap: () async {
+                 AuthService.logout();
+                 Navigator.of(context).pushReplacementNamed('/login');
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSection(BuildContext context, {required String title, required List<Widget> children}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade600,
-            ),
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey.shade900
-                : Colors.white,
-            border: Border(
-              top: BorderSide(color: Colors.grey.shade200),
-              bottom: BorderSide(color: Colors.grey.shade200),
-            ),
-          ),
-          child: Column(children: children),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTile(
-    BuildContext context, {
+  Widget _buildRow({
     required IconData icon,
     required String title,
-    required String subtitle,
+    required bool isDark,
+    required Color iconBg,
+    Color? iconColor,
+    String? value,
     Widget? trailing,
     VoidCallback? onTap,
   }) {
-    return Semantics(
-      button: true,
-      label: '$title. $subtitle',
-      hint: 'Tap to open $title',
-      child: ListTile(
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
+      onTap: onTap ?? () {},
       leading: Container(
-        width: 40,
-        height: 40,
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFF2563EB).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+          color: iconBg,
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, color: const Color(0xFF2563EB), size: 22),
+        child: Icon(icon, color: iconColor ?? primaryBlue, size: 24),
       ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-        trailing: trailing ?? const Icon(Icons.chevron_right, color: Colors.grey),
-        onTap: onTap,
-      ),
-    );
-  }
-
-  Widget _buildSwitchTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Semantics(
-      toggled: value,
-      button: true,
-      label: '$title. $subtitle',
-      hint: value ? 'Enabled' : 'Disabled',
-      child: ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: const Color(0xFF2563EB).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isDark ? Colors.white : Colors.black,
+          fontWeight: FontWeight.w500,
+          fontSize: 16,
         ),
-        child: Icon(icon, color: const Color(0xFF2563EB), size: 22),
       ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-        trailing: Switch(
-          value: value,
-          onChanged: onChanged,
-          activeThumbColor: const Color(0xFF2563EB),
-        ),
+      trailing: trailing ?? Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (value != null)
+            Text(value, style: TextStyle(color: isDark ? Colors.white70 : Colors.grey, fontSize: 15)),
+          const SizedBox(width: 8),
+          Icon(Icons.arrow_forward_ios_rounded, 
+            size: 14, 
+            color: isDark ? Colors.white30 : Colors.black26),
+        ],
       ),
     );
   }
