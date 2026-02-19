@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../widgets/dialogs.dart';
+
+enum UserType { tilapiaFarmer, fishPondOwner, lgu }
 
 class SignupView extends StatefulWidget {
   const SignupView({super.key});
@@ -20,6 +23,8 @@ class _SignupViewState extends State<SignupView> {
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
   bool _agreeToTerms = false;
+  UserType? _selectedUserType;
+  bool _userTypeError = false;
 
   @override
   void dispose() {
@@ -32,63 +37,81 @@ class _SignupViewState extends State<SignupView> {
   }
 
   String? _validateName(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Name is required';
-    }
+    if (value == null || value.trim().isEmpty) return 'Name is required';
     return null;
   }
 
   String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Email is required';
-    }
+    if (value == null || value.trim().isEmpty) return 'Email is required';
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value)) {
-      return 'Enter a valid email';
-    }
+    if (!emailRegex.hasMatch(value)) return 'Enter a valid email';
     return null;
   }
 
   String? _validateUsername(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Username is required';
-    }
-    if (value.trim().length < 3) {
+    if (value == null || value.trim().isEmpty) return 'Username is required';
+    if (value.trim().length < 3)
       return 'Username must be at least 3 characters';
-    }
-    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
+    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value))
       return 'Only letters, numbers, and underscores allowed';
-    }
     return null;
   }
 
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Password is required';
-    }
-    if (value.length < 8) {
-      return 'Password must be at least 8 characters';
-    }
-    if (!value.contains(RegExp(r'[A-Z]'))) {
+    if (value == null || value.isEmpty) return 'Password is required';
+    if (value.length < 8) return 'Password must be at least 8 characters';
+    if (!value.contains(RegExp(r'[A-Z]')))
       return 'Password must contain uppercase letter';
-    }
-    if (!value.contains(RegExp(r'[0-9]'))) {
+    if (!value.contains(RegExp(r'[0-9]')))
       return 'Password must contain a number';
-    }
     return null;
   }
 
   String? _validateConfirmPassword(String? value) {
-    if (value != _passCtrl.text) {
-      return 'Passwords do not match';
-    }
+    if (value != _passCtrl.text) return 'Passwords do not match';
     return null;
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
+  String _userTypeLabel(UserType type) {
+    switch (type) {
+      case UserType.tilapiaFarmer:
+        return 'Tilapia Farmer';
+      case UserType.fishPondOwner:
+        return 'Fish Pond Owner';
+      case UserType.lgu:
+        return 'LGU (Local Government Unit)';
     }
+  }
+
+  String _userTypeDescription(UserType type) {
+    switch (type) {
+      case UserType.tilapiaFarmer:
+        return 'I raise tilapia and want to monitor my farming conditions.';
+      case UserType.fishPondOwner:
+        return 'I own a fish pond and want to track water quality.';
+      case UserType.lgu:
+        return 'I represent a local government unit overseeing aquaculture.';
+    }
+  }
+
+  IconData _userTypeIcon(UserType type) {
+    switch (type) {
+      case UserType.tilapiaFarmer:
+        return Icons.set_meal;
+      case UserType.fishPondOwner:
+        return Icons.water_damage;
+      case UserType.lgu:
+        return Icons.account_balance;
+    }
+  }
+
+  Future<void> _submit() async {
+    final isFormValid = _formKey.currentState!.validate();
+
+    // Validate user type separately since it's not inside the Form
+    setState(() => _userTypeError = _selectedUserType == null);
+
+    if (!isFormValid || _selectedUserType == null) return;
 
     if (!_agreeToTerms) {
       ErrorSnackBar.show(context, 'Please agree to terms and conditions');
@@ -97,12 +120,15 @@ class _SignupViewState extends State<SignupView> {
 
     setState(() => _isLoading = true);
 
-    // Simulate network delay
     await Future.delayed(const Duration(milliseconds: 1000));
+
+    // Save user type to SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_type', _selectedUserType!.name);
 
     AuthService.setAdmin(false);
     AuthService.setLoggedIn(true);
-    
+
     if (mounted) {
       SuccessSnackBar.show(context, 'Account created successfully!');
       Navigator.of(context).pushReplacementNamed('/app');
@@ -112,7 +138,7 @@ class _SignupViewState extends State<SignupView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sign Up'),
@@ -130,8 +156,8 @@ class _SignupViewState extends State<SignupView> {
               Text(
                 'Create Account',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -143,6 +169,8 @@ class _SignupViewState extends State<SignupView> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
+
+              // Full Name
               TextFormField(
                 controller: _nameCtrl,
                 enabled: !_isLoading,
@@ -154,10 +182,14 @@ class _SignupViewState extends State<SignupView> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+                  fillColor: isDark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade50,
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Email
               TextFormField(
                 controller: _emailCtrl,
                 enabled: !_isLoading,
@@ -170,10 +202,14 @@ class _SignupViewState extends State<SignupView> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+                  fillColor: isDark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade50,
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Username
               TextFormField(
                 controller: _userCtrl,
                 enabled: !_isLoading,
@@ -185,10 +221,14 @@ class _SignupViewState extends State<SignupView> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+                  fillColor: isDark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade50,
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Password
               TextFormField(
                 controller: _passCtrl,
                 enabled: !_isLoading,
@@ -199,20 +239,25 @@ class _SignupViewState extends State<SignupView> {
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                     ),
-                    onPressed: () {
-                      setState(() => _obscurePassword = !_obscurePassword);
-                    },
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+                  fillColor: isDark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade50,
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Confirm Password
               TextFormField(
                 controller: _confirmPassCtrl,
                 enabled: !_isLoading,
@@ -223,38 +268,85 @@ class _SignupViewState extends State<SignupView> {
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                      _obscureConfirmPassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                     ),
-                    onPressed: () {
-                      setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
-                    },
+                    onPressed: () => setState(
+                      () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                    ),
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+                  fillColor: isDark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade50,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+
+              // ── User Type Selection ──
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'I am a...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _userTypeError ? Colors.red : null,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Select your role to personalize your experience.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                    ),
+                  ),
+                  if (_userTypeError) ...[
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Please select your role',
+                      style: TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  ...UserType.values.map(
+                    (type) => _buildRadioOption(type, isDark),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Terms and Conditions
               Row(
                 children: [
                   Checkbox(
                     value: _agreeToTerms,
-                    onChanged: _isLoading ? null : (value) {
-                      setState(() => _agreeToTerms = value ?? false);
-                    },
+                    onChanged: _isLoading
+                        ? null
+                        : (value) =>
+                              setState(() => _agreeToTerms = value ?? false),
                     activeColor: const Color(0xFF2563EB),
                   ),
                   Expanded(
                     child: GestureDetector(
-                      onTap: _isLoading ? null : () {
-                        setState(() => _agreeToTerms = !_agreeToTerms);
-                      },
+                      onTap: _isLoading
+                          ? null
+                          : () =>
+                                setState(() => _agreeToTerms = !_agreeToTerms),
                       child: Text(
                         'I agree to the Terms and Conditions',
                         style: TextStyle(
-                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                          color: isDark
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade700,
                         ),
                       ),
                     ),
@@ -262,6 +354,8 @@ class _SignupViewState extends State<SignupView> {
                 ],
               ),
               const SizedBox(height: 24),
+
+              // Submit Button
               ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
                 style: ElevatedButton.styleFrom(
@@ -278,34 +372,132 @@ class _SignupViewState extends State<SignupView> {
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       )
                     : const Text(
                         'Create Account',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
               ),
               const SizedBox(height: 24),
+
+              // Login link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     'Already have an account? ',
                     style: TextStyle(
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
                     ),
                   ),
                   TextButton(
-                    onPressed: _isLoading ? null : () {
-                      Navigator.of(context).pop();
-                    },
+                    onPressed: _isLoading
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     child: const Text('Login'),
                   ),
                 ],
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRadioOption(UserType type, bool isDark) {
+    final isSelected = _selectedUserType == type;
+
+    return GestureDetector(
+      onTap: _isLoading
+          ? null
+          : () => setState(() {
+              _selectedUserType = type;
+              _userTypeError = false;
+            }),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF2563EB).withOpacity(isDark ? 0.2 : 0.08)
+              : (isDark ? Colors.grey.shade800 : Colors.grey.shade50),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _userTypeError
+                ? Colors.red.shade300
+                : isSelected
+                ? const Color(0xFF2563EB)
+                : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? const Color(0xFF2563EB)
+                    : (isDark ? Colors.grey.shade700 : Colors.grey.shade200),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                _userTypeIcon(type),
+                color: isSelected
+                    ? Colors.white
+                    : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _userTypeLabel(type),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? const Color(0xFF2563EB) : null,
+                    ),
+                  ),
+                  Text(
+                    _userTypeDescription(type),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Radio<UserType>(
+              value: type,
+              groupValue: _selectedUserType,
+              onChanged: _isLoading
+                  ? null
+                  : (val) => setState(() {
+                      _selectedUserType = val;
+                      _userTypeError = false;
+                    }),
+              activeColor: const Color(0xFF2563EB),
+            ),
+          ],
         ),
       ),
     );

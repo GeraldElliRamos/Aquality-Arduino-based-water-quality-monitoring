@@ -17,16 +17,7 @@ import 'admin/admin_login.dart';
 import 'services/auth_service.dart';
 import 'services/theme_service.dart';
 import 'services/preferences_service.dart';
-import 'pages/dashboard_enhanced.dart';
-import 'pages/alerts_enhanced.dart';
-import 'pages/trends_enhanced.dart';
-
-const List<Widget> _views = <Widget>[
-  DashboardEnhanced(),
-  TrendsViewEnhanced(), 
-  AlertsViewEnhanced(), 
-  HistoryView(),
-];
+import 'pages/role_selection.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,6 +59,7 @@ class _AqualityAppState extends State<AqualityApp> {
         '/admin-login': (context) => const AdminLoginView(),
         '/login': (context) => const LoginView(),
         '/signup': (context) => const SignupView(),
+        '/role-selection': (context) => const RoleSelectionView(),
         '/user': (context) => const UserView(),
         '/settings': (context) => const SettingsView(),
         '/faq': (context) => const FAQView(),
@@ -87,12 +79,12 @@ class AppScreen extends StatefulWidget {
 class _AppScreenState extends State<AppScreen> {
   int _selectedIndex = 0;
 
-static const List<Widget> _views = <Widget>[
-  DashboardEnhanced(),
-  TrendsViewEnhanced(),
-  AlertsViewEnhanced(),
-  HistoryView(),
-];
+  static const List<Widget> _views = <Widget>[
+    Dashboard(),
+    TrendsView(),
+    AlertsView(),
+    HistoryView(),
+  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -189,21 +181,26 @@ static const List<Widget> _views = <Widget>[
                               },
                               tooltip: 'Settings',
                             ),
-                            ValueListenableBuilder<bool>(
-                              valueListenable: AuthService.isAdmin,
-                              builder: (context, isAdmin, _) {
-                                if (!isAdmin) return const SizedBox.shrink();
-                                return IconButton(
-                                  icon: const Icon(
-                                    Icons.person,
-                                    color: Color(0xFF2563EB),
-                                  ),
-                                  onPressed: () {
-                                    Navigator.of(context).pushNamed('/admin-user');
-                                  },
-                                  tooltip: 'Profile',
-                                );
+                            IconButton(
+                              icon: const Icon(
+                                Icons.person,
+                                color: Color(0xFF2563EB),
+                              ),
+                              onPressed: () {
+                                if (AuthService.isLoggedIn.value) {
+                                  // If admin, open admin user page; otherwise open regular user page
+                                  if (AuthService.isAdmin.value) {
+                                    Navigator.of(
+                                      context,
+                                    ).pushNamed('/admin-user');
+                                  } else {
+                                    Navigator.of(context).pushNamed('/user');
+                                  }
+                                } else {
+                                  Navigator.of(context).pushNamed('/login');
+                                }
                               },
+                              tooltip: 'Profile',
                             ),
                           ],
                         ),

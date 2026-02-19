@@ -77,7 +77,7 @@ class _LoginViewState extends State<LoginView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Login'),
@@ -92,17 +92,13 @@ class _LoginViewState extends State<LoginView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
-              Icon(
-                Icons.water_drop,
-                size: 64,
-                color: const Color(0xFF2563EB),
-              ),
+              Icon(Icons.water_drop, size: 64, color: const Color(0xFF2563EB)),
               const SizedBox(height: 24),
               Text(
                 'Welcome Back',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -125,7 +121,9 @@ class _LoginViewState extends State<LoginView> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+                  fillColor: isDark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade50,
                 ),
               ),
               const SizedBox(height: 16),
@@ -139,7 +137,9 @@ class _LoginViewState extends State<LoginView> {
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                     ),
                     onPressed: () {
                       setState(() => _obscurePassword = !_obscurePassword);
@@ -149,16 +149,23 @@ class _LoginViewState extends State<LoginView> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+                  fillColor: isDark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade50,
                 ),
               ),
               const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: _isLoading ? null : () {
-                    InfoSnackBar.show(context, 'Password reset feature coming soon!');
-                  },
+                  onPressed: _isLoading
+                      ? null
+                      : () {
+                          InfoSnackBar.show(
+                            context,
+                            'Password reset feature coming soon!',
+                          );
+                        },
                   child: const Text('Forgot Password?'),
                 ),
               ),
@@ -179,12 +186,17 @@ class _LoginViewState extends State<LoginView> {
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       )
                     : const Text(
                         'Login',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
               ),
               const SizedBox(height: 24),
@@ -194,13 +206,17 @@ class _LoginViewState extends State<LoginView> {
                   Text(
                     'Don\'t have an account? ',
                     style: TextStyle(
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
                     ),
                   ),
                   TextButton(
-                    onPressed: _isLoading ? null : () {
-                      Navigator.of(context).pushNamed('/signup');
-                    },
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            Navigator.of(context).pushNamed('/role-selection');
+                          },
                     child: const Text('Sign Up'),
                   ),
                 ],
@@ -209,7 +225,9 @@ class _LoginViewState extends State<LoginView> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.blue.shade900.withOpacity(0.2) : Colors.blue.shade50,
+                  color: isDark
+                      ? Colors.blue.shade900.withOpacity(0.2)
+                      : Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isDark ? Colors.blue.shade800 : Colors.blue.shade200,
@@ -217,13 +235,19 @@ class _LoginViewState extends State<LoginView> {
                 ),
                 child: Column(
                   children: [
-                    Icon(Icons.info_outline, color: const Color(0xFF2563EB), size: 20),
+                    Icon(
+                      Icons.info_outline,
+                      color: const Color(0xFF2563EB),
+                      size: 20,
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       'Demo Credentials',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.blue.shade300 : Colors.blue.shade900,
+                        color: isDark
+                            ? Colors.blue.shade300
+                            : Colors.blue.shade900,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -231,7 +255,9 @@ class _LoginViewState extends State<LoginView> {
                       'Admin: admin / admin123\nUser: any username / any password',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade700,
                       ),
                       textAlign: TextAlign.center,
                     ),
