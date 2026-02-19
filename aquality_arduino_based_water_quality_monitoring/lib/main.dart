@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'pages/dashboard.dart';
-import 'pages/trends.dart';
-import 'pages/alerts.dart';
+import 'pages/dashboard_enhanced.dart';
+import 'pages/trends_enhanced.dart';
+import 'pages/alerts_enhanced.dart';
 import 'pages/history.dart';
 import 'pages/user.dart';
 import 'pages/admin_user.dart';
@@ -80,9 +80,9 @@ class _AppScreenState extends State<AppScreen> {
   int _selectedIndex = 0;
 
   static const List<Widget> _views = <Widget>[
-    Dashboard(),
-    TrendsView(),
-    AlertsView(),
+    DashboardEnhanced(),
+    TrendsViewEnhanced(),
+    AlertsViewEnhanced(),
     HistoryView(),
   ];
 

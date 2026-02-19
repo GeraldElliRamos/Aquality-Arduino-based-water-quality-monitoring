@@ -118,7 +118,10 @@ class _SignupViewState extends State<SignupView> {
       await prefs.setString('user_type', _selectedUserType!.name);
     }
 
-    AuthService.setAdmin(false);
+    
+    final isAdmin = _selectedUserType == UserType.fishPondOwner ||
+        _selectedUserType == UserType.lgu;
+    AuthService.setAdmin(isAdmin);
     AuthService.setLoggedIn(true);
 
     if (mounted) {
