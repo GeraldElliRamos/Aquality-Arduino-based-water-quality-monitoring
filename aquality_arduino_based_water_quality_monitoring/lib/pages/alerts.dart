@@ -185,6 +185,7 @@ class _AlertsViewState extends State<AlertsView> {
                   message: _searchQuery.isNotEmpty
                       ? 'Try different search terms'
                       : 'No alerts for this filter',
+                  description: '',
                 )
                 : ListView.separated(
                     itemCount: _filteredAlerts.length,

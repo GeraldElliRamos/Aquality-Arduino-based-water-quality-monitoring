@@ -13,7 +13,7 @@ class EmptyState extends StatelessWidget {
     required this.title,
     required this.message,
     this.actionLabel,
-    this.onAction,
+    this.onAction, required String description,
   });
 
   @override
@@ -99,7 +99,7 @@ class ErrorState extends StatelessWidget {
       title: title,
       message: message,
       actionLabel: onRetry != null ? 'Try Again' : null,
-      onAction: onRetry,
+      onAction: onRetry, description: '',
     );
   }
 }
@@ -116,7 +116,7 @@ class NoConnectionState extends StatelessWidget {
       title: 'No Connection',
       message: 'Check your internet connection or sensor connectivity',
       actionLabel: 'Retry',
-      onAction: onRetry,
+      onAction: onRetry, description: '',
     );
   }
 }

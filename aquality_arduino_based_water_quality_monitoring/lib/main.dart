@@ -12,11 +12,22 @@ import 'pages/splash.dart';
 import 'pages/settings.dart';
 import 'pages/onboarding.dart';
 import 'pages/faq.dart';
+import 'pages/thresholds.dart';
 import 'admin/admin.dart';
 import 'admin/admin_login.dart';
 import 'services/auth_service.dart';
 import 'services/theme_service.dart';
 import 'services/preferences_service.dart';
+import 'pages/dashboard_enhanced.dart';
+import 'pages/alerts_enhanced.dart';
+import 'pages/trends_enhanced.dart';
+
+const List<Widget> _views = <Widget>[
+  DashboardEnhanced(),
+  TrendsViewEnhanced(), 
+  AlertsViewEnhanced(), 
+  HistoryView(),
+];
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -61,6 +72,7 @@ class _AqualityAppState extends State<AqualityApp> {
         '/user': (context) => const UserView(),
         '/settings': (context) => const SettingsView(),
         '/faq': (context) => const FAQView(),
+        '/thresholds': (context) => const ThresholdsPage(),
         '/app': (context) => const AppScreen(),
       },
     );
@@ -77,12 +89,12 @@ class AppScreen extends StatefulWidget {
 class _AppScreenState extends State<AppScreen> {
   int _selectedIndex = 0;
 
-  static const List<Widget> _views = <Widget>[
-    Dashboard(),
-    TrendsView(),
-    AlertsView(),
-    HistoryView(),
-  ];
+static const List<Widget> _views = <Widget>[
+  DashboardEnhanced(),
+  TrendsViewEnhanced(),
+  AlertsViewEnhanced(),
+  HistoryView(),
+];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -169,6 +181,13 @@ class _AppScreenState extends State<AppScreen> {
 
                         Row(
                           children: [
+                                IconButton(
+                                 icon: const Icon(Icons.tune, color: Color(0xFF2563EB)),
+                                 onPressed: () {
+                                  Navigator.of(context).pushNamed('/thresholds');
+                              },
+                                tooltip: 'Thresholds',
+                            ) ,
                             IconButton(
                               icon: const Icon(
                                 Icons.settings_outlined,
@@ -186,7 +205,7 @@ class _AppScreenState extends State<AppScreen> {
                               ),
                               onPressed: () {
                                 if (AuthService.isLoggedIn.value) {
-                                  // If admin, open admin user page; otherwise open regular user page
+
                                   if (AuthService.isAdmin.value) {
                                     Navigator.of(
                                       context,
