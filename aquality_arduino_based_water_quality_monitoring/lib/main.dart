@@ -12,7 +12,6 @@ import 'pages/splash.dart';
 import 'pages/settings.dart';
 import 'pages/onboarding.dart';
 import 'pages/faq.dart';
-import 'pages/thresholds.dart';
 import 'admin/admin.dart';
 import 'admin/admin_login.dart';
 import 'services/auth_service.dart';
@@ -72,7 +71,6 @@ class _AqualityAppState extends State<AqualityApp> {
         '/user': (context) => const UserView(),
         '/settings': (context) => const SettingsView(),
         '/faq': (context) => const FAQView(),
-        '/thresholds': (context) => const ThresholdsPage(),
         '/app': (context) => const AppScreen(),
       },
     );
@@ -181,13 +179,6 @@ static const List<Widget> _views = <Widget>[
 
                         Row(
                           children: [
-                                IconButton(
-                                 icon: const Icon(Icons.tune, color: Color(0xFF2563EB)),
-                                 onPressed: () {
-                                  Navigator.of(context).pushNamed('/thresholds');
-                              },
-                                tooltip: 'Thresholds',
-                            ) ,
                             IconButton(
                               icon: const Icon(
                                 Icons.settings_outlined,
@@ -198,26 +189,21 @@ static const List<Widget> _views = <Widget>[
                               },
                               tooltip: 'Settings',
                             ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.person,
-                                color: Color(0xFF2563EB),
-                              ),
-                              onPressed: () {
-                                if (AuthService.isLoggedIn.value) {
-
-                                  if (AuthService.isAdmin.value) {
-                                    Navigator.of(
-                                      context,
-                                    ).pushNamed('/admin-user');
-                                  } else {
-                                    Navigator.of(context).pushNamed('/user');
-                                  }
-                                } else {
-                                  Navigator.of(context).pushNamed('/login');
-                                }
+                            ValueListenableBuilder<bool>(
+                              valueListenable: AuthService.isAdmin,
+                              builder: (context, isAdmin, _) {
+                                if (!isAdmin) return const SizedBox.shrink();
+                                return IconButton(
+                                  icon: const Icon(
+                                    Icons.person,
+                                    color: Color(0xFF2563EB),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.of(context).pushNamed('/admin-user');
+                                  },
+                                  tooltip: 'Profile',
+                                );
                               },
-                              tooltip: 'Profile',
                             ),
                           ],
                         ),

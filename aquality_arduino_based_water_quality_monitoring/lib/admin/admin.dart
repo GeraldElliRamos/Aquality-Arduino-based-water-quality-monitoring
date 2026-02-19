@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 
 class AdminView extends StatefulWidget {
-  const AdminView({super.key});
+  final int initialTab;
+  const AdminView({super.key, this.initialTab = 0});
 
   @override
   State<AdminView> createState() => _AdminViewState();
@@ -45,7 +46,7 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 3, vsync: this, initialIndex: widget.initialTab);
   }
 
   @override
