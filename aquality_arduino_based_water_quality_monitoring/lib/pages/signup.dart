@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../widgets/dialogs.dart';
-
-enum UserType { tilapiaFarmer, fishPondOwner, lgu }
+import 'role_selection.dart';
 
 class SignupView extends StatefulWidget {
   const SignupView({super.key});
@@ -23,8 +22,15 @@ class _SignupViewState extends State<SignupView> {
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
   bool _agreeToTerms = false;
+
+  // Received from RoleSelectionView
   UserType? _selectedUserType;
-  bool _userTypeError = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _selectedUserType = ModalRoute.of(context)?.settings.arguments as UserType?;
+  }
 
   @override
   void dispose() {
@@ -72,7 +78,7 @@ class _SignupViewState extends State<SignupView> {
     return null;
   }
 
-  String _userTypeLabel(UserType type) {
+  String _roleLabel(UserType type) {
     switch (type) {
       case UserType.tilapiaFarmer:
         return 'Tilapia Farmer';
@@ -83,18 +89,7 @@ class _SignupViewState extends State<SignupView> {
     }
   }
 
-  String _userTypeDescription(UserType type) {
-    switch (type) {
-      case UserType.tilapiaFarmer:
-        return 'I raise tilapia and want to monitor my farming conditions.';
-      case UserType.fishPondOwner:
-        return 'I own a fish pond and want to track water quality.';
-      case UserType.lgu:
-        return 'I represent a local government unit overseeing aquaculture.';
-    }
-  }
-
-  IconData _userTypeIcon(UserType type) {
+  IconData _roleIcon(UserType type) {
     switch (type) {
       case UserType.tilapiaFarmer:
         return Icons.set_meal;
@@ -106,12 +101,7 @@ class _SignupViewState extends State<SignupView> {
   }
 
   Future<void> _submit() async {
-    final isFormValid = _formKey.currentState!.validate();
-
-    // Validate user type separately since it's not inside the Form
-    setState(() => _userTypeError = _selectedUserType == null);
-
-    if (!isFormValid || _selectedUserType == null) return;
+    if (!_formKey.currentState!.validate()) return;
 
     if (!_agreeToTerms) {
       ErrorSnackBar.show(context, 'Please agree to terms and conditions');
@@ -123,8 +113,10 @@ class _SignupViewState extends State<SignupView> {
     await Future.delayed(const Duration(milliseconds: 1000));
 
     // Save user type to SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_type', _selectedUserType!.name);
+    if (_selectedUserType != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_type', _selectedUserType!.name);
+    }
 
     AuthService.setAdmin(false);
     AuthService.setLoggedIn(true);
@@ -168,7 +160,59 @@ class _SignupViewState extends State<SignupView> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // Selected role chip — tap to go back and change
+              if (_selectedUserType != null)
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(
+                        0xFF2563EB,
+                      ).withOpacity(isDark ? 0.2 : 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF2563EB)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _roleIcon(_selectedUserType!),
+                          color: const Color(0xFF2563EB),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _roleLabel(_selectedUserType!),
+                          style: const TextStyle(
+                            color: Color(0xFF2563EB),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const Spacer(),
+                        const Text(
+                          'Change',
+                          style: TextStyle(
+                            color: Color(0xFF2563EB),
+                            fontSize: 12,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: Color(0xFF2563EB),
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 24),
 
               // Full Name
               TextFormField(
@@ -285,46 +329,9 @@ class _SignupViewState extends State<SignupView> {
                       : Colors.grey.shade50,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-              // ── User Type Selection ──
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'I am a...',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: _userTypeError ? Colors.red : null,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Select your role to personalize your experience.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isDark
-                          ? Colors.grey.shade400
-                          : Colors.grey.shade600,
-                    ),
-                  ),
-                  if (_userTypeError) ...[
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Please select your role',
-                      style: TextStyle(color: Colors.red, fontSize: 12),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  ...UserType.values.map(
-                    (type) => _buildRadioOption(type, isDark),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              // Terms and Conditions
+              // Terms
               Row(
                 children: [
                   Checkbox(
@@ -355,7 +362,7 @@ class _SignupViewState extends State<SignupView> {
               ),
               const SizedBox(height: 24),
 
-              // Submit Button
+              // Submit
               ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
                 style: ElevatedButton.styleFrom(
@@ -409,95 +416,6 @@ class _SignupViewState extends State<SignupView> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRadioOption(UserType type, bool isDark) {
-    final isSelected = _selectedUserType == type;
-
-    return GestureDetector(
-      onTap: _isLoading
-          ? null
-          : () => setState(() {
-              _selectedUserType = type;
-              _userTypeError = false;
-            }),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF2563EB).withOpacity(isDark ? 0.2 : 0.08)
-              : (isDark ? Colors.grey.shade800 : Colors.grey.shade50),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _userTypeError
-                ? Colors.red.shade300
-                : isSelected
-                ? const Color(0xFF2563EB)
-                : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF2563EB)
-                    : (isDark ? Colors.grey.shade700 : Colors.grey.shade200),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                _userTypeIcon(type),
-                color: isSelected
-                    ? Colors.white
-                    : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _userTypeLabel(type),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? const Color(0xFF2563EB) : null,
-                    ),
-                  ),
-                  Text(
-                    _userTypeDescription(type),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isDark
-                          ? Colors.grey.shade400
-                          : Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Radio<UserType>(
-              value: type,
-              groupValue: _selectedUserType,
-              onChanged: _isLoading
-                  ? null
-                  : (val) => setState(() {
-                      _selectedUserType = val;
-                      _userTypeError = false;
-                    }),
-              activeColor: const Color(0xFF2563EB),
-            ),
-          ],
         ),
       ),
     );
