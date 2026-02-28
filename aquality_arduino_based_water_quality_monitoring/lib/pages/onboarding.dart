@@ -106,17 +106,26 @@ class _OnboardingViewState extends State<OnboardingView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
                   _pages.length,
-                  (index) => Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: _currentPage == index ? 24 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: _currentPage == index
-                          ? const Color(0xFF2563EB)
-                          : (isDark
-                                ? Colors.grey.shade700
-                                : Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(4),
+                  (index) => GestureDetector(
+                    onTap: () {
+                      _pageController.animateToPage(
+                        index,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: _currentPage == index ? 24 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _currentPage == index
+                            ? const Color(0xFF2563EB)
+                            : (isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
                   ),
                 ),
