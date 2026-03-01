@@ -56,20 +56,24 @@ class _SignupViewState extends State<SignupView> {
 
   String? _validateUsername(String? value) {
     if (value == null || value.trim().isEmpty) return 'Username is required';
-    if (value.trim().length < 3)
+    if (value.trim().length < 3) {
       return 'Username must be at least 3 characters';
-    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value))
+    }
+    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
       return 'Only letters, numbers, and underscores allowed';
+    }
     return null;
   }
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) return 'Password is required';
     if (value.length < 8) return 'Password must be at least 8 characters';
-    if (!value.contains(RegExp(r'[A-Z]')))
+    if (!value.contains(RegExp(r'[A-Z]'))) {
       return 'Password must contain uppercase letter';
-    if (!value.contains(RegExp(r'[0-9]')))
+    }
+    if (!value.contains(RegExp(r'[0-9]'))) {
       return 'Password must contain a number';
+    }
     return null;
   }
 

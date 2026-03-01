@@ -502,7 +502,7 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                         isDark,
                         onTap: () => _showAlertDetail(context, alert),
                       );
-                    }).toList(),
+                    }),
                   ],
                 );
               },

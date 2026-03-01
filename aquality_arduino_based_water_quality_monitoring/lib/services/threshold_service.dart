@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/threshold.dart';
@@ -19,7 +20,7 @@ class ThresholdService {
             final json = jsonDecode(data) as Map<String, dynamic>;
             thresholds.add(Threshold.fromJson(json));
           } catch (e) {
-            print('Error parsing threshold: $e');
+            debugPrint('Error parsing threshold: $e');
           }
         }
       }
@@ -37,7 +38,7 @@ class ThresholdService {
         final json = jsonDecode(data) as Map<String, dynamic>;
         return Threshold.fromJson(json);
       } catch (e) {
-        print('Error parsing threshold: $e');
+        debugPrint('Error parsing threshold: $e');
       }
     }
     return null;
@@ -53,7 +54,7 @@ class ThresholdService {
         json,
       );
     } catch (e) {
-      print('Error saving threshold: $e');
+      debugPrint('Error saving threshold: $e');
       return false;
     }
   }
@@ -64,7 +65,7 @@ class ThresholdService {
       final prefs = await SharedPreferences.getInstance();
       return await prefs.remove('$_thresholdKeyPrefix$parameterId');
     } catch (e) {
-      print('Error deleting threshold: $e');
+      debugPrint('Error deleting threshold: $e');
       return false;
     }
   }
@@ -81,7 +82,7 @@ class ThresholdService {
       }
       return true;
     } catch (e) {
-      print('Error resetting thresholds: $e');
+      debugPrint('Error resetting thresholds: $e');
       return false;
     }
   }

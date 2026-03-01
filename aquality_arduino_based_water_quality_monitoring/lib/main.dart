@@ -17,11 +17,13 @@ import 'admin/admin_login.dart';
 import 'services/auth_service.dart';
 import 'services/theme_service.dart';
 import 'services/preferences_service.dart';
+import 'services/notification_service.dart';
 import 'pages/role_selection.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await PreferencesService.instance.init();
+  await NotificationService.instance.init();
   runApp(const AqualityApp());
 }
 

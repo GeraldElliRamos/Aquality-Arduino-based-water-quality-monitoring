@@ -120,3 +120,46 @@ class ShimmerDashboard extends StatelessWidget {
     );
   }
 }
+
+class ShimmerHistory extends StatelessWidget {
+  const ShimmerHistory({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Filter chips shimmer
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: List.generate(
+              4,
+              (index) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ShimmerLoading(
+                  width: 70,
+                  height: 36,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Record rows shimmer
+        ...List.generate(
+          6,
+          (index) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: ShimmerLoading(
+              width: double.infinity,
+              height: 64,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

@@ -64,15 +64,15 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
       return AlertDialog(
         title: const Text('Add Threshold Rule'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          DropdownButtonFormField<String>(value: param, items: ['pH','Temperature','Dissolved Oxygen','Chlorine','Ammonia'].map((e)=>DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v)=> param = v ?? param, decoration: const InputDecoration(labelText: 'Parameter')),
+          DropdownButtonFormField<String>(initialValue: param, items: ['pH','Temperature','Dissolved Oxygen','Chlorine','Ammonia'].map((e)=>DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v)=> param = v ?? param, decoration: const InputDecoration(labelText: 'Parameter')),
           const SizedBox(height: 8),
           Row(children: [
-            Expanded(child: DropdownButtonFormField<String>(value: op, items: ['<','>'].map((e)=>DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v)=> op = v ?? op, decoration: const InputDecoration(labelText: 'Operator'))),
+            Expanded(child: DropdownButtonFormField<String>(initialValue: op, items: ['<','>'].map((e)=>DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v)=> op = v ?? op, decoration: const InputDecoration(labelText: 'Operator'))),
             const SizedBox(width: 8),
             Expanded(child: TextField(controller: valueCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Value'))),
           ]),
           const SizedBox(height: 8),
-          DropdownButtonFormField<String>(value: severity, items: ['low','medium','high'].map((e)=>DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v)=> severity = v ?? severity, decoration: const InputDecoration(labelText: 'Severity')),
+          DropdownButtonFormField<String>(initialValue: severity, items: ['low','medium','high'].map((e)=>DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v)=> severity = v ?? severity, decoration: const InputDecoration(labelText: 'Severity')),
         ]),
         actions: [TextButton(onPressed: ()=> Navigator.of(ctx).pop(), child: const Text('Cancel')), ElevatedButton(onPressed: (){
           final v = double.tryParse(valueCtrl.text);
@@ -172,7 +172,11 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('Remote Commands', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       const SizedBox(height: 8),
-      ElevatedButton.icon(onPressed: (){ if (_devices.isNotEmpty) _showCommandDialog(_devices.first); else ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No devices available'))); }, icon: const Icon(Icons.play_arrow), label: const Text('Send test command')),
+      ElevatedButton.icon(onPressed: (){ if (_devices.isNotEmpty) {
+        _showCommandDialog(_devices.first);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No devices available')));
+      } }, icon: const Icon(Icons.play_arrow), label: const Text('Send test command')),
       const SizedBox(height: 12),
       Expanded(
         child: _commandLog.isEmpty

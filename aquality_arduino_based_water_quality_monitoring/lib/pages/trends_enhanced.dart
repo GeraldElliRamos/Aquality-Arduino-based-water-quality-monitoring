@@ -4,7 +4,6 @@ import 'dart:math';
 import 'dart:async';
 import '../utils/chart_utils.dart';
 import '../utils/format_utils.dart';
-import '../utils/color_utils.dart';
 
 class TrendsViewEnhanced extends StatefulWidget {
   const TrendsViewEnhanced({super.key});

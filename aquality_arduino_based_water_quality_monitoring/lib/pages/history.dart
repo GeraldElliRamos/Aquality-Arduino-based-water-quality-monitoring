@@ -4,6 +4,7 @@ import 'parameter_detail.dart';
 import '../services/auth_service.dart';
 import '../services/preferences_service.dart';
 import '../widgets/dialogs.dart';
+import '../widgets/shimmer_loading.dart';
 
 class HistoryView extends StatefulWidget {
   const HistoryView({super.key});
@@ -14,12 +15,19 @@ class HistoryView extends StatefulWidget {
 class _HistoryViewState extends State<HistoryView> {
   String _range = '7d';
   DateTimeRange? _customDateRange;
-  
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
     _range = PreferencesService.instance.lastTimeRange;
     _customDateRange = _loadSavedDateRange();
+    _loadHistoryData();
+  }
+
+  Future<void> _loadHistoryData() async {
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (mounted) setState(() => _isLoading = false);
   }
 
   DateTimeRange? _loadSavedDateRange() {
@@ -328,7 +336,9 @@ class _HistoryViewState extends State<HistoryView> {
         ),
         const SizedBox(height: 12),
         Expanded(
-          child: ListView.separated(
+          child: _isLoading
+              ? const ShimmerHistory()
+              : ListView.separated(
             itemCount: _records.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, i) {

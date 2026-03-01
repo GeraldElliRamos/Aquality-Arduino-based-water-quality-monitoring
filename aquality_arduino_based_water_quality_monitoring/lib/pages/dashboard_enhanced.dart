@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../widgets/gauge_widget.dart';
-import '../utils/color_utils.dart';
+import '../widgets/shimmer_loading.dart';
 import '../utils/format_utils.dart';
 import '../services/auth_service.dart';
-import './parameter_detail.dart';
+import '../services/notification_service.dart';
+import '../services/threshold_service.dart';
 import '../admin/admin.dart';
 import './user.dart';
 import './faq.dart';
@@ -16,20 +18,113 @@ class DashboardEnhanced extends StatefulWidget {
 }
 
 class _DashboardEnhancedState extends State<DashboardEnhanced> {
-  String _updatedAt = 'Updated just now';
   bool _isRefreshing = false;
+  bool _isLoading = true;
+  DateTime _lastRefreshedAt = DateTime.now();
+  Timer? _refreshTimer;
+  Timer? _displayTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialData();
+    _startTimers();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    _displayTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startTimers() {
+    // Auto-refresh sensor data every 30 seconds.
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _autoRefresh(),
+    );
+    // Tick every 30 s so the "Updated X ago" text stays current.
+    _displayTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) { if (mounted) setState(() {}); },
+    );
+  }
+
+  Future<void> _loadInitialData() async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) {
+      _lastRefreshedAt = DateTime.now();
+      setState(() => _isLoading = false);
+      unawaited(_checkThresholds());
+    }
+  }
+
+  /// Periodic silent refresh — replace the delay with a real fetch once
+  /// the Arduino sensor service is connected.
+  Future<void> _autoRefresh() async {
+    if (_isRefreshing || !mounted) return;
+    setState(() => _isRefreshing = true);
+    await Future.delayed(const Duration(milliseconds: 300));
+    _lastRefreshedAt = DateTime.now();
+    if (mounted) {
+      setState(() => _isRefreshing = false);
+      unawaited(_checkThresholds());
+    }
+  }
 
   Future<void> _onRefresh() async {
     setState(() => _isRefreshing = true);
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() {
-      _updatedAt = 'Updated ${FormatUtils.formatTimeAgo(DateTime.now())}';
-      _isRefreshing = false;
-    });
+    await Future.delayed(const Duration(milliseconds: 500));
+    _lastRefreshedAt = DateTime.now();
+    if (mounted) {
+      setState(() => _isRefreshing = false);
+      unawaited(_checkThresholds());
+    }
+  }
+
+  /// Compares current parameter values against saved (or default) thresholds
+  /// and fires local notifications for any breaches.
+  Future<void> _checkThresholds() async {
+    final stored = await ThresholdService.getAllThresholds();
+    final effective =
+        stored.isEmpty ? ThresholdService.getDefaultThresholds() : stored;
+
+    // Mock values — swap with real sensor data when Arduino is connected.
+    final mockValues = <String, (double, String)>{
+      'temperature': (29.4, '°C'),
+      'pH': (6.81, ''),
+      'chlorine': (0.009, 'mg/L'),
+      'dissolvedOxygen': (6.32, 'mg/L'),
+      'ammonia': (0.16, 'mg/L'),
+    };
+
+    for (final t in effective) {
+      final entry = mockValues[t.parameterId];
+      if (entry == null) continue;
+      await NotificationService.instance.checkAndNotify(
+        parameterId: t.parameterId,
+        parameterName: t.parameterName,
+        value: entry.$1,
+        unit: entry.$2,
+        minSafe: t.minSafeValue,
+        maxSafe: t.maxSafeValue,
+        warningMin: t.warningMinValue,
+        warningMax: t.warningMaxValue,
+        enableNotifications: t.enableNotifications,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SingleChildScrollView(
+        padding: EdgeInsets.all(16),
+        child: ShimmerDashboard(),
+      );
+    }
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final summary = [
@@ -180,7 +275,7 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        _updatedAt,
+                        'Updated ${FormatUtils.formatTimeAgo(_lastRefreshedAt)}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.white70,
