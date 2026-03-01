@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Flutter (Windows)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/aquality_arduino_based_water_quality_monitoring",
+      "args": ["-d", "windows"]
+    },
+    {
+      "name": "Flutter (Chrome)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/aquality_arduino_based_water_quality_monitoring",
+      "args": ["-d", "chrome"]
+    },
+    {
+      "name": "Flutter (Android Emulator)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/aquality_arduino_based_water_quality_monitoring",
+      "args": ["-d", "emulator"]
+    }
+  ]
+}
