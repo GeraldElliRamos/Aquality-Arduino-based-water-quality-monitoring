@@ -1,8 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-/// Handles local push notifications for water quality threshold breaches.
-/// Includes a per-parameter cooldown to prevent notification spam.
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
@@ -15,13 +13,10 @@ class NotificationService {
 
   bool _initialized = false;
 
-  /// Cooldown per parameter — avoids repeat notifications within 5 minutes.
   final Map<String, DateTime> _lastNotified = {};
   static const Duration _cooldown = Duration(minutes: 5);
 
-  // ──────────────────────────────────────────────────────
-  // Initialisation
-  // ──────────────────────────────────────────────────────
+
 
   Future<void> init() async {
     if (_initialized) return;
@@ -38,9 +33,13 @@ class NotificationService {
         iOS: iosSettings,
       );
 
-      await _plugin.initialize(initSettings);
+      await _plugin.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          // Handle notification response
+        },
+      );
 
-      // Create the Android notification channel once at startup.
       await _plugin
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>()
@@ -59,12 +58,9 @@ class NotificationService {
     }
   }
 
-  // ──────────────────────────────────────────────────────
-  // Public API
-  // ──────────────────────────────────────────────────────
+ 
 
-  /// Compares [value] against the safe and warning thresholds.
-  /// Fires a notification if a breach is detected and the cooldown has elapsed.
+  
   Future<void> checkAndNotify({
     required String parameterId,
     required String parameterName,
