@@ -13,6 +13,7 @@ class GaugeWidget extends StatefulWidget {
   final Color statusColor;
   final Color gaugeColor;
   final VoidCallback? onTap;
+  final bool isAnomalous;
 
   const GaugeWidget({
     super.key,
@@ -25,6 +26,7 @@ class GaugeWidget extends StatefulWidget {
     required this.statusColor,
     required this.gaugeColor,
     this.onTap,
+    this.isAnomalous = false,
   });
 
   @override
@@ -99,7 +101,9 @@ class _GaugeWidgetState extends State<GaugeWidget>
             width: 1,
           ),
         ),
-        child: Column(
+        child: Stack(
+          children: [
+            Column(
           children: [
             Text(
               widget.title,
@@ -180,6 +184,25 @@ class _GaugeWidgetState extends State<GaugeWidget>
                     : Colors.grey.shade600,
               ),
             ),
+          ],
+        ),
+            // anomaly badge
+            if (widget.isAnomalous)
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(color: Colors.black26, blurRadius: 4),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),

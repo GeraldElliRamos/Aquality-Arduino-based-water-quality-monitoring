@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../utils/analytics.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -15,6 +16,10 @@ class NotificationService {
 
   final Map<String, DateTime> _lastNotified = {};
   static const Duration _cooldown = Duration(minutes: 5);
+  // In-memory short buffers and EWMA state per parameter
+  final Map<String, RollingBuffer> _buffers = {};
+  final Map<String, double> _ewmaPrev = {};
+  final Map<String, bool> _anomalous = {};
 
 
 
@@ -74,14 +79,26 @@ class NotificationService {
   }) async {
     if (!_initialized || !enableNotifications) return;
 
-    // Determine breach level
+    // Append to rolling buffer
+    final buf = _buffers.putIfAbsent(parameterId, () => RollingBuffer(30));
+    buf.add(value);
+
+    // Compute smoothed value (EWMA) and persist state
+    final prev = _ewmaPrev[parameterId] ?? value;
+    final smoothed = ewma(prev, value, 0.2);
+    _ewmaPrev[parameterId] = smoothed;
+
+    // Determine breach level using smoothed value, also run anomaly detectors
     String? level;
-    if (value < minSafe || value > maxSafe) {
-      final wMin =
-          warningMin ?? minSafe - (maxSafe - minSafe) * 0.2;
-      final wMax =
-          warningMax ?? maxSafe + (maxSafe - minSafe) * 0.2;
-      level = (value < wMin || value > wMax) ? 'critical' : 'warning';
+    final anomaly = isAnomalousMAD(buf.items, smoothed) || cusumDetect(buf.items, smoothed);
+    _anomalous[parameterId] = anomaly;
+
+    if (anomaly) {
+      level = 'critical';
+    } else if (smoothed < minSafe || smoothed > maxSafe) {
+      final wMin = warningMin ?? minSafe - (maxSafe - minSafe) * 0.2;
+      final wMax = warningMax ?? maxSafe + (maxSafe - minSafe) * 0.2;
+      level = (smoothed < wMin || smoothed > wMax) ? 'critical' : 'warning';
     }
 
     if (level == null) return;
@@ -94,9 +111,10 @@ class NotificationService {
     final title = level == 'critical'
         ? 'Critical Alert: $parameterName'
         : 'Warning: $parameterName';
+    final display = smoothed;
     final body = unit.isEmpty
-        ? '$parameterName reading of ${value.toStringAsFixed(2)} is $level.'
-        : '$parameterName reading of ${value.toStringAsFixed(2)} $unit is $level.';
+      ? '$parameterName reading of ${display.toStringAsFixed(2)} is $level.'
+      : '$parameterName reading of ${display.toStringAsFixed(2)} $unit is $level.';
 
     await _showNotification(
       id: parameterId.hashCode,
@@ -105,9 +123,11 @@ class NotificationService {
     );
   }
 
-  // ──────────────────────────────────────────────────────
-  // Internal helpers
-  // ──────────────────────────────────────────────────────
+  /// Public accessor for smoothed value if available
+  double? getSmoothedValue(String parameterId) => _ewmaPrev[parameterId];
+
+  /// Public accessor whether last computed sample was anomalous
+  bool isAnomalous(String parameterId) => _anomalous[parameterId] ?? false;
 
   Future<void> _showNotification({
     required int id,

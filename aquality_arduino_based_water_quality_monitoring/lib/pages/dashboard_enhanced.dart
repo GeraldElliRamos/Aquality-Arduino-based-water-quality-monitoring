@@ -60,8 +60,7 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
     }
   }
 
-  /// Periodic silent refresh — replace the delay with a real fetch once
-  /// the Arduino sensor service is connected.
+
   Future<void> _autoRefresh() async {
     if (_isRefreshing || !mounted) return;
     setState(() => _isRefreshing = true);
@@ -83,8 +82,7 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
     }
   }
 
-  /// Compares current parameter values against saved (or default) thresholds
-  /// and fires local notifications for any breaches.
+ 
   Future<void> _checkThresholds() async {
     final stored = await ThresholdService.getAllThresholds();
     final effective =
@@ -150,18 +148,20 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
 
     final parameters = [
       {
+        'id': 'temperature',
         'title': 'Temperature',
-        'value': 29.4,
+        'rawValue': 29.4,
         'unit': '°C',
-        'minSafe': 27,
-        'maxSafe': 30,
+        'minSafe': 27.0,
+        'maxSafe': 30.0,
         'status': 'Optimal range',
         'statusColor': Color(0xFF10B981),
         'gaugeColor': Colors.orange,
       },
       {
+        'id': 'pH',
         'title': 'pH Level',
-        'value': 6.81,
+        'rawValue': 6.81,
         'unit': '',
         'minSafe': 6.5,
         'maxSafe': 9.0,
@@ -170,21 +170,23 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
         'gaugeColor': Colors.purple,
       },
       {
+        'id': 'chlorine',
         'title': 'Chlorine',
-        'value': 0.009,
+        'rawValue': 0.009,
         'unit': 'mg/L',
-        'minSafe': 0,
+        'minSafe': 0.0,
         'maxSafe': 0.02,
         'status': 'Safe level',
         'statusColor': Color(0xFF10B981),
         'gaugeColor': Colors.amber,
       },
       {
+        'id': 'dissolvedOxygen',
         'title': 'Dissolved Oxygen',
-        'value': 6.32,
+        'rawValue': 6.32,
         'unit': 'mg/L',
-        'minSafe': 5,
-        'maxSafe': 10,
+        'minSafe': 5.0,
+        'maxSafe': 10.0,
         'status': 'Healthy level',
         'statusColor': Color(0xFF10B981),
         'gaugeColor': Colors.blue,
@@ -430,16 +432,29 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                       ),
                     );
                   },
-                  child: GaugeWidget(
-                    title: param['title'] as String,
-                    value: param['value'] as double,
-                    minSafe: param['minSafe'] as double,
-                    maxSafe: param['maxSafe'] as double,
-                    unit: param['unit'] as String,
-                    status: param['status'] as String,
-                    statusColor: param['statusColor'] as Color,
-                    gaugeColor: param['gaugeColor'] as Color,
-                  ),
+                  child: Builder(builder: (context) {
+                    final id = param['id'] as String?;
+                    final raw = (param['rawValue'] as double);
+                    double displayValue = raw;
+                    bool anomalous = false;
+                    if (id != null) {
+                      final sv = NotificationService.instance.getSmoothedValue(id);
+                      if (sv != null) displayValue = sv;
+                      anomalous = NotificationService.instance.isAnomalous(id);
+                    }
+
+                    return GaugeWidget(
+                      title: param['title'] as String,
+                      value: displayValue,
+                      minSafe: param['minSafe'] as double,
+                      maxSafe: param['maxSafe'] as double,
+                      unit: param['unit'] as String,
+                      status: param['status'] as String,
+                      statusColor: param['statusColor'] as Color,
+                      gaugeColor: param['gaugeColor'] as Color,
+                      isAnomalous: anomalous,
+                    );
+                  }),
                 );
               },
             ),
