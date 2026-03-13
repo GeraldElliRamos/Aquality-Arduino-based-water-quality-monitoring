@@ -17,28 +17,32 @@ class _SettingsViewState extends State<SettingsView> {
   @override
   Widget build(BuildContext context) {
     final isDark = themeService.isDarkMode;
-    final isAdmin = AuthService.isAdmin.value;
-    
-    final Color textColor = isDark ? Colors.white : Colors.black;
-    final Color subTextColor = isDark ? Colors.white70 : Colors.grey.shade600;
+    final textColor = isDark ? Colors.white : Colors.black;
     final Color iconBg = isDark ? primaryBlue.withOpacity(0.15) : const Color(0xFFE0F7FF);
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        title: const Text('Settings'),
+        titleTextStyle: TextStyle(
+          color: textColor,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         elevation: 0,
         leading: BackButton(color: textColor),
-        centerTitle: true,
-        title: Text('Settings', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(onPressed: () {}, icon: Icon(Icons.more_horiz, color: textColor)),
-        ],
+        centerTitle: false,
+        shape: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            width: 1,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            ///  SETTINGS LIST
             _buildRow(
               icon: Icons.location_on_outlined,
               title: 'My addresses',

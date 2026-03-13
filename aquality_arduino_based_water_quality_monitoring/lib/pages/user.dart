@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import './edit_profile.dart';
 
 class UserView extends StatefulWidget {
   const UserView({super.key});
@@ -12,7 +13,6 @@ class _UserViewState extends State<UserView> {
   final _nameController = TextEditingController(text: 'User Name');
   final _emailController = TextEditingController(text: 'user@example.com');
   final _phoneController = TextEditingController(text: '+1 234 567 8900');
-  bool _isEditing = false;
 
   @override
   void dispose() {
@@ -34,30 +34,27 @@ class _UserViewState extends State<UserView> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
-        backgroundColor: const Color(0xFF2563EB),
-        actions: [
-          if (!_isEditing)
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () {
-                setState(() => _isEditing = true);
-              },
-              tooltip: 'Edit Profile',
-            )
-          else
-            TextButton(
-              onPressed: () {
-                setState(() => _isEditing = false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profile updated successfully')),
-                );
-              },
-              child: const Text('Save', style: TextStyle(color: Colors.white)),
-            ),
-        ],
+        titleTextStyle: TextStyle(
+          color: textColor,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        elevation: 0,
+        leading: BackButton(color: textColor),
+        centerTitle: false,
+        shape: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            width: 1,
+          ),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
@@ -67,58 +64,31 @@ class _UserViewState extends State<UserView> {
           padding: const EdgeInsets.all(16.0),
           children: [
             Center(
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundColor: const Color(0xFF2563EB).withOpacity(0.1),
-                    child: const Icon(Icons.person, size: 60, color: Color(0xFF2563EB)),
-                  ),
-                  if (_isEditing)
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2563EB),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.camera_alt, size: 20, color: Colors.white),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Camera feature coming soon')),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                ],
+              child: CircleAvatar(
+                radius: 60,
+                backgroundColor: const Color(0xFF2563EB).withOpacity(0.1),
+                child: const Icon(Icons.person, size: 60, color: Color(0xFF2563EB)),
               ),
             ),
             const SizedBox(height: 32),
             _buildInfoCard(
               children: [
-                _buildTextField(
-                  controller: _nameController,
+                _buildPlainText(
                   label: 'Full Name',
+                  value: _nameController.text,
                   icon: Icons.person_outline,
-                  enabled: _isEditing,
                 ),
                 const SizedBox(height: 16),
-                _buildTextField(
-                  controller: _emailController,
+                _buildPlainText(
                   label: 'Email',
+                  value: _emailController.text,
                   icon: Icons.email_outlined,
-                  enabled: _isEditing,
                 ),
                 const SizedBox(height: 16),
-                _buildTextField(
-                  controller: _phoneController,
+                _buildPlainText(
                   label: 'Phone',
+                  value: _phoneController.text,
                   icon: Icons.phone_outlined,
-                  enabled: _isEditing,
                 ),
               ],
             ),
@@ -137,6 +107,30 @@ class _UserViewState extends State<UserView> {
             _buildInfoCard(
               title: 'Quick Actions',
               children: [
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined, color: Color(0xFF2563EB)),
+                  title: const Text('Edit Profile'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => EditProfileView(
+                          initialName: _nameController.text,
+                          initialEmail: _emailController.text,
+                          initialPhone: _phoneController.text,
+                          onSave: (name, email, phone) {
+                            setState(() {
+                              _nameController.text = name;
+                              _emailController.text = email;
+                              _phoneController.text = phone;
+                            });
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.lock_outline, color: Color(0xFF2563EB)),
                   title: const Text('Change Password'),
@@ -203,24 +197,59 @@ class _UserViewState extends State<UserView> {
     );
   }
 
+  Widget _buildPlainText({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: const Color(0xFF2563EB), size: 20),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
-    required bool enabled,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return TextField(
       controller: controller,
-      enabled: enabled,
+      enabled: false,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFF2563EB)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),
-        filled: !enabled,
-        fillColor: enabled ? null : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
+        filled: true,
+        fillColor: Colors.grey.shade100,
       ),
     );
   }
