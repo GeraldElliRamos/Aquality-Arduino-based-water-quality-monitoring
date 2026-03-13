@@ -7,8 +7,8 @@ import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/threshold_service.dart';
 import '../admin/admin.dart';
-import './user.dart';
-import './faq.dart';
+
+
 
 class DashboardEnhanced extends StatefulWidget {
   const DashboardEnhanced({super.key});
@@ -315,95 +315,6 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
               ),
             ),
             const SizedBox(height: 14),
-
-            // Action Buttons - responsive to admin status
-            ValueListenableBuilder<bool>(
-              valueListenable: AuthService.isAdmin,
-              builder: (context, isAdmin, _) {
-                if (isAdmin) {
-                  return SizedBox(
-                    height: 65,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _buildActionCard(
-                            icon: Icons.tune,
-                            label: 'Thresholds',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const AdminView(initialTab: 1),
-                              ),
-                            ),
-                            isDark: isDark,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildActionCard(
-                            icon: Icons.file_download,
-                            label: 'Export',
-                            onTap: () => _showExportOptions(context),
-                            isDark: isDark,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildActionCard(
-                            icon: Icons.refresh,
-                            label: 'Refresh',
-                            onTap: _onRefresh,
-                            isDark: isDark,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                } else {
-                  return SizedBox(
-                    height: 65,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _buildActionCard(
-                            icon: Icons.person_outline,
-                            label: 'Profile',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const UserView(),
-                              ),
-                            ),
-                            isDark: isDark,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildActionCard(
-                            icon: Icons.help_outline,
-                            label: 'FAQ',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const FAQView(),
-                              ),
-                            ),
-                            isDark: isDark,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildActionCard(
-                            icon: Icons.refresh,
-                            label: 'Refresh',
-                            onTap: _onRefresh,
-                            isDark: isDark,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: 16),
 
             const Text(
               'Parameter Status',

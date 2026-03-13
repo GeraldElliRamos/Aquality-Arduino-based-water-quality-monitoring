@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/theme_service.dart';
 import '../services/auth_service.dart';
+import './faq.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -29,7 +30,7 @@ class _SettingsViewState extends State<SettingsView> {
         elevation: 0,
         leading: BackButton(color: textColor),
         centerTitle: true,
-        title: Text('Profile', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+        title: Text('Settings', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(onPressed: () {}, icon: Icon(Icons.more_horiz, color: textColor)),
         ],
@@ -37,60 +38,7 @@ class _SettingsViewState extends State<SettingsView> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            /// 👤 PROFILE HEADER
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 38,
-                    backgroundColor: Color(0xFF2563EB),
-                    child: Icon(Icons.person, color: Colors.white, size: 40),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isAdmin ? 'Admin User' : 'Standard User',
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
-                        ),
-                        Text(
-                          'admin@profile.com',
-                          style: TextStyle(color: subTextColor, fontSize: 15),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            /// 🔵 EDIT PROFILE BUTTON
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pushNamed(isAdmin ? '/admin-user' : '/user');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryBlue,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            /// 🛠 SETTINGS LIST
+            ///  SETTINGS LIST
             _buildRow(
               icon: Icons.location_on_outlined,
               title: 'My addresses',
@@ -128,23 +76,23 @@ class _SettingsViewState extends State<SettingsView> {
             ),
 
             _buildRow(
+              icon: Icons.help_outline,
+              title: 'FAQ',
+              isDark: isDark,
+              iconBg: iconBg,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const FAQView(),
+                ),
+              ),
+            ),
+
+            _buildRow(
               icon: Icons.language_rounded,
               title: 'Language',
               value: 'English',
               isDark: isDark,
               iconBg: iconBg,
-            ),
-
-            _buildRow(
-              icon: Icons.logout_rounded,
-              title: 'Log out',
-              isDark: isDark,
-              iconBg: isDark ? Colors.red.withOpacity(0.1) : const Color(0xFFFFEBEE),
-              iconColor: Colors.redAccent,
-              onTap: () async {
-                 AuthService.logout();
-                 Navigator.of(context).pushReplacementNamed('/login');
-              },
             ),
           ],
         ),

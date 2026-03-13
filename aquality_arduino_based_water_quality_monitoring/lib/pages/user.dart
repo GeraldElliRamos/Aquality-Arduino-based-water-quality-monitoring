@@ -138,15 +138,6 @@ class _UserViewState extends State<UserView> {
               title: 'Quick Actions',
               children: [
                 ListTile(
-                  leading: const Icon(Icons.settings, color: Color(0xFF2563EB)),
-                  title: const Text('Settings'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.of(context).pushNamed('/settings');
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
                   leading: const Icon(Icons.lock_outline, color: Color(0xFF2563EB)),
                   title: const Text('Change Password'),
                   trailing: const Icon(Icons.chevron_right),
