@@ -102,8 +102,10 @@ class _GaugeWidgetState extends State<GaugeWidget>
           ),
         ),
         child: Stack(
+          alignment: Alignment.center,
           children: [
             Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
               widget.title,

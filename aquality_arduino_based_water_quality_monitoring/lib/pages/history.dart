@@ -132,16 +132,20 @@ class _HistoryViewState extends State<HistoryView> {
   }
 
   final List<Map<String, dynamic>> _records = [
-    {'date': 'Feb 1', 'temp': 28.1, 'ph': 8.0, 'cl': 0.02, 'do': 6.8, 'nh3': 0.10},
-    {'date': 'Feb 1', 'temp': 29.8, 'ph': 6.8, 'cl': 0.00, 'do': 6.7, 'nh3': 0.15},
-    {'date': 'Jan 30', 'temp': 27.2, 'ph': 8.2, 'cl': 0.02, 'do': 7.3, 'nh3': 0.22},
+    {'id': '1', 'date': 'Feb 1', 'temp': 28.1, 'ph': 8.0, 'do': 6.8, 'nh3': 0.10},
+    {'id': '2', 'date': 'Feb 1', 'temp': 29.8, 'ph': 6.8, 'do': 6.7, 'nh3': 0.15},
+    {'id': '3', 'date': 'Jan 30', 'temp': 27.2, 'ph': 8.2, 'do': 7.3, 'nh3': 0.22},
   ];
 
+  // Tracks how many times each record has been re-inserted after undo,
+  // so re-inserted Dismissible widgets always get a fresh key.
+  final Map<String, int> _undoCount = {};
+
   String _buildCsv(List<Map<String, dynamic>> rows) {
-    final headers = ['date','temp','ph','cl','do','nh3'];
+    final headers = ['date','temp','ph','do','nh3'];
     final sb = StringBuffer()..writeln(headers.join(','));
     for (final r in rows) {
-      sb.writeln('${r['date']},${r['temp']},${r['ph']},${r['cl']},${r['do']},${r['nh3']}');
+      sb.writeln('${r['date']},${r['temp']},${r['ph']},${r['do']},${r['nh3']}');
     }
     return sb.toString();
   }
@@ -157,8 +161,6 @@ class _HistoryViewState extends State<HistoryView> {
         return {'title': 'Temperature', 'unit': '°C', 'range': '27-30°C', 'icon': Icons.thermostat, 'color': Colors.orange};
       case 'ph':
         return {'title': 'pH Level', 'unit': '', 'range': '6.5-9.0', 'icon': Icons.water_drop, 'color': Colors.purple};
-      case 'cl':
-        return {'title': 'Chlorine', 'unit': 'mg/L', 'range': '<0.02 mg/L', 'icon': Icons.warning_amber_rounded, 'color': Colors.amber};
       case 'do':
         return {'title': 'Dissolved Oxygen', 'unit': 'mg/L', 'range': '>5 mg/L', 'icon': Icons.air, 'color': Colors.blue};
       case 'nh3':
@@ -184,7 +186,6 @@ class _HistoryViewState extends State<HistoryView> {
             Wrap(spacing: 12, runSpacing: 8, children: [
               _detailChip(ctx, 'temp', r['temp']),
               _detailChip(ctx, 'ph', r['ph']),
-              _detailChip(ctx, 'cl', r['cl']),
               _detailChip(ctx, 'do', r['do']),
               _detailChip(ctx, 'nh3', r['nh3']),
             ]),
@@ -195,12 +196,17 @@ class _HistoryViewState extends State<HistoryView> {
                   onPressed: () {
                     // Delete record
                     final removed = Map<String, dynamic>.from(r);
-                    setState(() => _records.removeAt(index));
+                    final removedId = removed['id'] as String;
+                    final removedIndex = _records.indexWhere((rec) => rec['id'] == removedId);
+                    setState(() => _records.removeWhere((rec) => rec['id'] == removedId));
                     Navigator.of(ctx).pop();
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: const Text('Record deleted'),
                       action: SnackBarAction(label: 'Undo', onPressed: () {
-                        setState(() => _records.insert(index, removed));
+                        setState(() {
+                          _records.insert(removedIndex.clamp(0, _records.length), removed);
+                          _undoCount[removedId] = (_undoCount[removedId] ?? 0) + 1;
+                        });
                       }),
                     ));
                   },
@@ -343,9 +349,9 @@ class _HistoryViewState extends State<HistoryView> {
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, i) {
               final r = _records[i];
-              final key = '${r['date']}_$i';
+              final recordId = r['id'] as String;
               return Dismissible(
-                key: ValueKey(key),
+                key: Key('${recordId}_${_undoCount[recordId] ?? 0}'),
                 direction: DismissDirection.endToStart,
                 background: Container(),
                 secondaryBackground: Container(
@@ -356,11 +362,15 @@ class _HistoryViewState extends State<HistoryView> {
                 ),
                 onDismissed: (direction) {
                   final removed = Map<String, dynamic>.from(r);
-                  setState(() => _records.removeAt(i));
+                  final removedIndex = _records.indexWhere((rec) => rec['id'] == recordId);
+                  setState(() => _records.removeWhere((rec) => rec['id'] == recordId));
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: const Text('Record deleted'),
                     action: SnackBarAction(label: 'Undo', onPressed: () {
-                      setState(() => _records.insert(i, removed));
+                      setState(() {
+                        _records.insert(removedIndex.clamp(0, _records.length), removed);
+                        _undoCount[recordId] = (_undoCount[recordId] ?? 0) + 1;
+                      });
                     }),
                   ));
                 },
@@ -394,7 +404,6 @@ class _HistoryViewState extends State<HistoryView> {
                               children: [
                                 GestureDetector(onTap: () => _openParamFromRecord('temp', r['temp'].toString()), child: _metricColumn('${r['temp']}', '°C')),
                                 GestureDetector(onTap: () => _openParamFromRecord('ph', r['ph'].toString()), child: _metricColumn('${r['ph']}', 'pH')),
-                                GestureDetector(onTap: () => _openParamFromRecord('cl', r['cl'].toString()), child: _metricColumn('${r['cl']}', 'Cl')),
                                 GestureDetector(onTap: () => _openParamFromRecord('do', r['do'].toString()), child: _metricColumn('${r['do']}', 'DO')),
                                 GestureDetector(onTap: () => _openParamFromRecord('nh3', r['nh3'].toString()), child: _metricColumn('${r['nh3']}', 'NH₃')),
                               ],

@@ -23,7 +23,7 @@ class ExportService {
 
   static List<List<dynamic>> _generateMockData() {
     final now = DateTime.now();
-    final headers = ['Timestamp', 'Temperature (°C)', 'pH Level', 'Chlorine (mg/L)', 'Dissolved Oxygen (mg/L)', 'Ammonia (mg/L)', 'Status'];
+    final headers = ['Timestamp', 'Temperature (°C)', 'pH Level', 'Dissolved Oxygen (mg/L)', 'Ammonia (mg/L)', 'Status'];
     
     final rows = <List<dynamic>>[headers];
     
@@ -34,7 +34,6 @@ class ExportService {
         timestamp.toIso8601String(),
         (28 + (i % 3) * 0.5).toStringAsFixed(2),
         (6.8 + (i % 5) * 0.05).toStringAsFixed(2),
-        (0.008 + (i % 4) * 0.001).toStringAsFixed(3),
         (6.2 + (i % 6) * 0.2).toStringAsFixed(2),
         (0.15 + (i % 7) * 0.02).toStringAsFixed(3),
         i % 10 == 0 ? 'Warning' : 'Optimal',

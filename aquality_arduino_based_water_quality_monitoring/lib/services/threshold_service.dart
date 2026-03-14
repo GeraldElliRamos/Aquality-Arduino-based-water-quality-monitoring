@@ -88,15 +88,18 @@ class ThresholdService {
   }
 
   /// Get default thresholds for all parameters
+  /// Values sourced from Safe_Level_Reference.csv:
+  ///   minSafeValue/maxSafeValue  = Warning_Low/Warning_High (optimal range)
+  ///   warningMinValue/warningMaxValue = Danger_Low/Danger_High (outer boundary before critical)
   static List<Threshold> getDefaultThresholds() {
     return [
       Threshold(
         parameterId: 'temperature',
         parameterName: 'Temperature',
-        minSafeValue: 25,
-        maxSafeValue: 30,
-        warningMinValue: 20,
-        warningMaxValue: 35,
+        minSafeValue: 26.0,   // Warning_Low  (26-29 optimal)
+        maxSafeValue: 29.0,   // Warning_High
+        warningMinValue: 25.0, // Danger_Low
+        warningMaxValue: 30.0, // Danger_High
         enableAlerts: true,
         enableNotifications: true,
         lastModified: DateTime.now(),
@@ -104,21 +107,10 @@ class ThresholdService {
       Threshold(
         parameterId: 'pH',
         parameterName: 'pH Level',
-        minSafeValue: 6.5,
-        maxSafeValue: 9.0,
-        warningMinValue: 6.0,
-        warningMaxValue: 9.5,
-        enableAlerts: true,
-        enableNotifications: true,
-        lastModified: DateTime.now(),
-      ),
-      Threshold(
-        parameterId: 'chlorine',
-        parameterName: 'Chlorine',
-        minSafeValue: 0,
-        maxSafeValue: 0.02,
-        warningMinValue: 0,
-        warningMaxValue: 0.05,
+        minSafeValue: 7.0,    // Warning_Low  (7.0-8.5 optimal)
+        maxSafeValue: 8.5,    // Warning_High
+        warningMinValue: 6.5,  // Danger_Low
+        warningMaxValue: 9.0,  // Danger_High
         enableAlerts: true,
         enableNotifications: true,
         lastModified: DateTime.now(),
@@ -126,10 +118,10 @@ class ThresholdService {
       Threshold(
         parameterId: 'dissolvedOxygen',
         parameterName: 'Dissolved Oxygen',
-        minSafeValue: 5.0,
-        maxSafeValue: 10.0,
-        warningMinValue: 4.0,
-        warningMaxValue: 12.0,
+        minSafeValue: 5.0,    // Warning_Low  (>=5 marginal, >=6 optimal)
+        maxSafeValue: 999.0,  // No upper danger limit
+        warningMinValue: 3.0,  // Danger_Low   (<3 lethal)
+        warningMaxValue: 999.0, // No upper danger limit
         enableAlerts: true,
         enableNotifications: true,
         lastModified: DateTime.now(),
@@ -137,10 +129,10 @@ class ThresholdService {
       Threshold(
         parameterId: 'ammonia',
         parameterName: 'Ammonia',
-        minSafeValue: 0,
-        maxSafeValue: 0.5,
-        warningMinValue: 0,
-        warningMaxValue: 1.0,
+        minSafeValue: 0.0,    // Danger_Low / Warning_Low
+        maxSafeValue: 0.02,   // Warning_High (<=0.02 safe)
+        warningMinValue: 0.0,  // Danger_Low
+        warningMaxValue: 0.05, // Danger_High  (>0.05 danger)
         enableAlerts: true,
         enableNotifications: true,
         lastModified: DateTime.now(),

@@ -55,9 +55,9 @@ class _FAQViewState extends State<FAQView> {
               'Dissolved oxygen is the amount of oxygen available in water for fish to breathe. Tilapia need at least 5 mg/L, with 5-8 mg/L being optimal for healthy growth.',
         ),
         FAQItem(
-          question: 'How dangerous is chlorine?',
+          question: 'How dangerous is ammonia?',
           answer:
-              'Chlorine is highly toxic to fish even at very low levels. Keep chlorine below 0.003 mg/L. If using tap water, let it sit for 24 hours or use a dechlorinator.',
+              'Ammonia (NH₃) is highly toxic to fish even at very low levels. Keep ammonia below 0.02 mg/L. Regular water changes and proper biological filtration help control ammonia buildup.',
         ),
         FAQItem(
           question: 'What is ammonia and why is it harmful?',

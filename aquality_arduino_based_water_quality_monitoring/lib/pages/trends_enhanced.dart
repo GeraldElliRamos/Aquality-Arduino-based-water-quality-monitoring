@@ -48,21 +48,7 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
       7.0,
       6.98
     ],
-    'Chlorine': [
-      0.012,
-      0.011,
-      0.013,
-      0.014,
-      0.015,
-      0.016,
-      0.015,
-      0.014,
-      0.013,
-      0.012,
-      0.011,
-      0.010
-    ],
-    'Dissolved Oxygen': [
+    'Dissolved Oxygen':[
       6.5,
       6.4,
       6.6,

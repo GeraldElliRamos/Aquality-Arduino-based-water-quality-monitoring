@@ -64,7 +64,7 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
       return AlertDialog(
         title: const Text('Add Threshold Rule'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          DropdownButtonFormField<String>(initialValue: param, items: ['pH','Temperature','Dissolved Oxygen','Chlorine','Ammonia'].map((e)=>DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v)=> param = v ?? param, decoration: const InputDecoration(labelText: 'Parameter')),
+          DropdownButtonFormField<String>(initialValue: param, items: ['pH','Temperature','Dissolved Oxygen','Ammonia'].map((e)=>DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v)=> param = v ?? param, decoration: const InputDecoration(labelText: 'Parameter')),
           const SizedBox(height: 8),
           Row(children: [
             Expanded(child: DropdownButtonFormField<String>(initialValue: op, items: ['<','>'].map((e)=>DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v)=> op = v ?? op, decoration: const InputDecoration(labelText: 'Operator'))),

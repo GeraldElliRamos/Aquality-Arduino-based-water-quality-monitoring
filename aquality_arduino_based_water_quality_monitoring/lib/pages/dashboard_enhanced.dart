@@ -92,7 +92,7 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
     final mockValues = <String, (double, String)>{
       'temperature': (29.4, '°C'),
       'pH': (6.81, ''),
-      'chlorine': (0.009, 'mg/L'),
+      'ammonia': (0.016, 'mg/L'),
       'dissolvedOxygen': (6.32, 'mg/L'),
       'ammonia': (0.16, 'mg/L'),
     };
@@ -170,9 +170,9 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
         'gaugeColor': Colors.purple,
       },
       {
-        'id': 'chlorine',
-        'title': 'Chlorine',
-        'rawValue': 0.009,
+        'id': 'ammonia',
+        'title': 'Ammonia',
+        'rawValue': 0.016,
         'unit': 'mg/L',
         'minSafe': 0.0,
         'maxSafe': 0.02,
@@ -197,12 +197,13 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
       onRefresh: _onRefresh,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
 
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -316,9 +317,12 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
             ),
             const SizedBox(height: 14),
 
-            const Text(
-              'Parameter Status',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            Center(
+              child: Text(
+                'Parameter Status',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
+              ),
             ),
             const SizedBox(height: 10),
             GridView.builder(
