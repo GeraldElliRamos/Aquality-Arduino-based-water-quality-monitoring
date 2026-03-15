@@ -94,16 +94,27 @@ class _SplashViewState extends State<SplashView> with SingleTickerProviderStateM
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2563EB).withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.water_drop,
-                          size: 72,
-                          color: Color(0xFF2563EB),
+                      // Container(
+                      //   padding: const EdgeInsets.all(24),
+                      //   decoration: BoxDecoration(
+                      //     color: const Color(0xFF2563EB).withOpacity(0.1),
+                      //     shape: BoxShape.circle,
+                      //   ),
+                      //   child: const Icon(
+                      //     Icons.water_drop,
+                      //     size: 72,
+                      //     color: Color(0xFF2563EB),
+                      //   ),
+                      // ),
+
+                      Transform.scale(
+                        scale: 1.5, // adjust to your liking
+                        child: SizedBox(
+                          height: 80,
+                          child: Image.asset(
+                            'assets/images/AqualityLogoCrop.png',
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),

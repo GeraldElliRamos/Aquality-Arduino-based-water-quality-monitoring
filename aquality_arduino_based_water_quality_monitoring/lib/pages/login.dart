@@ -92,7 +92,17 @@ class _LoginViewState extends State<LoginView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
-              Icon(Icons.water_drop, size: 64, color: const Color(0xFF2563EB)),
+              //Icon(Icons.water_drop, size: 64, color: const Color(0xFF2563EB)),
+              Transform.scale(
+              scale: 1.5, // increase this to make it bigger visually
+              child: SizedBox(
+                height: 80,
+                child: Image.asset(
+                  'assets/images/AqualityLogoCrop.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
               const SizedBox(height: 24),
               Text(
                 'Welcome Back',

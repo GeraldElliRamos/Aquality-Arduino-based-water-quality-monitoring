@@ -39,7 +39,7 @@ class NotificationService {
       );
 
       await _plugin.initialize(
-        initSettings,
+        settings: initSettings,
         onDidReceiveNotificationResponse: (NotificationResponse response) {
           // Handle notification response
         },
@@ -147,7 +147,12 @@ class NotificationService {
         NotificationDetails(android: androidDetails, iOS: iosDetails);
 
     try {
-      await _plugin.show(id, title, body, details);
+      await _plugin.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: details,
+    );
     } catch (e) {
       debugPrint('NotificationService show error: $e');
     }

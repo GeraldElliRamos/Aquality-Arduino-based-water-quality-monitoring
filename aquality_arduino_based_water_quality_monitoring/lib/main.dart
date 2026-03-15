@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'pages/dashboard_enhanced.dart';
 import 'pages/trends_enhanced.dart';
@@ -17,13 +18,17 @@ import 'admin/admin_login.dart';
 import 'services/auth_service.dart';
 import 'services/theme_service.dart';
 import 'services/preferences_service.dart';
-import 'services/notification_service.dart';
 import 'pages/role_selection.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );                                                            //firebase initialization
+
   await PreferencesService.instance.init();
-  await NotificationService.instance.init();
   runApp(const AqualityApp());
 }
 
@@ -67,6 +72,23 @@ class _AqualityAppState extends State<AqualityApp> {
         '/faq': (context) => const FAQView(),
         '/app': (context) => const AppScreen(),
       },
+
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'),
+        Locale('tl'),
+      ],
+      locale: Locale('en'),
+
+
+
+
+
+
     );
   }
 }

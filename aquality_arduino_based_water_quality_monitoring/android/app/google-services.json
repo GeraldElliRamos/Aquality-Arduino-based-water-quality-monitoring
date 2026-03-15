@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "1023376554960",
+    "project_id": "aquality-80539",
+    "storage_bucket": "aquality-80539.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1023376554960:android:cd28fa2a94d7102f0c97d5",
+        "android_client_info": {
+          "package_name": "com.example.aquality_arduino_based_water_quality_monitoring"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_-fJ4lsuftj82blRRdg81EnrluUuPZZo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1023376554960:android:9347e5d25d6c24b10c97d5",
+        "android_client_info": {
+          "package_name": "om.example.aquality_arduino_based_water_quality_monitoring"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_-fJ4lsuftj82blRRdg81EnrluUuPZZo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
