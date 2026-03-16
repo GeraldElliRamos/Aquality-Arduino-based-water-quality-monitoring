@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../widgets/dialogs.dart';
 
@@ -24,53 +25,55 @@ class _LoginViewState extends State<LoginView> {
   }
 
   String? _validateUsername(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Username is required';
-    }
-    if (value.trim().length < 3) {
-      return 'Username must be at least 3 characters';
-    }
+    if (value == null || value.trim().isEmpty) return 'Username is required';
+    if (value.trim().length < 3) return 'Username must be at least 3 characters';
     return null;
   }
 
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Password is required';
-    }
-    if (value.length < 6) {
-      return 'Password must be at least 6 characters';
-    }
+    if (value == null || value.isEmpty) return 'Password is required';
+    if (value.length < 6) return 'Password must be at least 6 characters';
     return null;
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    final u = _userCtrl.text.trim();
-    final p = _passCtrl.text;
-
-    if (u == 'admin' && p == 'admin123') {
-      AuthService.setAdmin(true);
-      AuthService.setLoggedIn(true);
+    try {
+      await AuthService.login(
+        username: _userCtrl.text.trim(),
+        password: _passCtrl.text,
+      );
       if (mounted) {
-        SuccessSnackBar.show(context, 'Welcome back, Admin!');
+        SuccessSnackBar.show(context, 'Welcome back!');
         Navigator.of(context).pushReplacementNamed('/app');
       }
-      return;
+    } catch (e) {
+      if (!mounted) return;
+      if (e is AuthException) {
+        ErrorSnackBar.show(context, e.message);
+      } else if (e is FirebaseAuthException) {
+        ErrorSnackBar.show(context, _firebaseMessage(e.code));
+      } else {
+        ErrorSnackBar.show(context, 'An unexpected error occurred.');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
 
-    AuthService.setAdmin(false);
-    AuthService.setLoggedIn(true);
-    if (mounted) {
-      SuccessSnackBar.show(context, 'Login successful!');
-      Navigator.of(context).pushReplacementNamed('/app');
+  String _firebaseMessage(String code) {
+    switch (code) {
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Incorrect password. Please try again.';
+      case 'user-disabled':
+        return 'This account has been disabled.';
+      case 'too-many-requests':
+        return 'Too many failed attempts. Please try again later.';
+      default:
+        return 'Login failed. Please check your credentials.';
     }
   }
 
@@ -92,23 +95,22 @@ class _LoginViewState extends State<LoginView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
-              //Icon(Icons.water_drop, size: 64, color: const Color(0xFF2563EB)),
               Transform.scale(
-              scale: 1.5, // increase this to make it bigger visually
-              child: SizedBox(
-                height: 80,
-                child: Image.asset(
-                  'assets/images/AqualityLogoCrop.png',
-                  fit: BoxFit.contain,
+                scale: 1.5,
+                child: SizedBox(
+                  height: 80,
+                  child: Image.asset(
+                    'assets/images/AqualityLogoCrop.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
-            ),
               const SizedBox(height: 24),
               Text(
                 'Welcome Back',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -120,66 +122,64 @@ class _LoginViewState extends State<LoginView> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
+
+              // Username
               TextFormField(
                 controller: _userCtrl,
                 enabled: !_isLoading,
                 validator: _validateUsername,
+                textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
                   labelText: 'Username',
                   prefixIcon: const Icon(Icons.person_outline),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                      borderRadius: BorderRadius.circular(12)),
                   filled: true,
-                  fillColor: isDark
-                      ? Colors.grey.shade800
-                      : Colors.grey.shade50,
+                  fillColor:
+                      isDark ? Colors.grey.shade800 : Colors.grey.shade50,
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Password
               TextFormField(
                 controller: _passCtrl,
                 enabled: !_isLoading,
                 obscureText: _obscurePassword,
                 validator: _validatePassword,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _submit(),
                 decoration: InputDecoration(
                   labelText: 'Password',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                    ),
-                    onPressed: () {
-                      setState(() => _obscurePassword = !_obscurePassword);
-                    },
+                    icon: Icon(_obscurePassword
+                        ? Icons.visibility_off
+                        : Icons.visibility),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                      borderRadius: BorderRadius.circular(12)),
                   filled: true,
-                  fillColor: isDark
-                      ? Colors.grey.shade800
-                      : Colors.grey.shade50,
+                  fillColor:
+                      isDark ? Colors.grey.shade800 : Colors.grey.shade50,
                 ),
               ),
               const SizedBox(height: 8),
+
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: _isLoading
                       ? null
-                      : () {
-                          InfoSnackBar.show(
-                            context,
-                            'Password reset feature coming soon!',
-                          );
-                        },
+                      : () => InfoSnackBar.show(
+                          context, 'Password reset feature coming soon!'),
                   child: const Text('Forgot Password?'),
                 ),
               ),
               const SizedBox(height: 16),
+
               ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
                 style: ElevatedButton.styleFrom(
@@ -187,8 +187,7 @@ class _LoginViewState extends State<LoginView> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: _isLoading
                     ? const SizedBox(
@@ -196,25 +195,23 @@ class _LoginViewState extends State<LoginView> {
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
-                          ),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                     : const Text(
                         'Login',
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
               const SizedBox(height: 24),
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Don\'t have an account? ',
+                    "Don't have an account? ",
                     style: TextStyle(
                       color: isDark
                           ? Colors.grey.shade400
@@ -224,55 +221,11 @@ class _LoginViewState extends State<LoginView> {
                   TextButton(
                     onPressed: _isLoading
                         ? null
-                        : () {
-                            Navigator.of(context).pushNamed('/role-selection');
-                          },
+                        : () =>
+                            Navigator.of(context).pushNamed('/role-selection'),
                     child: const Text('Sign Up'),
                   ),
                 ],
-              ),
-              const SizedBox(height: 32),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.blue.shade900.withOpacity(0.2)
-                      : Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isDark ? Colors.blue.shade800 : Colors.blue.shade200,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: const Color(0xFF2563EB),
-                      size: 20,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Demo Credentials',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isDark
-                            ? Colors.blue.shade300
-                            : Colors.blue.shade900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Admin: admin / admin123\nUser: any username / any password',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade700,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
