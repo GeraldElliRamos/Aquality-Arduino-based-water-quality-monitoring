@@ -3,7 +3,7 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services") version "4.4.4" apply true
+    id("com.google.gms.google-services") apply true
 }
 
 
@@ -17,6 +17,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -52,6 +53,9 @@ flutter {
 dependencies {
   // Import the Firebase BoM
   implementation(platform("com.google.firebase:firebase-bom:34.10.0"))
+
+    // Enable core library desugaring for libraries that require newer Java APIs
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
 
 
   // TODO: Add the dependencies for Firebase products you want to use
