@@ -29,6 +29,7 @@ void main() async {
   );                                                            //firebase initialization
 
   await PreferencesService.instance.init();
+  AuthService.init();
   runApp(const AqualityApp());
 }
 
