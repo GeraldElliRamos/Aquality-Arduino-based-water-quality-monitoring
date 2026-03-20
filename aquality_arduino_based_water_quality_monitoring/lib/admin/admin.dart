@@ -114,20 +114,53 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
       valueListenable: AuthService.isAdmin,
       builder: (context, isAdmin, _) {
         if (!isAdmin) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final textColor = isDark ? Colors.white : Colors.black;
           return Scaffold(
-            appBar: AppBar(title: const Text('Admin Panel'), backgroundColor: const Color(0xFF2563EB)),
+            appBar: AppBar(
+              title: const Text('Admin Panel'),
+              titleTextStyle: TextStyle(
+                color: textColor,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+              elevation: 0,
+              leading: BackButton(color: textColor),
+              centerTitle: false,
+              shape: Border(
+                bottom: BorderSide(
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                  width: 1,
+                ),
+              ),
+            ),
             body: const Center(child: Text('Access denied. Admins only.')),
           );
         }
 
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final textColor = isDark ? Colors.white : Colors.black;
+
         return Scaffold(
           appBar: AppBar(
             title: const Text('Admin Panel'),
-            backgroundColor: const Color(0xFF2563EB),
+            titleTextStyle: TextStyle(
+              color: textColor,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+            backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+            elevation: 0,
+            leading: BackButton(color: textColor),
+            centerTitle: false,
+            shape: Border(
+              bottom: BorderSide(
+                color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                width: 1,
+              ),
+            ),
             bottom: TabBar(controller: _tabController, tabs: const [Tab(text: 'Devices'), Tab(text: 'Rules'), Tab(text: 'Commands')]),
-            actions: [
-              IconButton(icon: const Icon(Icons.logout), onPressed: (){ AuthService.logout(); Navigator.of(context).pushReplacementNamed('/login'); }, tooltip: 'Logout'),
-            ],
           ),
           body: Padding(
             padding: const EdgeInsets.all(12.0),

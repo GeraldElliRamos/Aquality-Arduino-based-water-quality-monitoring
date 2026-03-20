@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import './edit_admin_profile.dart';
 
 class AdminUserView extends StatefulWidget {
   const AdminUserView({super.key});
@@ -12,7 +13,6 @@ class _AdminUserViewState extends State<AdminUserView> {
   final _nameController = TextEditingController(text: 'Admin User');
   final _emailController = TextEditingController(text: 'admin@aquality.com');
   final _phoneController = TextEditingController(text: '+1 234 567 8900');
-  bool _isEditing = false;
 
   @override
   void dispose() {
@@ -24,30 +24,27 @@ class _AdminUserViewState extends State<AdminUserView> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Profile'),
-        backgroundColor: const Color(0xFF2563EB),
-        actions: [
-          if (!_isEditing)
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () {
-                setState(() => _isEditing = true);
-              },
-              tooltip: 'Edit Profile',
-            )
-          else
-            TextButton(
-              onPressed: () {
-                setState(() => _isEditing = false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profile updated successfully')),
-                );
-              },
-              child: const Text('Save', style: TextStyle(color: Colors.white)),
-            ),
-        ],
+        titleTextStyle: TextStyle(
+          color: textColor,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        elevation: 0,
+        leading: BackButton(color: textColor),
+        centerTitle: false,
+        shape: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            width: 1,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -68,26 +65,6 @@ class _AdminUserViewState extends State<AdminUserView> {
                       child: const Icon(Icons.shield, size: 60, color: Color(0xFF2563EB)),
                     ),
                   ),
-                  if (_isEditing)
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2563EB),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.camera_alt, size: 20, color: Colors.white),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Camera feature coming soon')),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -119,25 +96,22 @@ class _AdminUserViewState extends State<AdminUserView> {
             const SizedBox(height: 24),
             _buildInfoCard(
               children: [
-                _buildTextField(
-                  controller: _nameController,
+                _buildPlainText(
                   label: 'Full Name',
+                  value: _nameController.text,
                   icon: Icons.person_outline,
-                  enabled: _isEditing,
                 ),
                 const SizedBox(height: 16),
-                _buildTextField(
-                  controller: _emailController,
+                _buildPlainText(
                   label: 'Email',
+                  value: _emailController.text,
                   icon: Icons.email_outlined,
-                  enabled: _isEditing,
                 ),
                 const SizedBox(height: 16),
-                _buildTextField(
-                  controller: _phoneController,
+                _buildPlainText(
                   label: 'Phone',
+                  value: _phoneController.text,
                   icon: Icons.phone_outlined,
-                  enabled: _isEditing,
                 ),
               ],
             ),
@@ -168,11 +142,26 @@ class _AdminUserViewState extends State<AdminUserView> {
                 ),
                 const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(Icons.settings, color: Color(0xFF2563EB)),
-                  title: const Text('Settings'),
+                  leading: const Icon(Icons.edit_outlined, color: Color(0xFF2563EB)),
+                  title: const Text('Edit Profile'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    Navigator.of(context).pushNamed('/settings');
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => EditAdminProfileView(
+                          initialName: _nameController.text,
+                          initialEmail: _emailController.text,
+                          initialPhone: _phoneController.text,
+                          onSave: (name, email, phone) {
+                            setState(() {
+                              _nameController.text = name;
+                              _emailController.text = email;
+                              _phoneController.text = phone;
+                            });
+                          },
+                        ),
+                      ),
+                    );
                   },
                 ),
                 const Divider(height: 1),
@@ -243,25 +232,40 @@ class _AdminUserViewState extends State<AdminUserView> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
+  Widget _buildPlainText({
     required String label,
+    required String value,
     required IconData icon,
-    required bool enabled,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFF2563EB)),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: const Color(0xFF2563EB), size: 20),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
-        filled: !enabled,
-        fillColor: enabled ? null : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
-      ),
+      ],
     );
   }
 
