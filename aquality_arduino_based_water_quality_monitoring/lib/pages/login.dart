@@ -81,17 +81,20 @@ class _LoginViewState extends State<LoginView> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Login'),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
-        shadowColor: Colors.black.withOpacity(0.1),
-        surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.black87),
-      ),
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Login'),
+          centerTitle: true,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
+          elevation: 0,
+          shadowColor: Colors.black.withOpacity(0.1),
+          surfaceTintColor: Colors.transparent,
+          automaticallyImplyLeading: false,
+          iconTheme: const IconThemeData(color: Colors.black87),
+        ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Form(
@@ -235,6 +238,7 @@ class _LoginViewState extends State<LoginView> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
