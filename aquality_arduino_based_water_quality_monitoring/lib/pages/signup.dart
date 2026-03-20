@@ -160,16 +160,27 @@ class _SignupViewState extends State<SignupView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sign Up'),
+        titleTextStyle: TextStyle(
+          color: textColor,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         elevation: 0,
         shadowColor: Colors.black.withOpacity(0.1),
         surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.black87),
+        shape: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            width: 1,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
