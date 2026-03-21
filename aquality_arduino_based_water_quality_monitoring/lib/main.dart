@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Added for StreamBuilder
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'pages/dashboard_enhanced.dart';
 import 'pages/trends_enhanced.dart';
@@ -60,22 +60,31 @@ class _AqualityAppState extends State<AqualityApp> {
       theme: themeService.lightTheme,
       darkTheme: themeService.darkTheme,
       themeMode: themeService.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      
-      // FIXED: Auth Gate replaces static SplashView to prevent refresh loops
+
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          // While Firebase is initializing, show the Splash screen
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const SplashView();
           }
-
-          // If a user session exists, send them to the main app dashboard
           if (snapshot.hasData) {
-            return const AppScreen();
+            // Route based on role once user is logged in
+            return ValueListenableBuilder<String>(
+              valueListenable: AuthService.userRole,
+              builder: (context, role, _) {
+                // While role is still loading, show splash
+                if (role.isEmpty) return const SplashView();
+                switch (role) {
+                  case 'fishPondOwner':
+                    return const AppScreen(role: 'fishPondOwner');
+                  case 'lgu':
+                    return const AppScreen(role: 'lgu');
+                  default:
+                    return const AppScreen(role: 'tilapiaFarmer');
+                }
+              },
+            );
           }
-
-          // If no user is found, force navigation back to Login
           return const LoginView();
         },
       ),
@@ -91,7 +100,9 @@ class _AqualityAppState extends State<AqualityApp> {
         '/user': (context) => const UserView(),
         '/settings': (context) => const SettingsView(),
         '/faq': (context) => const FAQView(),
-        '/app': (context) => const AppScreen(),
+        '/app': (context) => const AppScreen(role: 'tilapiaFarmer'),
+        '/app-owner': (context) => const AppScreen(role: 'fishPondOwner'),
+        '/app-lgu': (context) => const AppScreen(role: 'lgu'),
       },
 
       localizationsDelegates: const [
@@ -109,7 +120,8 @@ class _AqualityAppState extends State<AqualityApp> {
 }
 
 class AppScreen extends StatefulWidget {
-  const AppScreen({super.key});
+  final String role;
+  const AppScreen({super.key, this.role = 'tilapiaFarmer'});
 
   @override
   State<AppScreen> createState() => _AppScreenState();
@@ -124,6 +136,14 @@ class _AppScreenState extends State<AppScreen> {
     AlertsViewEnhanced(),
     HistoryView(),
   ];
+
+  String get _roleLabel {
+    switch (widget.role) {
+      case 'fishPondOwner': return 'Fish Pond Monitor';
+      case 'lgu': return 'LGU Monitor';
+      default: return 'Tilapia Pond Monitor';
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -173,12 +193,12 @@ class _AppScreenState extends State<AppScreen> {
                               child: const Icon(Icons.dashboard, color: Colors.white, size: 20),
                             ),
                             const SizedBox(width: 12),
-                            const Column(
+                            Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Aquality', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                SizedBox(height: 2),
-                                Text('Tilapia Pond Monitor', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                const Text('Aquality', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 2),
+                                Text(_roleLabel, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                               ],
                             ),
                           ],
@@ -193,7 +213,6 @@ class _AppScreenState extends State<AppScreen> {
                             IconButton(
                               icon: const Icon(Icons.person, color: Color(0xFF2563EB)),
                               onPressed: () {
-                                // Simplified logic: Auth Gate handles login check; here we just check role
                                 if (AuthService.isAdmin.value) {
                                   Navigator.of(context).pushNamed('/admin-user');
                                 } else {

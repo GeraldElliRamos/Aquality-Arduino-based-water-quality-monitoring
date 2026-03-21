@@ -1,3 +1,4 @@
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -114,7 +115,55 @@ class AuthService {
     userRole.value = userData['userType'] ?? '';
   }
 
+  // ── Google Sign In ──────────────────────────────────────────────
+  static Future<void> signInWithGoogle() async {
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      clientId:
+          '1023376554960-9vtf0ai8u27dgd0d082f2r0ukjv1um75.apps.googleusercontent.com',
+    );
+    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+    if (googleUser == null) {
+      throw AuthException('cancelled', 'Google sign-in was cancelled.');
+    }
+
+    final GoogleSignInAuthentication googleAuth =
+        await googleUser.authentication;
+
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    final userCredential = await _auth.signInWithCredential(credential);
+    final user = userCredential.user!;
+
+    final doc = await _db.collection('users').doc(user.uid).get();
+
+    if (!doc.exists) {
+      await _db.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'fullName': user.displayName ?? '',
+        'username': user.email?.split('@').first ?? '',
+        'email': user.email?.toLowerCase() ?? '',
+        'userType': 'tilapiaFarmer',
+        'isAdmin': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      userRole.value = 'tilapiaFarmer';
+      isAdmin.value = false;
+    } else {
+      userRole.value = doc.data()?['userType'] ?? 'tilapiaFarmer';
+      isAdmin.value = doc.data()?['isAdmin'] == true;
+    }
+
+    isLoggedIn.value = true;
+  }
+
+  // ── Logout ──────────────────────────────────────────────────────
   static Future<void> logout() async {
+    final GoogleSignIn googleSignIn = GoogleSignIn();
+    await googleSignIn.signOut();
     await _auth.signOut();
     isAdmin.value = false;
     isLoggedIn.value = false;

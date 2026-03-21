@@ -12,7 +12,12 @@
           "package_name": "com.example.aquality_arduino_based_water_quality_monitoring"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1023376554960-9vtf0ai8u27dgd0d082f2r0ukjv1um75.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyD_-fJ4lsuftj82blRRdg81EnrluUuPZZo"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1023376554960-9vtf0ai8u27dgd0d082f2r0ukjv1um75.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1023376554960-tee58ctjirj8usgbplgpi52574fe8frk.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.aqualityArduinoBasedWaterQualityMonitoring"
+              }
+            }
+          ]
         }
       }
     },
@@ -31,7 +48,20 @@
           "package_name": "om.example.aquality_arduino_based_water_quality_monitoring"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1023376554960-huc8nh1j3uh8n2s2v61382lionlnpkda.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "om.example.aquality_arduino_based_water_quality_monitoring",
+            "certificate_hash": "c729d1132b0175c898cefb33e6d7d31c183ab997"
+          }
+        },
+        {
+          "client_id": "1023376554960-9vtf0ai8u27dgd0d082f2r0ukjv1um75.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyD_-fJ4lsuftj82blRRdg81EnrluUuPZZo"
@@ -39,7 +69,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1023376554960-9vtf0ai8u27dgd0d082f2r0ukjv1um75.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1023376554960-tee58ctjirj8usgbplgpi52574fe8frk.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.aqualityArduinoBasedWaterQualityMonitoring"
+              }
+            }
+          ]
         }
       }
     }

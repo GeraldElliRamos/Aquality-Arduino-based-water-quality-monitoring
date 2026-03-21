@@ -74,6 +74,20 @@ class _SignupViewState extends State<SignupView> {
     return null;
   }
 
+  void _navigateByRole() {
+    final role = _selectedUserType?.name ?? 'tilapiaFarmer';
+    switch (role) {
+      case 'fishPondOwner':
+        Navigator.of(context).pushReplacementNamed('/app-owner');
+        break;
+      case 'lgu':
+        Navigator.of(context).pushReplacementNamed('/app-lgu');
+        break;
+      default:
+        Navigator.of(context).pushReplacementNamed('/app');
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_agreeToTerms) {
@@ -91,7 +105,7 @@ class _SignupViewState extends State<SignupView> {
       );
       if (mounted) {
         SuccessSnackBar.show(context, 'Account created successfully!');
-        Navigator.of(context).pushReplacementNamed('/app');
+        _navigateByRole();
       }
     } catch (e) {
       if (!mounted) return;
@@ -165,22 +179,13 @@ class _SignupViewState extends State<SignupView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sign Up'),
-        titleTextStyle: TextStyle(
-          color: textColor,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
+        titleTextStyle: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold),
         centerTitle: true,
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         elevation: 0,
         shadowColor: Colors.black.withOpacity(0.1),
         surfaceTintColor: Colors.transparent,
-        shape: Border(
-          bottom: BorderSide(
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-            width: 1,
-          ),
-        ),
+        shape: Border(bottom: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, width: 1)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -190,13 +195,9 @@ class _SignupViewState extends State<SignupView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
-              Text('Create Account',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center),
+              Text('Create Account', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
               const SizedBox(height: 8),
-              Text('Join us to start monitoring',
-                  style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                  textAlign: TextAlign.center),
+              Text('Join us to start monitoring', style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600), textAlign: TextAlign.center),
               const SizedBox(height: 24),
               if (_selectedUserType != null)
                 GestureDetector(
@@ -212,8 +213,7 @@ class _SignupViewState extends State<SignupView> {
                       children: [
                         Icon(_roleIcon(_selectedUserType!), color: const Color(0xFF2563EB), size: 18),
                         const SizedBox(width: 8),
-                        Text(_roleLabel(_selectedUserType!),
-                            style: const TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.w600, fontSize: 14)),
+                        Text(_roleLabel(_selectedUserType!), style: const TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.w600, fontSize: 14)),
                         const Spacer(),
                         const Text('Change', style: TextStyle(color: Color(0xFF2563EB), fontSize: 12)),
                         const Icon(Icons.chevron_right, color: Color(0xFF2563EB), size: 16),
@@ -238,8 +238,7 @@ class _SignupViewState extends State<SignupView> {
                   Expanded(
                     child: GestureDetector(
                       onTap: _isLoading ? null : () => setState(() => _agreeToTerms = !_agreeToTerms),
-                      child: Text('I agree to the Terms and Conditions',
-                          style: TextStyle(color: isDark ? Colors.grey.shade300 : Colors.grey.shade700)),
+                      child: Text('I agree to the Terms and Conditions', style: TextStyle(color: isDark ? Colors.grey.shade300 : Colors.grey.shade700)),
                     ),
                   ),
                 ],
