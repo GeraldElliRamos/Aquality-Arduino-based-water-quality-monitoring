@@ -158,15 +158,6 @@ class _UserViewState extends State<UserView> {
                   Center(
                     child: Column(
                       children: [
-                        CircleAvatar(
-                          radius: 60,
-                          backgroundColor: roleColor.withOpacity(0.1),
-                          child: Icon(
-                            _roleIcon(_userRole),
-                            size: 60,
-                            color: roleColor,
-                          ),
-                        ),
                         const SizedBox(height: 12),
                         // Role Badge
                         Container(
