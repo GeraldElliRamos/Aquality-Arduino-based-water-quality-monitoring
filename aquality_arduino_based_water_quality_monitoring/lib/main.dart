@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added for StreamBuilder
 
 import 'pages/dashboard_enhanced.dart';
 import 'pages/trends_enhanced.dart';
@@ -26,7 +27,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
-  );                                                            //firebase initialization
+  );
 
   await PreferencesService.instance.init();
   AuthService.init();
@@ -59,7 +60,26 @@ class _AqualityAppState extends State<AqualityApp> {
       theme: themeService.lightTheme,
       darkTheme: themeService.darkTheme,
       themeMode: themeService.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: const SplashView(),
+      
+      // FIXED: Auth Gate replaces static SplashView to prevent refresh loops
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          // While Firebase is initializing, show the Splash screen
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const SplashView();
+          }
+
+          // If a user session exists, send them to the main app dashboard
+          if (snapshot.hasData) {
+            return const AppScreen();
+          }
+
+          // If no user is found, force navigation back to Login
+          return const LoginView();
+        },
+      ),
+
       routes: {
         '/onboarding': (context) => const OnboardingView(),
         '/admin': (context) => const AdminView(),
@@ -83,13 +103,7 @@ class _AqualityAppState extends State<AqualityApp> {
         Locale('en'),
         Locale('tl'),
       ],
-      locale: Locale('en'),
-
-
-
-
-
-
+      locale: const Locale('en'),
     );
   }
 }
@@ -127,8 +141,8 @@ class _AppScreenState extends State<AppScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: isDark
-                ? [Color(0xFF1A1A2E), Color(0xFF16213E)]
-                : [Color(0xFFE6F0FF), Color(0xFFE6FFFB)],
+                ? [const Color(0xFF1A1A2E), const Color(0xFF16213E)]
+                : [const Color(0xFFE6F0FF), const Color(0xFFE6FFFB)],
           ),
         ),
         child: Center(
@@ -139,10 +153,7 @@ class _AppScreenState extends State<AppScreen> {
                 SafeArea(
                   child: Container(
                     color: Theme.of(context).cardColor,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -153,76 +164,40 @@ class _AppScreenState extends State<AppScreen> {
                               height: 40,
                               decoration: const BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [
-                                    Color(0xFF2563EB),
-                                    Color(0xFF06B6D4),
-                                  ],
+                                  colors: [Color(0xFF2563EB), Color(0xFF06B6D4)],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(12),
-                                ),
+                                borderRadius: BorderRadius.all(Radius.circular(12)),
                               ),
-                              child: const Icon(
-                                Icons.dashboard,
-                                color: Colors.white,
-                                size: 20,
-                              ),
+                              child: const Icon(Icons.dashboard, color: Colors.white, size: 20),
                             ),
                             const SizedBox(width: 12),
-                            Column(
+                            const Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'Aquality',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                Text('Aquality', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                 SizedBox(height: 2),
-                                Text(
-                                  'Tilapia Pond Monitor',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
+                                Text('Tilapia Pond Monitor', style: TextStyle(fontSize: 12, color: Colors.grey)),
                               ],
                             ),
                           ],
                         ),
-
                         Row(
                           children: [
                             IconButton(
-                              icon: const Icon(
-                                Icons.settings_outlined,
-                                color: Color(0xFF2563EB),
-                              ),
-                              onPressed: () {
-                                Navigator.of(context).pushNamed('/settings');
-                              },
+                              icon: const Icon(Icons.settings_outlined, color: Color(0xFF2563EB)),
+                              onPressed: () => Navigator.of(context).pushNamed('/settings'),
                               tooltip: 'Settings',
                             ),
                             IconButton(
-                              icon: const Icon(
-                                Icons.person,
-                                color: Color(0xFF2563EB),
-                              ),
+                              icon: const Icon(Icons.person, color: Color(0xFF2563EB)),
                               onPressed: () {
-                                if (AuthService.isLoggedIn.value) {
-                                  // If admin, open admin user page; otherwise open regular user page
-                                  if (AuthService.isAdmin.value) {
-                                    Navigator.of(
-                                      context,
-                                    ).pushNamed('/admin-user');
-                                  } else {
-                                    Navigator.of(context).pushNamed('/user');
-                                  }
+                                // Simplified logic: Auth Gate handles login check; here we just check role
+                                if (AuthService.isAdmin.value) {
+                                  Navigator.of(context).pushNamed('/admin-user');
                                 } else {
-                                  Navigator.of(context).pushNamed('/login');
+                                  Navigator.of(context).pushNamed('/user');
                                 }
                               },
                               tooltip: 'Profile',
@@ -233,7 +208,6 @@ class _AppScreenState extends State<AppScreen> {
                     ),
                   ),
                 ),
-
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -252,22 +226,12 @@ class _AppScreenState extends State<AppScreen> {
         unselectedItemColor: Colors.grey[600],
         onTap: _onItemTapped,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.show_chart),
-            label: 'Trends',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Alerts',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Trends'),
+          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
         ],
       ),
-
       floatingActionButton: ValueListenableBuilder<bool>(
         valueListenable: AuthService.isAdmin,
         builder: (context, isAdmin, _) {
@@ -275,7 +239,7 @@ class _AppScreenState extends State<AppScreen> {
           return FloatingActionButton(
             backgroundColor: const Color(0xFF2563EB),
             onPressed: () => Navigator.of(context).pushNamed('/admin'),
-            tooltip: 'Admin',
+            tooltip: 'Admin Panel',
             child: const Icon(Icons.admin_panel_settings),
           );
         },
