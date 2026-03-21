@@ -81,7 +81,7 @@ class _EditProfileViewState extends State<EditProfileView> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Profile'),
@@ -110,7 +110,11 @@ class _EditProfileViewState extends State<EditProfileView> {
               child: CircleAvatar(
                 radius: 60,
                 backgroundColor: const Color(0xFF2563EB).withOpacity(0.1),
-                child: const Icon(Icons.person, size: 60, color: Color(0xFF2563EB)),
+                child: const Icon(
+                  Icons.person,
+                  size: 60,
+                  color: Color(0xFF2563EB),
+                ),
               ),
             ),
             const SizedBox(height: 32),
@@ -183,9 +187,7 @@ class _EditProfileViewState extends State<EditProfileView> {
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFF2563EB)),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
