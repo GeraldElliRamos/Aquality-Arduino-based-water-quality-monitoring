@@ -3,12 +3,8 @@ import 'package:flutter/material.dart';
 import '../widgets/gauge_widget.dart';
 import '../widgets/shimmer_loading.dart';
 import '../utils/format_utils.dart';
-import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/threshold_service.dart';
-import '../admin/admin.dart';
-
-
 
 class DashboardEnhanced extends StatefulWidget {
   const DashboardEnhanced({super.key});
@@ -45,10 +41,9 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
       (_) => _autoRefresh(),
     );
     // Tick every 30 s so the "Updated X ago" text stays current.
-    _displayTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) { if (mounted) setState(() {}); },
-    );
+    _displayTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _loadInitialData() async {
@@ -59,7 +54,6 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
       unawaited(_checkThresholds());
     }
   }
-
 
   Future<void> _autoRefresh() async {
     if (_isRefreshing || !mounted) return;
@@ -82,11 +76,11 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
     }
   }
 
- 
   Future<void> _checkThresholds() async {
     final stored = await ThresholdService.getAllThresholds();
-    final effective =
-        stored.isEmpty ? ThresholdService.getDefaultThresholds() : stored;
+    final effective = stored.isEmpty
+        ? ThresholdService.getDefaultThresholds()
+        : stored;
 
     // Mock values — swap with real sensor data when Arduino is connected.
     final mockValues = <String, (double, String)>{
@@ -197,11 +191,10 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
       onRefresh: _onRefresh,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -246,7 +239,9 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                               color: item['bg'] as Color,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: (item['color'] as Color).withOpacity(0.3),
+                                color: (item['color'] as Color).withOpacity(
+                                  0.3,
+                                ),
                               ),
                             ),
                             child: Center(
@@ -285,8 +280,10 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                         ),
                       ),
                       Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.green.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(20),
@@ -296,8 +293,11 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.signal_cellular_alt,
-                                size: 14, color: Colors.greenAccent),
+                            Icon(
+                              Icons.signal_cellular_alt,
+                              size: 14,
+                              color: Colors.greenAccent,
+                            ),
                             SizedBox(width: 4),
                             Text(
                               'Connected',
@@ -320,7 +320,10 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
             Center(
               child: Text(
                 'Parameter Status',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -341,35 +344,39 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => ParameterDetail(
-                          title: param['title'] as String,
-                        ),
+                        builder: (context) =>
+                            ParameterDetail(title: param['title'] as String),
                       ),
                     );
                   },
-                  child: Builder(builder: (context) {
-                    final id = param['id'] as String?;
-                    final raw = (param['rawValue'] as double);
-                    double displayValue = raw;
-                    bool anomalous = false;
-                    if (id != null) {
-                      final sv = NotificationService.instance.getSmoothedValue(id);
-                      if (sv != null) displayValue = sv;
-                      anomalous = NotificationService.instance.isAnomalous(id);
-                    }
+                  child: Builder(
+                    builder: (context) {
+                      final id = param['id'] as String?;
+                      final raw = (param['rawValue'] as double);
+                      double displayValue = raw;
+                      bool anomalous = false;
+                      if (id != null) {
+                        final sv = NotificationService.instance
+                            .getSmoothedValue(id);
+                        if (sv != null) displayValue = sv;
+                        anomalous = NotificationService.instance.isAnomalous(
+                          id,
+                        );
+                      }
 
-                    return GaugeWidget(
-                      title: param['title'] as String,
-                      value: displayValue,
-                      minSafe: param['minSafe'] as double,
-                      maxSafe: param['maxSafe'] as double,
-                      unit: param['unit'] as String,
-                      status: param['status'] as String,
-                      statusColor: param['statusColor'] as Color,
-                      gaugeColor: param['gaugeColor'] as Color,
-                      isAnomalous: anomalous,
-                    );
-                  }),
+                      return GaugeWidget(
+                        title: param['title'] as String,
+                        value: displayValue,
+                        minSafe: param['minSafe'] as double,
+                        maxSafe: param['maxSafe'] as double,
+                        unit: param['unit'] as String,
+                        status: param['status'] as String,
+                        statusColor: param['statusColor'] as Color,
+                        gaugeColor: param['gaugeColor'] as Color,
+                        isAnomalous: anomalous,
+                      );
+                    },
+                  ),
                 );
               },
             ),
@@ -403,10 +410,7 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
             const SizedBox(height: 6),
             Text(
               label,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
           ],
@@ -474,6 +478,3 @@ Widget ParameterDetail({required String title}) {
     body: const Center(child: Text('Parameter details coming soon')),
   );
 }
-
-
-

@@ -13,6 +13,102 @@ class _UserViewState extends State<UserView> {
   final _nameController = TextEditingController(text: 'User Name');
   final _emailController = TextEditingController(text: 'user@example.com');
   final _phoneController = TextEditingController(text: '+1 234 567 8900');
+  String _userRole = '';
+  String _memberSince = 'Jan 2026';
+  bool _isLoadingProfile = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() => _isLoadingProfile = true);
+    try {
+      final profile = await AuthService.getCurrentUserProfile();
+      if (profile != null && mounted) {
+        setState(() {
+          _nameController.text = profile['fullName'] ?? 'User Name';
+          _emailController.text = profile['email'] ?? 'user@example.com';
+          _phoneController.text = profile['phone'] ?? '';
+          _userRole = profile['userType'] ?? '';
+          final createdAt = profile['createdAt'];
+          if (createdAt != null) {
+            final dt = createdAt.toDate();
+            _memberSince = '${_monthName(dt.month)} ${dt.year}';
+          }
+        });
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _isLoadingProfile = false);
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return months[month - 1];
+  }
+
+  String _roleLabel(String role) {
+    switch (role) {
+      case 'tilapiaFarmer':
+        return 'Tilapia Farmer';
+      case 'fishPondOwner':
+        return 'Fish Pond Owner';
+      case 'lgu':
+        return 'LGU (Local Government Unit)';
+      default:
+        return 'User';
+    }
+  }
+
+  IconData _roleIcon(String role) {
+    switch (role) {
+      case 'tilapiaFarmer':
+        return Icons.set_meal;
+      case 'fishPondOwner':
+        return Icons.water_damage;
+      case 'lgu':
+        return Icons.account_balance;
+      default:
+        return Icons.person;
+    }
+  }
+
+  Color _roleColor(String role) {
+    switch (role) {
+      case 'tilapiaFarmer':
+        return const Color(0xFF16A34A);
+      case 'fishPondOwner':
+        return const Color(0xFF2563EB);
+      case 'lgu':
+        return const Color(0xFF9333EA);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Future<void> _onRefresh() async {
+    await _loadProfile();
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile refreshed')));
+    }
+  }
 
   @override
   void dispose() {
@@ -22,21 +118,12 @@ class _UserViewState extends State<UserView> {
     super.dispose();
   }
 
-  Future<void> _onRefresh() async {
-    // Simulate fetching profile updates
-    await Future.delayed(const Duration(seconds: 1));
-    // In a real app, fetch from backend or PreferencesService and update controllers
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile refreshed')));
-      setState(() {});
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
-    
+    final roleColor = _roleColor(_userRole);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
@@ -56,111 +143,176 @@ class _UserViewState extends State<UserView> {
           ),
         ),
       ),
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        color: const Color(0xFF2563EB),
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            Center(
-              child: CircleAvatar(
-                radius: 60,
-                backgroundColor: const Color(0xFF2563EB).withOpacity(0.1),
-                child: const Icon(Icons.person, size: 60, color: Color(0xFF2563EB)),
-              ),
-            ),
-            const SizedBox(height: 32),
-            _buildInfoCard(
-              children: [
-                _buildPlainText(
-                  label: 'Full Name',
-                  value: _nameController.text,
-                  icon: Icons.person_outline,
-                ),
-                const SizedBox(height: 16),
-                _buildPlainText(
-                  label: 'Email',
-                  value: _emailController.text,
-                  icon: Icons.email_outlined,
-                ),
-                const SizedBox(height: 16),
-                _buildPlainText(
-                  label: 'Phone',
-                  value: _phoneController.text,
-                  icon: Icons.phone_outlined,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildInfoCard(
-              title: 'Account Statistics',
-              children: [
-                _buildStatRow('Member Since', 'Jan 2026'),
-                const Divider(height: 24),
-                _buildStatRow('Total Readings', '1,234'),
-                const Divider(height: 24),
-                _buildStatRow('Active Devices', '1'),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildInfoCard(
-              title: 'Quick Actions',
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.edit_outlined, color: Color(0xFF2563EB)),
-                  title: const Text('Edit Profile'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => EditProfileView(
-                          initialName: _nameController.text,
-                          initialEmail: _emailController.text,
-                          initialPhone: _phoneController.text,
-                          onSave: (name, email, phone) {
-                            setState(() {
-                              _nameController.text = name;
-                              _emailController.text = email;
-                              _phoneController.text = phone;
-                            });
-                          },
+      body: _isLoadingProfile
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF2563EB)),
+            )
+          : RefreshIndicator(
+              onRefresh: _onRefresh,
+              color: const Color(0xFF2563EB),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                children: [
+                  // Avatar + Role Badge
+                  Center(
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 60,
+                          backgroundColor: roleColor.withOpacity(0.1),
+                          child: Icon(
+                            _roleIcon(_userRole),
+                            size: 60,
+                            color: roleColor,
+                          ),
                         ),
+                        const SizedBox(height: 12),
+                        // Role Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: roleColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: roleColor, width: 1.5),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _roleIcon(_userRole),
+                                size: 14,
+                                color: roleColor,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _roleLabel(_userRole),
+                                style: TextStyle(
+                                  color: roleColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Profile Info
+                  _buildInfoCard(
+                    children: [
+                      _buildPlainText(
+                        label: 'Full Name',
+                        value: _nameController.text,
+                        icon: Icons.person_outline,
                       ),
-                    );
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.lock_outline, color: Color(0xFF2563EB)),
-                  title: const Text('Change Password'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Password change coming soon')),
-                    );
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () {
-                AuthService.setAdmin(false);
-                Navigator.of(context).pushReplacementNamed('/login');
-              },
-              icon: const Icon(Icons.logout),
-              label: const Text('Logout'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                      const SizedBox(height: 16),
+                      _buildPlainText(
+                        label: 'Email',
+                        value: _emailController.text,
+                        icon: Icons.email_outlined,
+                      ),
+                      if (_phoneController.text.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _buildPlainText(
+                          label: 'Phone',
+                          value: _phoneController.text,
+                          icon: Icons.phone_outlined,
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Account Statistics
+                  _buildInfoCard(
+                    title: 'Account Statistics',
+                    children: [
+                      _buildStatRow('Member Since', _memberSince),
+                      const Divider(height: 24),
+                      _buildStatRow('Total Readings', '1,234'),
+                      const Divider(height: 24),
+                      _buildStatRow('Active Devices', '1'),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Quick Actions
+                  _buildInfoCard(
+                    title: 'Quick Actions',
+                    children: [
+                      ListTile(
+                        leading: const Icon(
+                          Icons.edit_outlined,
+                          color: Color(0xFF2563EB),
+                        ),
+                        title: const Text('Edit Profile'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => EditProfileView(
+                                initialName: _nameController.text,
+                                initialEmail: _emailController.text,
+                                initialPhone: _phoneController.text,
+                                onSave: (name, email, phone) {
+                                  setState(() {
+                                    _nameController.text = name;
+                                    _emailController.text = email;
+                                    _phoneController.text = phone;
+                                  });
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.lock_outline,
+                          color: Color(0xFF2563EB),
+                        ),
+                        title: const Text('Change Password'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Password change coming soon'),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Logout
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await AuthService.logout();
+                      if (mounted) {
+                        Navigator.of(context).pushReplacementNamed('/login');
+                      }
+                    },
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Logout'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                ],
               ),
             ),
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
     );
   }
 
@@ -184,10 +336,7 @@ class _UserViewState extends State<UserView> {
           if (title != null) ...[
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
           ],
@@ -234,43 +383,17 @@ class _UserViewState extends State<UserView> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-  }) {
-    return TextField(
-      controller: controller,
-      enabled: false,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFF2563EB)),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        filled: true,
-        fillColor: Colors.grey.shade100,
-      ),
-    );
-  }
-
   Widget _buildStatRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade600,
-          ),
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
         ),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
         ),
       ],
     );
