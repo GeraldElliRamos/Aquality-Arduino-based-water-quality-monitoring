@@ -12,6 +12,16 @@ class AuthException implements Exception {
   String toString() => message;
 }
 
+class GoogleSignInResult {
+  final bool isNewUser;
+  final bool needsRoleSelection;
+
+  const GoogleSignInResult({
+    required this.isNewUser,
+    required this.needsRoleSelection,
+  });
+}
+
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -116,7 +126,7 @@ class AuthService {
   }
 
   // ── Google Sign In ──────────────────────────────────────────────
-  static Future<bool> signInWithGoogle() async {
+  static Future<GoogleSignInResult> signInWithGoogle() async {
     final GoogleSignIn googleSignIn = GoogleSignIn(
       clientId:
           '1023376554960-9vtf0ai8u27dgd0d082f2r0ukjv1um75.apps.googleusercontent.com',
@@ -138,30 +148,96 @@ class AuthService {
     final userCredential = await _auth.signInWithCredential(credential);
     final user = userCredential.user!;
 
-    final doc = await _db.collection('users').doc(user.uid).get();
+    final docRef = _db.collection('users').doc(user.uid);
+    final doc = await docRef.get();
 
     bool isNewUser = false;
+    final normalizedEmail = user.email?.trim().toLowerCase() ?? '';
+    final generatedUsername =
+        normalizedEmail.isNotEmpty ? normalizedEmail.split('@').first : '';
+    final displayName = user.displayName?.trim() ?? '';
 
     if (!doc.exists) {
       isNewUser = true;
-      await _db.collection('users').doc(user.uid).set({
+      await docRef.set({
         'uid': user.uid,
-        'fullName': user.displayName ?? '',
-        'username': user.email?.split('@').first ?? '',
-        'email': user.email?.toLowerCase() ?? '',
+        'fullName': displayName,
+        'username': generatedUsername,
+        'email': normalizedEmail,
         'userType': '',
         'isAdmin': false,
+        'authProvider': 'google',
         'createdAt': FieldValue.serverTimestamp(),
       });
       userRole.value = '';
       isAdmin.value = false;
     } else {
-      userRole.value = doc.data()?['userType'] ?? '';
-      isAdmin.value = doc.data()?['isAdmin'] == true;
+      final data = doc.data() ?? {};
+      final updates = <String, dynamic>{};
+
+      if ((data['email'] as String?)?.trim().isEmpty ?? true) {
+        updates['email'] = normalizedEmail;
+      }
+      if ((data['fullName'] as String?)?.trim().isEmpty ?? true) {
+        updates['fullName'] = displayName;
+      }
+      if ((data['username'] as String?)?.trim().isEmpty ?? true) {
+        updates['username'] = generatedUsername;
+      }
+      if (updates.isNotEmpty) {
+        await docRef.set(updates, SetOptions(merge: true));
+      }
+
+      userRole.value = (data['userType'] as String?) ?? '';
+      isAdmin.value = data['isAdmin'] == true;
     }
 
     isLoggedIn.value = true;
-    return isNewUser;
+    return GoogleSignInResult(
+      isNewUser: isNewUser,
+      needsRoleSelection: userRole.value.isEmpty,
+    );
+  }
+
+  static Future<void> completeGoogleSignupProfile({
+    required String fullName,
+    required String username,
+    required String email,
+    required String userType,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AuthException('not-authenticated', 'Please sign in first.');
+    }
+
+    final normalizedUsername = username.trim().toLowerCase();
+    final usernameQuery = await _db
+        .collection('users')
+        .where('username', isEqualTo: normalizedUsername)
+        .limit(1)
+        .get();
+
+    if (usernameQuery.docs.isNotEmpty && usernameQuery.docs.first.id != user.uid) {
+      throw const AuthException(
+        'username-already-taken',
+        'That username is already taken. Please choose another.',
+      );
+    }
+
+    await _db.collection('users').doc(user.uid).set({
+      'uid': user.uid,
+      'fullName': fullName.trim(),
+      'username': normalizedUsername,
+      'email': email.trim().toLowerCase(),
+      'userType': userType,
+      'isAdmin': false,
+      'authProvider': 'google',
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    isLoggedIn.value = true;
+    isAdmin.value = false;
+    userRole.value = userType;
   }
 
   // ── Logout ──────────────────────────────────────────────────────

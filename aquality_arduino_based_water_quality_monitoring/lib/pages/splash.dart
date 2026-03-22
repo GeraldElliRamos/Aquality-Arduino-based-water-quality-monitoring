@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -10,29 +8,6 @@ class SplashView extends StatefulWidget {
 }
 
 class _SplashViewState extends State<SplashView> {
-  @override
-  void initState() {
-    super.initState();
-    _checkStatus();
-  }
-
-  Future<void> _checkStatus() async {
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user != null) {
-      if (AuthService.isAdmin.value) {
-        Navigator.of(context).pushReplacementNamed('/app'); 
-      } else {
-        Navigator.of(context).pushReplacementNamed('/app');
-      }
-    } else {
-      Navigator.of(context).pushReplacementNamed('/login');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;

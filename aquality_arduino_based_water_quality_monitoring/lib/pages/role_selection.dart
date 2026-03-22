@@ -16,12 +16,19 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
   UserType? _selectedUserType;
   bool _isSaving = false;
   bool _isFromGoogle = false;
+  bool _isGoogleNewUser = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
-    _isFromGoogle = args == 'google';
+    if (args is Map<String, dynamic>) {
+      _isFromGoogle = args['source'] == 'google';
+      _isGoogleNewUser = args['isNewUser'] == true;
+    } else {
+      _isFromGoogle = args == 'google';
+      _isGoogleNewUser = _isFromGoogle;
+    }
   }
 
   String _userTypeLabel(UserType type) {
@@ -100,11 +107,31 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
         final uid = FirebaseAuth.instance.currentUser?.uid;
         if (uid != null) {
           final roleValue = _userTypeValue(_selectedUserType!);
-          await FirebaseFirestore.instance.collection('users').doc(uid).update({
-            'userType': roleValue,
-          });
-          AuthService.userRole.value = roleValue;
-          if (mounted) _navigateByRole(roleValue);
+
+          if (_isGoogleNewUser) {
+            final user = FirebaseAuth.instance.currentUser;
+            final fallbackEmail = user?.email?.trim().toLowerCase() ?? '';
+            final prefillUsername = fallbackEmail.isNotEmpty
+                ? fallbackEmail.split('@').first
+                : '';
+
+            if (mounted) {
+              Navigator.of(context).pushReplacementNamed('/signup', arguments: {
+                'selectedUserType': _selectedUserType,
+                'isGoogleSignup': true,
+                'prefillName': user?.displayName ?? '',
+                'prefillEmail': fallbackEmail,
+                'prefillUsername': prefillUsername,
+              });
+            }
+          } else {
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .set({'userType': roleValue}, SetOptions(merge: true));
+            AuthService.userRole.value = roleValue;
+            if (mounted) _navigateByRole(roleValue);
+          }
         }
       } catch (e) {
         if (mounted) {

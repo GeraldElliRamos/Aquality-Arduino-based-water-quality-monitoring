@@ -23,11 +23,31 @@ class _SignupViewState extends State<SignupView> {
   bool _isLoading = false;
   bool _agreeToTerms = false;
   UserType? _selectedUserType;
+  bool _isGoogleSignup = false;
+  bool _didInitArgs = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _selectedUserType = ModalRoute.of(context)?.settings.arguments as UserType?;
+    if (_didInitArgs) return;
+
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is UserType) {
+      _selectedUserType = args;
+    } else if (args is Map<String, dynamic>) {
+      final roleArg = args['selectedUserType'];
+      if (roleArg is UserType) {
+        _selectedUserType = roleArg;
+      }
+
+      _isGoogleSignup = args['isGoogleSignup'] == true;
+
+      _nameCtrl.text = (args['prefillName'] as String? ?? '').trim();
+      _emailCtrl.text = (args['prefillEmail'] as String? ?? '').trim();
+      _userCtrl.text = (args['prefillUsername'] as String? ?? '').trim();
+    }
+
+    _didInitArgs = true;
   }
 
   @override
@@ -62,6 +82,7 @@ class _SignupViewState extends State<SignupView> {
   }
 
   String? _validatePassword(String? v) {
+    if (_isGoogleSignup) return null;
     if (v == null || v.isEmpty) return 'Password is required';
     if (v.length < 8) return 'Password must be at least 8 characters';
     if (!v.contains(RegExp(r'[A-Z]'))) return 'Password must contain an uppercase letter';
@@ -70,6 +91,7 @@ class _SignupViewState extends State<SignupView> {
   }
 
   String? _validateConfirmPassword(String? v) {
+    if (_isGoogleSignup) return null;
     if (v != _passCtrl.text) return 'Passwords do not match';
     return null;
   }
@@ -96,15 +118,29 @@ class _SignupViewState extends State<SignupView> {
     }
     setState(() => _isLoading = true);
     try {
-      await AuthService.signUp(
-        fullName: _nameCtrl.text.trim(),
-        username: _userCtrl.text.trim(),
-        email: _emailCtrl.text.trim(),
-        password: _passCtrl.text,
-        userType: _selectedUserType?.name ?? 'tilapiaFarmer',
-      );
+      if (_isGoogleSignup) {
+        await AuthService.completeGoogleSignupProfile(
+          fullName: _nameCtrl.text.trim(),
+          username: _userCtrl.text.trim(),
+          email: _emailCtrl.text.trim(),
+          userType: _selectedUserType?.name ?? 'tilapiaFarmer',
+        );
+      } else {
+        await AuthService.signUp(
+          fullName: _nameCtrl.text.trim(),
+          username: _userCtrl.text.trim(),
+          email: _emailCtrl.text.trim(),
+          password: _passCtrl.text,
+          userType: _selectedUserType?.name ?? 'tilapiaFarmer',
+        );
+      }
       if (mounted) {
-        SuccessSnackBar.show(context, 'Account created successfully!');
+        SuccessSnackBar.show(
+          context,
+          _isGoogleSignup
+              ? 'Google account profile completed!'
+              : 'Account created successfully!',
+        );
         _navigateByRole();
       }
     } catch (e) {
@@ -227,10 +263,12 @@ class _SignupViewState extends State<SignupView> {
               TextFormField(controller: _emailCtrl, enabled: !_isLoading, validator: _validateEmail, keyboardType: TextInputType.emailAddress, textInputAction: TextInputAction.next, decoration: _inputDecoration('Email', Icons.email_outlined, isDark)),
               const SizedBox(height: 16),
               TextFormField(controller: _userCtrl, enabled: !_isLoading, validator: _validateUsername, textInputAction: TextInputAction.next, decoration: _inputDecoration('Username', Icons.alternate_email, isDark)),
-              const SizedBox(height: 16),
-              TextFormField(controller: _passCtrl, enabled: !_isLoading, obscureText: _obscurePassword, validator: _validatePassword, textInputAction: TextInputAction.next, decoration: _passwordDecoration(label: 'Password', obscure: _obscurePassword, isDark: isDark, onToggle: () => setState(() => _obscurePassword = !_obscurePassword))),
-              const SizedBox(height: 16),
-              TextFormField(controller: _confirmPassCtrl, enabled: !_isLoading, obscureText: _obscureConfirmPassword, validator: _validateConfirmPassword, textInputAction: TextInputAction.done, onFieldSubmitted: (_) => _submit(), decoration: _passwordDecoration(label: 'Confirm Password', obscure: _obscureConfirmPassword, isDark: isDark, onToggle: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword))),
+              if (!_isGoogleSignup) ...[
+                const SizedBox(height: 16),
+                TextFormField(controller: _passCtrl, enabled: !_isLoading, obscureText: _obscurePassword, validator: _validatePassword, textInputAction: TextInputAction.next, decoration: _passwordDecoration(label: 'Password', obscure: _obscurePassword, isDark: isDark, onToggle: () => setState(() => _obscurePassword = !_obscurePassword))),
+                const SizedBox(height: 16),
+                TextFormField(controller: _confirmPassCtrl, enabled: !_isLoading, obscureText: _obscureConfirmPassword, validator: _validateConfirmPassword, textInputAction: TextInputAction.done, onFieldSubmitted: (_) => _submit(), decoration: _passwordDecoration(label: 'Confirm Password', obscure: _obscureConfirmPassword, isDark: isDark, onToggle: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword))),
+              ],
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -249,7 +287,7 @@ class _SignupViewState extends State<SignupView> {
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 child: _isLoading
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
-                    : const Text('Create Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  : Text(_isGoogleSignup ? 'Complete Google Sign Up' : 'Create Account', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 24),
               Row(
