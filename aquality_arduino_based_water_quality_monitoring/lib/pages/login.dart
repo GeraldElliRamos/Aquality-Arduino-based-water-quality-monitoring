@@ -81,10 +81,16 @@ class _LoginViewState extends State<LoginView> {
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      await AuthService.signInWithGoogle();
+      final isNewUser = await AuthService.signInWithGoogle();
       if (mounted) {
         SuccessSnackBar.show(context, 'Welcome!');
-        _navigateByRole();
+        if (isNewUser) {
+          Navigator.of(
+            context,
+          ).pushReplacementNamed('/role-selection', arguments: 'google');
+        } else {
+          _navigateByRole();
+        }
       }
     } catch (e) {
       if (!mounted) return;

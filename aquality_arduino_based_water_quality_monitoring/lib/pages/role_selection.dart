@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/auth_service.dart';
 
 enum UserType { tilapiaFarmer, fishPondOwner, lgu }
 
@@ -11,6 +14,15 @@ class RoleSelectionView extends StatefulWidget {
 
 class _RoleSelectionViewState extends State<RoleSelectionView> {
   UserType? _selectedUserType;
+  bool _isSaving = false;
+  bool _isFromGoogle = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    _isFromGoogle = args == 'google';
+  }
 
   String _userTypeLabel(UserType type) {
     switch (type) {
@@ -45,7 +57,33 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
     }
   }
 
-  void _continue() {
+  String _userTypeValue(UserType type) {
+    switch (type) {
+      case UserType.tilapiaFarmer:
+        return 'tilapiaFarmer';
+      case UserType.fishPondOwner:
+        return 'fishPondOwner';
+      case UserType.lgu:
+        return 'lgu';
+    }
+  }
+
+  void _navigateByRole(String role) {
+    String route;
+    switch (role) {
+      case 'fishPondOwner':
+        route = '/app-owner';
+        break;
+      case 'lgu':
+        route = '/app-lgu';
+        break;
+      default:
+        route = '/app';
+    }
+    Navigator.of(context).pushNamedAndRemoveUntil(route, (route) => false);
+  }
+
+  Future<void> _continue() async {
     if (_selectedUserType == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -56,8 +94,30 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
       return;
     }
 
-    // Pass selected role to signup page
-    Navigator.of(context).pushNamed('/signup', arguments: _selectedUserType);
+    if (_isFromGoogle) {
+      setState(() => _isSaving = true);
+      try {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) {
+          final roleValue = _userTypeValue(_selectedUserType!);
+          await FirebaseFirestore.instance.collection('users').doc(uid).update({
+            'userType': roleValue,
+          });
+          AuthService.userRole.value = roleValue;
+          if (mounted) _navigateByRole(roleValue);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error saving role: $e')));
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
+      }
+    } else {
+      Navigator.of(context).pushNamed('/signup', arguments: _selectedUserType);
+    }
   }
 
   @override
@@ -78,6 +138,7 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
         elevation: 0,
         shadowColor: Colors.black.withOpacity(0.1),
         surfaceTintColor: Colors.transparent,
+        automaticallyImplyLeading: !_isFromGoogle,
         shape: Border(
           bottom: BorderSide(
             color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
@@ -91,8 +152,6 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 20),
-
-            // Icon
             Container(
               width: 80,
               height: 80,
@@ -111,7 +170,6 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
                 size: 40,
               ),
             ),
-
             Text(
               'Who are you?',
               style: Theme.of(
@@ -129,15 +187,10 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 40),
-
-            // Role options
             ...UserType.values.map((type) => _buildRadioOption(type, isDark)),
-
             const SizedBox(height: 32),
-
-            // Continue button
             ElevatedButton(
-              onPressed: _continue,
+              onPressed: _isSaving ? null : _continue,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,
@@ -146,29 +199,42 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                'Continue',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Continue',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
             const SizedBox(height: 16),
-
-            // Back to login
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Already have an account? ',
-                  style: TextStyle(
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            if (!_isFromGoogle)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Already have an account? ',
+                    style: TextStyle(
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                    ),
                   ),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Login'),
-                ),
-              ],
-            ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Login'),
+                  ),
+                ],
+              ),
           ],
         ),
       ),

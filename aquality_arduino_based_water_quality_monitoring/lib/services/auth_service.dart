@@ -116,7 +116,7 @@ class AuthService {
   }
 
   // ── Google Sign In ──────────────────────────────────────────────
-  static Future<void> signInWithGoogle() async {
+  static Future<bool> signInWithGoogle() async {
     final GoogleSignIn googleSignIn = GoogleSignIn(
       clientId:
           '1023376554960-9vtf0ai8u27dgd0d082f2r0ukjv1um75.apps.googleusercontent.com',
@@ -140,29 +140,36 @@ class AuthService {
 
     final doc = await _db.collection('users').doc(user.uid).get();
 
+    bool isNewUser = false;
+
     if (!doc.exists) {
+      isNewUser = true;
       await _db.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'fullName': user.displayName ?? '',
         'username': user.email?.split('@').first ?? '',
         'email': user.email?.toLowerCase() ?? '',
-        'userType': 'tilapiaFarmer',
+        'userType': '',
         'isAdmin': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      userRole.value = 'tilapiaFarmer';
+      userRole.value = '';
       isAdmin.value = false;
     } else {
-      userRole.value = doc.data()?['userType'] ?? 'tilapiaFarmer';
+      userRole.value = doc.data()?['userType'] ?? '';
       isAdmin.value = doc.data()?['isAdmin'] == true;
     }
 
     isLoggedIn.value = true;
+    return isNewUser;
   }
 
   // ── Logout ──────────────────────────────────────────────────────
   static Future<void> logout() async {
-    final GoogleSignIn googleSignIn = GoogleSignIn();
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      clientId:
+          '1023376554960-9vtf0ai8u27dgd0d082f2r0ukjv1um75.apps.googleusercontent.com',
+    );
     await googleSignIn.signOut();
     await _auth.signOut();
     isAdmin.value = false;

@@ -25,9 +25,7 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await PreferencesService.instance.init();
   AuthService.init();
@@ -110,10 +108,7 @@ class _AqualityAppState extends State<AqualityApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('en'),
-        Locale('tl'),
-      ],
+      supportedLocales: const [Locale('en'), Locale('tl')],
       locale: const Locale('en'),
     );
   }
@@ -139,9 +134,12 @@ class _AppScreenState extends State<AppScreen> {
 
   String get _roleLabel {
     switch (widget.role) {
-      case 'fishPondOwner': return 'Fish Pond Monitor';
-      case 'lgu': return 'LGU Monitor';
-      default: return 'Tilapia Pond Monitor';
+      case 'fishPondOwner':
+        return 'Fish Pond Monitor';
+      case 'lgu':
+        return 'LGU Monitor';
+      default:
+        return 'Tilapia Pond Monitor';
     }
   }
 
@@ -173,7 +171,10 @@ class _AppScreenState extends State<AppScreen> {
                 SafeArea(
                   child: Container(
                     color: Theme.of(context).cardColor,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -184,21 +185,42 @@ class _AppScreenState extends State<AppScreen> {
                               height: 40,
                               decoration: const BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [Color(0xFF2563EB), Color(0xFF06B6D4)],
+                                  colors: [
+                                    Color(0xFF2563EB),
+                                    Color(0xFF06B6D4),
+                                  ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
-                                borderRadius: BorderRadius.all(Radius.circular(12)),
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
+                                ),
                               ),
-                              child: const Icon(Icons.dashboard, color: Colors.white, size: 20),
+                              child: const Icon(
+                                Icons.dashboard,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Aquality', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                const Text(
+                                  'Aquality',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                                 const SizedBox(height: 2),
-                                Text(_roleLabel, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                Text(
+                                  _roleLabel,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                               ],
                             ),
                           ],
@@ -206,15 +228,24 @@ class _AppScreenState extends State<AppScreen> {
                         Row(
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.settings_outlined, color: Color(0xFF2563EB)),
-                              onPressed: () => Navigator.of(context).pushNamed('/settings'),
+                              icon: const Icon(
+                                Icons.settings_outlined,
+                                color: Color(0xFF2563EB),
+                              ),
+                              onPressed: () =>
+                                  Navigator.of(context).pushNamed('/settings'),
                               tooltip: 'Settings',
                             ),
                             IconButton(
-                              icon: const Icon(Icons.person, color: Color(0xFF2563EB)),
+                              icon: const Icon(
+                                Icons.person,
+                                color: Color(0xFF2563EB),
+                              ),
                               onPressed: () {
                                 if (AuthService.isAdmin.value) {
-                                  Navigator.of(context).pushNamed('/admin-user');
+                                  Navigator.of(
+                                    context,
+                                  ).pushNamed('/admin-user');
                                 } else {
                                   Navigator.of(context).pushNamed('/user');
                                 }
@@ -245,9 +276,18 @@ class _AppScreenState extends State<AppScreen> {
         unselectedItemColor: Colors.grey[600],
         onTap: _onItemTapped,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Trends'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.show_chart),
+            label: 'Trends',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: 'Alerts',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
         ],
       ),
