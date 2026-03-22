@@ -91,7 +91,7 @@ class _GaugeWidgetState extends State<GaugeWidget>
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
@@ -101,111 +101,117 @@ class _GaugeWidgetState extends State<GaugeWidget>
             width: 1,
           ),
         ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              widget.title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 120,
-              width: 120,
-              child: AnimatedBuilder(
-                animation: _animation,
-                builder: (context, child) {
-                  return CustomPaint(
-                    painter: GaugePainter(
-                      progress: _animation.value,
-                      color: widget.gaugeColor,
-                      backgroundColor: isDark
-                          ? Colors.grey.shade700
-                          : Colors.grey.shade200,
-                      statusColor: widget.statusColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final gaugeSize = (constraints.maxWidth * 0.62).clamp(92.0, 120.0);
+
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            FormatUtils.formatParamValue(widget.value),
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: gaugeSize,
+                      width: gaugeSize,
+                      child: AnimatedBuilder(
+                        animation: _animation,
+                        builder: (context, child) {
+                          return CustomPaint(
+                            painter: GaugePainter(
+                              progress: _animation.value,
+                              color: widget.gaugeColor,
+                              backgroundColor: isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade200,
+                              statusColor: widget.statusColor,
                             ),
-                          ),
-                          Text(
-                            widget.unit,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade600,
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    FormatUtils.formatParamValue(widget.value),
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    widget.unit,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: widget.statusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: widget.statusColor.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Text(
+                        widget.status,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: widget.statusColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Range: ${FormatUtils.formatRange(widget.minSafe, widget.maxSafe)}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+            // anomaly badge
+                if (widget.isAnomalous)
+                  Positioned(
+                    right: 6,
+                    top: 6,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: Colors.black26, blurRadius: 4),
                         ],
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: widget.statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: widget.statusColor.withOpacity(0.3),
-                ),
-              ),
-              child: Text(
-                widget.status,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: widget.statusColor,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Range: ${FormatUtils.formatRange(widget.minSafe, widget.maxSafe)}',
-              style: TextStyle(
-                fontSize: 11,
-                color: isDark
-                    ? Colors.grey.shade400
-                    : Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-            // anomaly badge
-            if (widget.isAnomalous)
-              Positioned(
-                right: 6,
-                top: 6,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(color: Colors.black26, blurRadius: 4),
-                    ],
                   ),
-                ),
-              ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );

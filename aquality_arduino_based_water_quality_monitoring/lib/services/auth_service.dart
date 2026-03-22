@@ -127,10 +127,7 @@ class AuthService {
 
   // ── Google Sign In ──────────────────────────────────────────────
   static Future<GoogleSignInResult> signInWithGoogle() async {
-    final GoogleSignIn googleSignIn = GoogleSignIn(
-      clientId:
-          '1023376554960-9vtf0ai8u27dgd0d082f2r0ukjv1um75.apps.googleusercontent.com',
-    );
+    final GoogleSignIn googleSignIn = GoogleSignIn();
     final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
     if (googleUser == null) {
@@ -242,10 +239,7 @@ class AuthService {
 
   // ── Logout ──────────────────────────────────────────────────────
   static Future<void> logout() async {
-    final GoogleSignIn googleSignIn = GoogleSignIn(
-      clientId:
-          '1023376554960-9vtf0ai8u27dgd0d082f2r0ukjv1um75.apps.googleusercontent.com',
-    );
+    final GoogleSignIn googleSignIn = GoogleSignIn();
     await googleSignIn.signOut();
     await _auth.signOut();
     isAdmin.value = false;
