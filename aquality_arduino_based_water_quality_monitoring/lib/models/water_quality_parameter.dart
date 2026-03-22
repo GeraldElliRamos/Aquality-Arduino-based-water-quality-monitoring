@@ -52,7 +52,6 @@ class WaterQualityParameter {
 enum IconType {
   temperature,
   ph,
-  dissolvedOxygen,
   ammonia,
   turbidity,
   conductivity,

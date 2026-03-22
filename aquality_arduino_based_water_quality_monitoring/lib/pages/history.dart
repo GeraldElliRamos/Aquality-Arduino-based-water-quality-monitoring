@@ -140,7 +140,7 @@ class _HistoryViewState extends State<HistoryView> {
       'date': 'Feb 1',
       'temp': 28.1,
       'ph': 8.0,
-      'do': 6.8,
+      'turbidity': 18.6,
       'nh3': 0.10,
     },
     {
@@ -148,7 +148,7 @@ class _HistoryViewState extends State<HistoryView> {
       'date': 'Feb 1',
       'temp': 29.8,
       'ph': 6.8,
-      'do': 6.7,
+      'turbidity': 26.4,
       'nh3': 0.15,
     },
     {
@@ -156,7 +156,7 @@ class _HistoryViewState extends State<HistoryView> {
       'date': 'Jan 30',
       'temp': 27.2,
       'ph': 8.2,
-      'do': 7.3,
+      'turbidity': 33.1,
       'nh3': 0.22,
     },
   ];
@@ -166,10 +166,10 @@ class _HistoryViewState extends State<HistoryView> {
   final Map<String, int> _undoCount = {};
 
   String _buildCsv(List<Map<String, dynamic>> rows) {
-    final headers = ['date', 'temp', 'ph', 'do', 'nh3'];
+    final headers = ['date', 'temp', 'ph', 'turbidity', 'nh3'];
     final sb = StringBuffer()..writeln(headers.join(','));
     for (final r in rows) {
-      sb.writeln('${r['date']},${r['temp']},${r['ph']},${r['do']},${r['nh3']}');
+      sb.writeln('${r['date']},${r['temp']},${r['ph']},${r['turbidity']},${r['nh3']}');
     }
     return sb.toString();
   }
@@ -197,12 +197,12 @@ class _HistoryViewState extends State<HistoryView> {
           'icon': Icons.water_drop,
           'color': Colors.purple,
         };
-      case 'do':
+      case 'turbidity':
         return {
-          'title': 'Dissolved Oxygen',
-          'unit': 'mg/L',
-          'range': '>5 mg/L',
-          'icon': Icons.air,
+          'title': 'Turbidity',
+          'unit': 'NTU',
+          'range': '<=30 NTU',
+          'icon': Icons.blur_on,
           'color': Colors.blue,
         };
       case 'nh3':
@@ -268,7 +268,7 @@ class _HistoryViewState extends State<HistoryView> {
                 children: [
                   _detailChip(ctx, 'temp', r['temp']),
                   _detailChip(ctx, 'ph', r['ph']),
-                  _detailChip(ctx, 'do', r['do']),
+                  _detailChip(ctx, 'turbidity', r['turbidity']),
                   _detailChip(ctx, 'nh3', r['nh3']),
                 ],
               ),
@@ -591,12 +591,12 @@ class _HistoryViewState extends State<HistoryView> {
                                       ),
                                       GestureDetector(
                                         onTap: () => _openParamFromRecord(
-                                          'do',
-                                          r['do'].toString(),
+                                          'turbidity',
+                                          r['turbidity'].toString(),
                                         ),
                                         child: _metricColumn(
-                                          '${r['do']}',
-                                          'DO',
+                                          '${r['turbidity']}',
+                                          'NTU',
                                         ),
                                       ),
                                       GestureDetector(

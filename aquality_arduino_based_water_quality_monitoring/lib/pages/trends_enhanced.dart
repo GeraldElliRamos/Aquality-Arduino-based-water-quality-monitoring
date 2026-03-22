@@ -48,19 +48,19 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
       7.0,
       6.98
     ],
-    'Dissolved Oxygen':[
-      6.5,
-      6.4,
-      6.6,
-      6.8,
-      7.0,
-      7.2,
-      7.3,
-      7.5,
-      7.4,
-      7.2,
-      7.0,
-      6.8
+    'Turbidity': [
+      18.0,
+      19.2,
+      17.8,
+      20.1,
+      22.5,
+      24.0,
+      23.2,
+      25.4,
+      24.8,
+      22.9,
+      21.7,
+      20.3
     ],
     'Ammonia': [
       0.1,

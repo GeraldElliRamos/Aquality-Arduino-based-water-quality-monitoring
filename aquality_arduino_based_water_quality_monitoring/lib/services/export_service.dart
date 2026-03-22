@@ -23,7 +23,7 @@ class ExportService {
 
   static List<List<dynamic>> _generateMockData() {
     final now = DateTime.now();
-    final headers = ['Timestamp', 'Temperature (°C)', 'pH Level', 'Dissolved Oxygen (mg/L)', 'Ammonia (mg/L)', 'Status'];
+    final headers = ['Timestamp', 'Temperature (°C)', 'pH Level', 'Turbidity (NTU)', 'Ammonia (mg/L)', 'Status'];
     
     final rows = <List<dynamic>>[headers];
     

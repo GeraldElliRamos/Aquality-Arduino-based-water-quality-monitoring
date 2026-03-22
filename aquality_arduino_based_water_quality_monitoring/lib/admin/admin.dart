@@ -99,7 +99,7 @@ class _AdminViewState extends State<AdminView>
             children: [
               DropdownButtonFormField<String>(
                 initialValue: param,
-                items: ['pH', 'Temperature', 'Dissolved Oxygen', 'Ammonia']
+                items: ['pH', 'Temperature', 'Turbidity', 'Ammonia']
                     .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),
                 onChanged: (v) => param = v ?? param,

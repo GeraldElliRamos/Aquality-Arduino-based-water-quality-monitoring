@@ -439,8 +439,8 @@ class ParameterDetailView extends StatelessWidget {
         return 'Optimal water temperature for tilapia is 26-30°C. Temperatures outside this range can stress fish and affect their growth rate.';
       case 'ph level':
         return 'pH measures acidity/alkalinity. Tilapia thrive in slightly alkaline water (7-9). Values outside this range can harm fish health.';
-      case 'dissolved oxygen':
-        return 'Dissolved oxygen (DO) is essential for fish respiration. Tilapia need at least 5 mg/L, with 5-8 mg/L being optimal.';
+      case 'turbidity':
+        return 'Turbidity indicates water clarity. Keep turbidity at or below 30 NTU for safer pond conditions; 30-50 NTU is warning level and above 50 NTU is dangerous.';
       case 'ammonia':
         return 'Ammonia is toxic waste from fish metabolism. Keep NH₃ below 0.02 mg/L to prevent fish stress and disease.';
       default:

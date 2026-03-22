@@ -19,12 +19,12 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
   final List<Alert> alerts = [
     Alert(
       id: '1',
-      title: 'Dissolved oxygen critically low',
-      subtitle: 'Dissolved Oxygen: 3.919 mg/L',
+      title: 'Turbidity critically high',
+      subtitle: 'Turbidity: 58.2 NTU',
       level: AlertLevel.critical,
-      parameterName: 'Dissolved Oxygen',
-      reading: 3.919,
-      unit: 'mg/L',
+      parameterName: 'Turbidity',
+      reading: 58.2,
+      unit: 'NTU',
       timestamp: DateTime.now().subtract(const Duration(minutes: 30)),
     ),
     Alert(
@@ -38,12 +38,12 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
     ),
     Alert(
       id: '3',
-      title: 'Dissolved oxygen critically low',
-      subtitle: 'Dissolved Oxygen: 3.90 mg/L',
+      title: 'Turbidity critically high',
+      subtitle: 'Turbidity: 52.4 NTU',
       level: AlertLevel.critical,
-      parameterName: 'Dissolved Oxygen',
-      reading: 3.90,
-      unit: 'mg/L',
+      parameterName: 'Turbidity',
+      reading: 52.4,
+      unit: 'NTU',
       timestamp: DateTime.now().subtract(const Duration(hours: 4)),
     ),
     Alert(

@@ -116,12 +116,12 @@ class ThresholdService {
         lastModified: DateTime.now(),
       ),
       Threshold(
-        parameterId: 'dissolvedOxygen',
-        parameterName: 'Dissolved Oxygen',
-        minSafeValue: 5.0,    // Warning_Low  (>=5 marginal, >=6 optimal)
-        maxSafeValue: 999.0,  // No upper danger limit
-        warningMinValue: 3.0,  // Danger_Low   (<3 lethal)
-        warningMaxValue: 999.0, // No upper danger limit
+        parameterId: 'turbidity',
+        parameterName: 'Turbidity',
+        minSafeValue: 0.0,    // Warning_Low
+        maxSafeValue: 30.0,   // Warning_High (<=30 safe)
+        warningMinValue: 0.0,  // Danger_Low
+        warningMaxValue: 50.0, // Danger_High (>50 danger)
         enableAlerts: true,
         enableNotifications: true,
         lastModified: DateTime.now(),

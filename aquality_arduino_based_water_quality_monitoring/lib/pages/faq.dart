@@ -50,9 +50,9 @@ class _FAQViewState extends State<FAQView> {
               'pH measures water acidity/alkalinity. Tilapia prefer slightly alkaline water (pH 7-9). Extreme pH values can harm fish health and affect their ability to absorb nutrients.',
         ),
         FAQItem(
-          question: 'What does dissolved oxygen (DO) mean?',
+          question: 'What does turbidity mean?',
           answer:
-              'Dissolved oxygen is the amount of oxygen available in water for fish to breathe. Tilapia need at least 5 mg/L, with 5-8 mg/L being optimal for healthy growth.',
+              'Turbidity measures how cloudy the water is due to suspended particles. For tilapia ponds, keep turbidity at or below 30 NTU; 30-50 NTU is warning level, and values above 50 NTU are dangerous.',
         ),
         FAQItem(
           question: 'How dangerous is ammonia?',
