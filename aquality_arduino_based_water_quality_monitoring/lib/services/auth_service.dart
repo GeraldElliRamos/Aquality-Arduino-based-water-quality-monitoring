@@ -55,6 +55,7 @@ class AuthService {
     return doc.data();
   }
 
+  // ── Sign Up ─────────────────────────────────────────────────────
   static Future<void> signUp({
     required String fullName,
     required String username,
@@ -98,6 +99,7 @@ class AuthService {
     userRole.value = userType;
   }
 
+  // ── Login ───────────────────────────────────────────────────────
   static Future<void> login({
     required String username,
     required String password,
@@ -125,13 +127,82 @@ class AuthService {
     userRole.value = userData['userType'] ?? '';
   }
 
+  // ── Reset Password ──────────────────────────────────────────────
+  /// Accepts a username OR email address.
+  /// Looks up the linked email from Firestore if a username is given,
+  /// then sends a Firebase password-reset email to that address.
+  /// Returns a masked email string for display (e.g. jo*****e@gmail.com).
+  static Future<String> resetPassword(String usernameOrEmail) async {
+    final input = usernameOrEmail.trim();
+
+    if (input.isEmpty) {
+      throw const AuthException(
+        'empty-input',
+        'Please enter your username or email.',
+      );
+    }
+
+    String email;
+    final isEmail = input.contains('@');
+
+    if (isEmail) {
+      email = input.toLowerCase();
+    } else {
+      // Look up email by username
+      final query = await _db
+          .collection('users')
+          .where('username', isEqualTo: input.toLowerCase())
+          .limit(1)
+          .get();
+
+      if (query.docs.isEmpty) {
+        throw const AuthException(
+          'user-not-found',
+          'No account found with that username.',
+        );
+      }
+
+      email = query.docs.first.data()['email'] as String;
+    }
+
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'user-not-found':
+          throw const AuthException(
+              'user-not-found', 'No account found with that email.');
+        case 'invalid-email':
+          throw const AuthException(
+              'invalid-email', 'The email address is invalid.');
+        case 'too-many-requests':
+          throw const AuthException(
+              'too-many-requests', 'Too many requests. Please try again later.');
+        default:
+          throw AuthException(e.code, 'Failed to send reset email. Try again.');
+      }
+    }
+
+    return _maskEmail(email);
+  }
+
+  /// Masks email for display: john.doe@gmail.com → jo*****e@gmail.com
+  static String _maskEmail(String email) {
+    final parts = email.split('@');
+    if (parts.length != 2) return email;
+    final local = parts[0];
+    final domain = parts[1];
+    if (local.length <= 2) return '${local[0]}*@$domain';
+    return '${local[0]}${local[1]}${'*' * (local.length - 2)}${local[local.length - 1]}@$domain';
+  }
+
   // ── Google Sign In ──────────────────────────────────────────────
   static Future<GoogleSignInResult> signInWithGoogle() async {
     final GoogleSignIn googleSignIn = GoogleSignIn();
     final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
     if (googleUser == null) {
-      throw AuthException('cancelled', 'Google sign-in was cancelled.');
+      throw const AuthException('cancelled', 'Google sign-in was cancelled.');
     }
 
     final GoogleSignInAuthentication googleAuth =
@@ -214,7 +285,8 @@ class AuthService {
         .limit(1)
         .get();
 
-    if (usernameQuery.docs.isNotEmpty && usernameQuery.docs.first.id != user.uid) {
+    if (usernameQuery.docs.isNotEmpty &&
+        usernameQuery.docs.first.id != user.uid) {
       throw const AuthException(
         'username-already-taken',
         'That username is already taken. Please choose another.',
