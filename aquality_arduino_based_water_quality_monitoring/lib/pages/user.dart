@@ -12,7 +12,7 @@ class UserView extends StatefulWidget {
 class _UserViewState extends State<UserView> {
   final _nameController = TextEditingController(text: 'User Name');
   final _emailController = TextEditingController(text: 'user@example.com');
-  final _phoneController = TextEditingController(text: '+1 234 567 8900');
+  final _phoneController = TextEditingController(text: '');
   String _userRole = '';
   String _memberSince = 'Jan 2026';
   bool _isLoadingProfile = true;
@@ -45,68 +45,34 @@ class _UserViewState extends State<UserView> {
   }
 
   String _monthName(int month) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[month - 1];
   }
 
   String _roleLabel(String role) {
     switch (role) {
-      case 'tilapiaFarmer':
-        return 'Tilapia Farmer';
-      case 'fishPondOwner':
-        return 'Fish Pond Owner';
-      case 'lgu':
-        return 'LGU (Local Government Unit)';
-      default:
-        return 'User';
+      case 'tilapiaFarmer': return 'Tilapia Farmer';
+      case 'fishPondOwner': return 'Fish Pond Owner';
+      case 'lgu': return 'LGU Member';
+      default: return 'User';
     }
   }
 
   IconData _roleIcon(String role) {
     switch (role) {
-      case 'tilapiaFarmer':
-        return Icons.set_meal;
-      case 'fishPondOwner':
-        return Icons.water_damage;
-      case 'lgu':
-        return Icons.account_balance;
-      default:
-        return Icons.person;
+      case 'tilapiaFarmer': return Icons.set_meal;
+      case 'fishPondOwner': return Icons.water_damage;
+      case 'lgu': return Icons.account_balance;
+      default: return Icons.person;
     }
   }
 
   Color _roleColor(String role) {
     switch (role) {
-      case 'tilapiaFarmer':
-        return const Color(0xFF16A34A);
-      case 'fishPondOwner':
-        return const Color(0xFF2563EB);
-      case 'lgu':
-        return const Color(0xFF9333EA);
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Future<void> _onRefresh() async {
-    await _loadProfile();
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Profile refreshed')));
+      case 'tilapiaFarmer': return const Color(0xFF16A34A);
+      case 'fishPondOwner': return const Color(0xFF2563EB);
+      case 'lgu': return const Color(0xFF9333EA);
+      default: return Colors.grey;
     }
   }
 
@@ -121,256 +87,240 @@ class _UserViewState extends State<UserView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
     final roleColor = _roleColor(_userRole);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        titleTextStyle: TextStyle(
-          color: textColor,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-        elevation: 0,
-        leading: BackButton(color: textColor),
-        centerTitle: false,
-        shape: Border(
-          bottom: BorderSide(
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-            width: 1,
-          ),
-        ),
-      ),
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       body: _isLoadingProfile
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF2563EB)),
-            )
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF2563EB)))
           : RefreshIndicator(
-              onRefresh: _onRefresh,
-              color: const Color(0xFF2563EB),
-              child: ListView(
+              onRefresh: _loadProfile,
+              child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16.0),
-                children: [
-                  // Avatar + Role Badge
-                  Center(
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 12),
-                        // Role Badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 6,
+                slivers: [
+                  SliverAppBar(
+                    expandedHeight: 220,
+                    pinned: true,
+                    elevation: 0,
+                    backgroundColor: roleColor,
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [roleColor, roleColor.withBlue(200)],
                           ),
-                          decoration: BoxDecoration(
-                            color: roleColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: roleColor, width: 1.5),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _roleIcon(_userRole),
-                                size: 14,
-                                color: roleColor,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 40),
+                            // Avatar with Glow
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.white24,
+                                shape: BoxShape.circle,
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                _roleLabel(_userRole),
-                                style: TextStyle(
-                                  color: roleColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
+                              child: CircleAvatar(
+                                radius: 45,
+                                backgroundColor: Colors.white,
+                                child: Icon(Icons.person, size: 50, color: roleColor),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white38),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(_roleIcon(_userRole), size: 14, color: Colors.white),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _roleLabel(_userRole).toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.1,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    leading: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          _buildModernCard(
+                            title: 'Personal Information',
+                            children: [
+                              _buildInfoTile(Icons.person_outline, 'Full Name', _nameController.text, roleColor),
+                              _buildInfoTile(Icons.email_outlined, 'Email Address', _emailController.text, roleColor),
+                              if (_phoneController.text.isNotEmpty)
+                                _buildInfoTile(Icons.phone_outlined, 'Phone Number', _phoneController.text, roleColor),
+                            ],
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          _buildModernCard(
+                            title: 'Activity Insights',
+                            children: [
+                              _buildStatRow('Member Since', _memberSince),
+                              const Divider(height: 24),
+                              _buildStatRow('Total Readings', '1,234'),
+                              const Divider(height: 24),
+                              _buildStatRow('Active Ponds', '1'),
+                            ],
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          _buildModernCard(
+                            title: 'Account Actions',
+                            children: [
+                              _buildActionTile(
+                                context,
+                                icon: Icons.edit_note_rounded,
+                                title: 'Edit Profile Details',
+                                color: const Color(0xFF2563EB),
+                                onTap: () => _navigateToEdit(context),
+                              ),
+                              _buildActionTile(
+                                context,
+                                icon: Icons.security_rounded,
+                                title: 'Security & Password',
+                                color: const Color(0xFF6366F1),
+                                onTap: () {},
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
 
-                  // Profile Info
-                  _buildInfoCard(
-                    children: [
-                      _buildPlainText(
-                        label: 'Full Name',
-                        value: _nameController.text,
-                        icon: Icons.person_outline,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildPlainText(
-                        label: 'Email',
-                        value: _emailController.text,
-                        icon: Icons.email_outlined,
-                      ),
-                      if (_phoneController.text.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        _buildPlainText(
-                          label: 'Phone',
-                          value: _phoneController.text,
-                          icon: Icons.phone_outlined,
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                          const SizedBox(height: 32),
 
-                  // Account Statistics
-                  _buildInfoCard(
-                    title: 'Account Statistics',
-                    children: [
-                      _buildStatRow('Member Since', _memberSince),
-                      const Divider(height: 24),
-                      _buildStatRow('Total Readings', '1,234'),
-                      const Divider(height: 24),
-                      _buildStatRow('Active Devices', '1'),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Quick Actions
-                  _buildInfoCard(
-                    title: 'Quick Actions',
-                    children: [
-                      ListTile(
-                        leading: const Icon(
-                          Icons.edit_outlined,
-                          color: Color(0xFF2563EB),
-                        ),
-                        title: const Text('Edit Profile'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => EditProfileView(
-                                initialName: _nameController.text,
-                                initialEmail: _emailController.text,
-                                initialPhone: _phoneController.text,
-                                onSave: (name, email, phone) {
-                                  setState(() {
-                                    _nameController.text = name;
-                                    _emailController.text = email;
-                                    _phoneController.text = phone;
-                                  });
-                                },
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton.icon(
+                              onPressed: () async {
+                                await AuthService.logout();
+                                if (mounted) Navigator.of(context).pushReplacementNamed('/login');
+                              },
+                              icon: const Icon(Icons.logout_rounded, color: Colors.red),
+                              label: const Text(
+                                'LOGOUT SYSTEM ',
+                                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: const BorderSide(color: Colors.red),
+                                ),
                               ),
                             ),
-                          );
-                        },
+                          ),
+                          const SizedBox(height: 50),
+                        ],
                       ),
-                      const Divider(height: 1),
-                      ListTile(
-                        leading: const Icon(
-                          Icons.lock_outline,
-                          color: Color(0xFF2563EB),
-                        ),
-                        title: const Text('Change Password'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Password change coming soon'),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Logout
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      await AuthService.logout();
-                      if (mounted) {
-                        Navigator.of(context).pushReplacementNamed('/login');
-                      }
-                    },
-                    icon: const Icon(Icons.logout),
-                    label: const Text('Logout'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),
-                  const SizedBox(height: 32),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildInfoCard({String? title, required List<Widget> children}) {
+  void _navigateToEdit(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EditProfileView(
+          initialName: _nameController.text,
+          initialEmail: _emailController.text,
+          initialPhone: _phoneController.text,
+          onSave: (name, email, phone) {
+            setState(() {
+              _nameController.text = name;
+              _emailController.text = email;
+              _phoneController.text = phone;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernCard({required String title, required List<Widget> children}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (title != null) ...[
-            Text(
-              title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-          ],
+          Text(
+            title,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+          ),
+          const SizedBox(height: 20),
           ...children,
         ],
       ),
     );
   }
 
-  Widget _buildPlainText({
-    required String label,
-    required String value,
-    required IconData icon,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: const Color(0xFF2563EB), size: 20),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+  Widget _buildInfoTile(IconData icon, String label, String value, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
           ),
-        ),
-      ],
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -378,15 +328,22 @@ class _UserViewState extends State<UserView> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-        ),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-        ),
+        Text(label, style: TextStyle(fontSize: 14, color: Colors.blueGrey.shade400)),
+        Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
       ],
+    );
+  }
+
+  Widget _buildActionTile(BuildContext context, {required IconData icon, required String title, required Color color, required VoidCallback onTap}) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        backgroundColor: color.withOpacity(0.1),
+        child: Icon(icon, color: color, size: 20),
+      ),
+      title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+      trailing: const Icon(Icons.chevron_right, size: 20),
+      onTap: onTap,
     );
   }
 }
