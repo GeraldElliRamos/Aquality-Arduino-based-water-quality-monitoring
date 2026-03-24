@@ -25,12 +25,19 @@ class GoogleSignInResult {
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
+  static final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   static final ValueNotifier<bool> isAdmin = ValueNotifier<bool>(false);
   static final ValueNotifier<bool> isLoggedIn = ValueNotifier<bool>(false);
   static final ValueNotifier<String> userRole = ValueNotifier<String>('');
 
   static void init() {
+    // Initialize GoogleSignIn for web with serverClientId for better web support
+    if (kIsWeb) {
+      // Note: For web, consider using renderButton() instead of signIn()
+      // See: https://pub.dev/packages/google_sign_in_web#migrating-to-v011-and-v012-google-identity-services
+    }
+    
     _auth.authStateChanges().listen((user) async {
       if (user == null) {
         isLoggedIn.value = false;
@@ -198,8 +205,7 @@ class AuthService {
 
   // ── Google Sign In ──────────────────────────────────────────────
   static Future<GoogleSignInResult> signInWithGoogle() async {
-    final GoogleSignIn googleSignIn = GoogleSignIn();
-    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
     if (googleUser == null) {
       throw const AuthException('cancelled', 'Google sign-in was cancelled.');
@@ -311,8 +317,7 @@ class AuthService {
 
   // ── Logout ──────────────────────────────────────────────────────
   static Future<void> logout() async {
-    final GoogleSignIn googleSignIn = GoogleSignIn();
-    await googleSignIn.signOut();
+    await _googleSignIn.signOut();
     await _auth.signOut();
     isAdmin.value = false;
     isLoggedIn.value = false;
