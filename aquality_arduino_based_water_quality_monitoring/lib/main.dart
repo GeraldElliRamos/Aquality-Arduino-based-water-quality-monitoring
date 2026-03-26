@@ -20,6 +20,7 @@ import 'services/auth_service.dart';
 import 'services/theme_service.dart';
 import 'services/preferences_service.dart';
 import 'pages/role_selection.dart';
+import 'widgets/chatbot.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'firebase_options.dart';
 
@@ -66,11 +67,9 @@ class _AqualityAppState extends State<AqualityApp> {
             return const SplashView();
           }
           if (snapshot.hasData) {
-            // Route based on role once user is logged in
             return ValueListenableBuilder<String>(
               valueListenable: AuthService.userRole,
               builder: (context, role, _) {
-                // While role is still loading, show splash
                 if (role.isEmpty) return const SplashView();
                 switch (role) {
                   case 'fishPondOwner':
@@ -152,157 +151,167 @@ class _AppScreenState extends State<AppScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDark
-                ? [const Color(0xFF1A1A2E), const Color(0xFF16213E)]
-                : [const Color(0xFFE6F0FF), const Color(0xFFE6FFFB)],
-          ),
-        ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 428),
-            child: Column(
-              children: [
-                SafeArea(
-                  child: Container(
-                    color: Theme.of(context).cardColor,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
+    return Stack(
+      children: [
+        Scaffold(
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [const Color(0xFF1A1A2E), const Color(0xFF16213E)]
+                    : [const Color(0xFFE6F0FF), const Color(0xFFE6FFFB)],
+              ),
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 428),
+                child: Column(
+                  children: [
+                    SafeArea(
+                      child: Container(
+                        color: Theme.of(context).cardColor,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Color(0xFF2563EB),
-                                    Color(0xFF06B6D4),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(12),
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.dashboard,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            Row(
                               children: [
-                                const Text(
-                                  'Aquality',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Color(0xFF2563EB),
+                                        Color(0xFF06B6D4),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(12),
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.dashboard,
+                                    color: Colors.white,
+                                    size: 20,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _roleLabel,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Aquality',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _roleLabel,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.settings_outlined,
+                                    color: Color(0xFF2563EB),
                                   ),
+                                  onPressed: () => Navigator.of(
+                                    context,
+                                  ).pushNamed('/settings'),
+                                  tooltip: 'Settings',
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.person,
+                                    color: Color(0xFF2563EB),
+                                  ),
+                                  onPressed: () {
+                                    if (AuthService.isAdmin.value) {
+                                      Navigator.of(
+                                        context,
+                                      ).pushNamed('/admin-user');
+                                    } else {
+                                      Navigator.of(context).pushNamed('/user');
+                                    }
+                                  },
+                                  tooltip: 'Profile',
                                 ),
                               ],
                             ),
                           ],
                         ),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.settings_outlined,
-                                color: Color(0xFF2563EB),
-                              ),
-                              onPressed: () =>
-                                  Navigator.of(context).pushNamed('/settings'),
-                              tooltip: 'Settings',
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.person,
-                                color: Color(0xFF2563EB),
-                              ),
-                              onPressed: () {
-                                if (AuthService.isAdmin.value) {
-                                  Navigator.of(
-                                    context,
-                                  ).pushNamed('/admin-user');
-                                } else {
-                                  Navigator.of(context).pushNamed('/user');
-                                }
-                              },
-                              tooltip: 'Profile',
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: _views[_selectedIndex],
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: _views[_selectedIndex],
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
+          bottomNavigationBar: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            currentIndex: _selectedIndex,
+            selectedItemColor: const Color(0xFF2563EB),
+            unselectedItemColor: Colors.grey[600],
+            onTap: _onItemTapped,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.dashboard),
+                label: 'Dashboard',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.show_chart),
+                label: 'Trends',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.notifications),
+                label: 'Alerts',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.history),
+                label: 'History',
+              ),
+            ],
+          ),
+          floatingActionButton: ValueListenableBuilder<bool>(
+            valueListenable: AuthService.isAdmin,
+            builder: (context, isAdmin, _) {
+              if (!isAdmin) return const SizedBox.shrink();
+              return FloatingActionButton(
+                backgroundColor: const Color(0xFF2563EB),
+                onPressed: () => Navigator.of(context).pushNamed('/admin'),
+                tooltip: 'Admin Panel',
+                child: const Icon(Icons.admin_panel_settings),
+              );
+            },
+          ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        selectedItemColor: const Color(0xFF2563EB),
-        unselectedItemColor: Colors.grey[600],
-        onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.show_chart),
-            label: 'Trends',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Alerts',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
-        ],
-      ),
-      floatingActionButton: ValueListenableBuilder<bool>(
-        valueListenable: AuthService.isAdmin,
-        builder: (context, isAdmin, _) {
-          if (!isAdmin) return const SizedBox.shrink();
-          return FloatingActionButton(
-            backgroundColor: const Color(0xFF2563EB),
-            onPressed: () => Navigator.of(context).pushNamed('/admin'),
-            tooltip: 'Admin Panel',
-            child: const Icon(Icons.admin_panel_settings),
-          );
-        },
-      ),
+        // Chatbot floating button
+        const AqualityChatbot(),
+      ],
     );
   }
 }
