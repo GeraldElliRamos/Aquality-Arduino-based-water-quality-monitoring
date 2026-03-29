@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -37,8 +37,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     _rotateController.repeat();
 
     // Keep splash screen visible longer on web (2.5s) vs mobile (1.5s)
-    final isWeb = !Platform.isAndroid && !Platform.isIOS;
-    final splashDuration = isWeb ? 2500 : 1500;
+    final splashDuration = kIsWeb ? 2500 : 1500;
 
     Future.delayed(Duration(milliseconds: splashDuration), () {
       if (mounted) {

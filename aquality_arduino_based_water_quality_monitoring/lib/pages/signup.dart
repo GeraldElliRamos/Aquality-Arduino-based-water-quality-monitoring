@@ -141,7 +141,7 @@ class _SignupViewState extends State<SignupView> {
               ? 'Google account profile completed!'
               : 'Account created successfully!',
         );
-        _navigateByRole();
+        Navigator.of(context).pushReplacementNamed('/onboarding');
       }
     } catch (e) {
       if (!mounted) return;

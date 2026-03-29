@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
 
 class OnboardingView extends StatefulWidget {
   const OnboardingView({super.key});
@@ -60,7 +61,20 @@ class _OnboardingViewState extends State<OnboardingView> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_completed', true);
     if (mounted) {
-      Navigator.of(context).pushReplacementNamed('/login');
+      // Navigate to the appropriate dashboard based on user role
+      final role = AuthService.userRole.value;
+      String route = '/app'; // default
+      switch (role) {
+        case 'fishPondOwner':
+          route = '/app-owner';
+          break;
+        case 'lgu':
+          route = '/app-lgu';
+          break;
+        default:
+          route = '/app';
+      }
+      Navigator.of(context).pushReplacementNamed(route);
     }
   }
 
