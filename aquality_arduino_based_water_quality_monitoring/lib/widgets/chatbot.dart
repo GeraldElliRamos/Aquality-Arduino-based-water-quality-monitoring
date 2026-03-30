@@ -120,6 +120,7 @@ class _ChatWindowState extends State<_ChatWindow> {
   final _scrollController = ScrollController();
   final List<Map<String, String>> _messages = [];
   bool _isLoading = false;
+  String _quotaLabel = '';
 
   static const String _welcomeMessage =
       'Hi! I\'m Aqua 🌊 your Aquality assistant. I can help you understand the dashboard, trends, alerts, history, settings, and profile modules. What would you like to know?';
@@ -176,6 +177,43 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
     // Enable HTTPS for Windows development
     HttpOverrides.global = MyHttpOverrides();
     _messages.add({'role': 'assistant', 'content': _welcomeMessage});
+    _refreshQuotaStatus();
+  }
+
+  Future<void> _refreshQuotaStatus() async {
+    try {
+      final response = await http
+          .get(Uri.parse('http://localhost:3000/health'))
+          .timeout(const Duration(seconds: 8));
+
+      if (response.statusCode != 200) return;
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) return;
+
+      final quota = decoded['quota'];
+      if (quota is! Map) return;
+
+      final remaining = quota['remaining'];
+      final resetInSeconds = quota['resetInSeconds'];
+      if (remaining is! Map || resetInSeconds is! Map) return;
+
+      final minuteLeft = remaining['minute'];
+      final dayLeft = remaining['day'];
+      final minuteReset = resetInSeconds['minute'];
+
+      if (minuteLeft is num &&
+          dayLeft is num &&
+          minuteReset is num &&
+          mounted) {
+        setState(() {
+          _quotaLabel =
+              'Free tier left: ${minuteLeft.toInt()}/min, ${dayLeft.toInt()}/day (reset ${minuteReset.toInt()}s)';
+        });
+      }
+    } catch (_) {
+      // Keep UI quiet if health endpoint is temporarily unavailable.
+    }
   }
 
   void _startNewChat() {
@@ -254,6 +292,26 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
       }
     }
     return fallback;
+  }
+
+  String _formatQuotaStatus(dynamic body) {
+    if (body is! Map) return '';
+    final quota = body['quota'];
+    if (quota is! Map) return '';
+
+    final remaining = quota['remaining'];
+    final resetInSeconds = quota['resetInSeconds'];
+    if (remaining is! Map || resetInSeconds is! Map) return '';
+
+    final minuteLeft = remaining['minute'];
+    final dayLeft = remaining['day'];
+    final minuteReset = resetInSeconds['minute'];
+
+    if (minuteLeft is num && dayLeft is num && minuteReset is num) {
+      return '\n\nFree-tier status:\n- Requests left this minute: $minuteLeft\n- Requests left today: $dayLeft\n- Minute reset in: ${minuteReset}s';
+    }
+
+    return '';
   }
 
   String? _getHardcodedAnswer(String question) {
@@ -345,6 +403,7 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
         _messages.add({'role': 'assistant', 'content': hardcodedReply});
         _isLoading = false;
       });
+      await _refreshQuotaStatus();
       _scrollToBottom();
       return;
     }
@@ -447,16 +506,18 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
       } else if (response.statusCode == 429) {
         print('API Quota Error: ${response.body}');
         String details = 'Quota exceeded for Gemini API.';
+        String quotaInfo = '';
         try {
           final body = jsonDecode(response.body);
           details = _extractErrorDetail(body, details);
+          quotaInfo = _formatQuotaStatus(body);
         } catch (_) {}
 
         final fallback = _buildOfflineAnswer(text);
         setState(() {
           _messages.add({
             'role': 'assistant',
-            'content': '$details\n\nOffline answer:\n$fallback',
+            'content': '$details$quotaInfo\n\nOffline answer:\n$fallback',
           });
         });
       } else {
@@ -499,6 +560,7 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
       });
     } finally {
       setState(() => _isLoading = false);
+      await _refreshQuotaStatus();
       _scrollToBottom();
     }
   }
@@ -669,6 +731,18 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
                 ],
               ),
             ),
+            if (_quotaLabel.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                child: Text(
+                  _quotaLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
           ],
         ),
       ),
