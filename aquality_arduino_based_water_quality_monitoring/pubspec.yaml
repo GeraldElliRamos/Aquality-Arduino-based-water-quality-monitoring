@@ -47,6 +47,7 @@ dependencies:
   cloud_firestore: ^5.4.5
   google_sign_in: ^6.2.1
   http: ^1.2.1
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:
@@ -77,6 +78,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - .env
     - assets/images/AqualityLogoCrop.png
     - assets/images/AqualityLogo.png
 
