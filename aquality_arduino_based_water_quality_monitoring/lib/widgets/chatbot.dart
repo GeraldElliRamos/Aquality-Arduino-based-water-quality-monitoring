@@ -600,7 +600,11 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
                   const CircleAvatar(
                     radius: 16,
                     backgroundColor: Colors.white24,
-                    child: Text('🌊', style: TextStyle(fontSize: 14)),
+                    child: Icon(
+                      Icons.water_drop,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   const Expanded(
@@ -762,7 +766,7 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
             const CircleAvatar(
               radius: 12,
               backgroundColor: Color(0xFF2563EB),
-              child: Text('🌊', style: TextStyle(fontSize: 10)),
+              child: Icon(Icons.water_drop, color: Colors.white, size: 12),
             ),
             const SizedBox(width: 6),
           ],
@@ -806,7 +810,7 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
           const CircleAvatar(
             radius: 12,
             backgroundColor: Color(0xFF2563EB),
-            child: Text('🌊', style: TextStyle(fontSize: 10)),
+            child: Icon(Icons.water_drop, color: Colors.white, size: 12),
           ),
           const SizedBox(width: 6),
           Container(
