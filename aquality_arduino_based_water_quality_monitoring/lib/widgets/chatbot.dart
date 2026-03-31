@@ -116,6 +116,11 @@ class _ChatWindow extends StatefulWidget {
 }
 
 class _ChatWindowState extends State<_ChatWindow> {
+  static const String _backendBaseUrl = String.fromEnvironment(
+    'CHATBOT_BACKEND_URL',
+    defaultValue: 'http://localhost:3000',
+  );
+
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final List<Map<String, String>> _messages = [];
@@ -176,14 +181,19 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
     super.initState();
     // Enable HTTPS for Windows development
     HttpOverrides.global = MyHttpOverrides();
-    _messages.add({'role': 'assistant', 'content': _welcomeMessage});
+    final intro = _backendBaseUrl.isEmpty
+        ? '$_welcomeMessage\n\nNote: Chat is currently in local mode (no cloud backend configured).'
+        : _welcomeMessage;
+    _messages.add({'role': 'assistant', 'content': intro});
     _refreshQuotaStatus();
   }
 
   Future<void> _refreshQuotaStatus() async {
+    if (_backendBaseUrl.isEmpty) return;
+
     try {
       final response = await http
-          .get(Uri.parse('http://localhost:3000/health'))
+          .get(Uri.parse('$_backendBaseUrl/health'))
           .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) return;
@@ -271,7 +281,7 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
       return 'Typical tilapia ranges: pH 6.5-8.5, temperature 25-32 C, ammonia 0.00-0.02 mg/L, turbidity below 30 NTU.';
     }
 
-    return 'I can still help while the cloud AI is unavailable. Ask about: dashboard, trends, alerts, history, settings, profile, or safe tilapia ranges.';
+    return 'I can help in local mode. Ask about: dashboard, trends, alerts, history, settings, profile, or safe tilapia ranges.';
   }
 
   String _extractErrorDetail(dynamic body, String fallback) {
@@ -422,10 +432,20 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
       apiMessages.removeAt(0);
     }
 
+    if (_backendBaseUrl.isEmpty) {
+      final fallback = _buildOfflineAnswer(text);
+      setState(() {
+        _messages.add({'role': 'assistant', 'content': fallback});
+        _isLoading = false;
+      });
+      _scrollToBottom();
+      return;
+    }
+
     try {
       final response = await http
           .post(
-            Uri.parse('http://localhost:3000/api/chat'),
+            Uri.parse('$_backendBaseUrl/api/chat'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'messages': apiMessages,
@@ -522,40 +542,44 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
         });
       } else {
         print('API Error: ${response.statusCode} - ${response.body}');
+        final fallback = _buildOfflineAnswer(text);
         setState(() {
           _messages.add({
             'role': 'assistant',
             'content':
-                'Server error (${response.statusCode}). Is the backend running on localhost:3000?',
+                'Server error (${response.statusCode}). Using offline assistant for now.\n\n$fallback',
           });
         });
       }
     } on SocketException catch (e) {
       print('Socket error: $e');
+      final fallback = _buildOfflineAnswer(text);
       setState(() {
         _messages.add({
           'role': 'assistant',
           'content':
-              '❌ Connection error: ${e.message}\n\nMake sure the backend proxy is running:\nRun `npm install && npm start` in the backend/ folder',
+              'Cloud assistant is unreachable right now. Using offline assistant.\n\n$fallback',
         });
       });
     } on TimeoutException {
       print('Request timeout');
+      final fallback = _buildOfflineAnswer(text);
       setState(() {
         _messages.add({
           'role': 'assistant',
           'content':
-              '⏱️ Request timed out (20s). The API took too long to respond. Try again.',
+              'Cloud assistant timed out. Using offline assistant.\n\n$fallback',
         });
       });
     } catch (e) {
       print('Chatbot error details: $e');
       print('Error type: ${e.runtimeType}');
+      final fallback = _buildOfflineAnswer(text);
       setState(() {
         _messages.add({
           'role': 'assistant',
           'content':
-              '❌ Error connecting to backend:\n$e\n\nFix:\n1. Run `npm install` in backend/ folder\n2. Run `npm start` to start the backend\n3. Make sure it\'s running on localhost:3000',
+              'Cloud assistant error. Using offline assistant.\n\n$fallback',
         });
       });
     } finally {
