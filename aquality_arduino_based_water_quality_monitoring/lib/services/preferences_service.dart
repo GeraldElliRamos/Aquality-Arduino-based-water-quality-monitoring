@@ -84,4 +84,16 @@ class PreferencesService {
   String? getUserType() {
     return _prefs?.getString(_userTypeKey);
   }
+
+  // Language
+  static const String _languageKey = 'app_language';
+
+  /// Returns the saved language code ('en' or 'tl'), or null if never set.
+  String? getLanguage() {
+    return _prefs?.getString(_languageKey);
+  }
+
+  Future<bool> setLanguage(String code) async {
+    return await _prefs?.setString(_languageKey, code) ?? false;
+  }
 }

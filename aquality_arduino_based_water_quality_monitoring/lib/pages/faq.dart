@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/language_service.dart';
 
 class FAQView extends StatefulWidget {
   const FAQView({super.key});
@@ -10,153 +11,95 @@ class FAQView extends StatefulWidget {
 class _FAQViewState extends State<FAQView> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _searchQuery = '';
+  final _lang = LanguageService();
 
-  final List<FAQCategory> _categories = [
-    FAQCategory(
-      title: 'General',
-      icon: Icons.info_outline,
-      color: const Color(0xFF2563EB),
-      questions: [
-        FAQItem(
-          question: 'What is Aquality?',
-          answer:
-              'Aquality is a water quality monitoring system for tilapia ponds. It uses Arduino-based sensors to measure key water parameters in real-time and helps you maintain optimal conditions for fish health.',
-        ),
-        FAQItem(
-          question: 'How often is data updated?',
-          answer:
-              'The app refreshes data every 30 seconds automatically. You can also manually refresh by pulling down on the dashboard screen.',
-        ),
-        FAQItem(
-          question: 'Can I use Aquality offline?',
-          answer:
-              'Aquality requires an internet connection to communicate with the Arduino sensors. However, historical data is cached locally for quick access.',
-        ),
-      ],
-    ),
-    FAQCategory(
-      title: 'Parameters',
-      icon: Icons.science,
-      color: const Color(0xFF10B981),
-      questions: [
-        FAQItem(
-          question: 'What is the ideal temperature for tilapia?',
-          answer:
-              'Tilapia thrive in water temperatures between 26-30°C (78-86°F). Temperatures outside this range can stress the fish and affect growth rates.',
-        ),
-        FAQItem(
-          question: 'Why is pH level important?',
-          answer:
-              'pH measures water acidity/alkalinity. Tilapia prefer slightly alkaline water (pH 7-9). Extreme pH values can harm fish health and affect their ability to absorb nutrients.',
-        ),
-        FAQItem(
-          question: 'What does turbidity mean?',
-          answer:
-              'Turbidity measures how cloudy the water is due to suspended particles. For tilapia ponds, keep turbidity at or below 30 NTU; 30-50 NTU is warning level, and values above 50 NTU are dangerous.',
-        ),
-        FAQItem(
-          question: 'How dangerous is ammonia?',
-          answer:
-              'Ammonia (NH₃) is highly toxic to fish even at very low levels. Keep ammonia below 0.02 mg/L. Regular water changes and proper biological filtration help control ammonia buildup.',
-        ),
-        FAQItem(
-          question: 'What is ammonia and why is it harmful?',
-          answer:
-              'Ammonia (NH₃) is a toxic waste product from fish metabolism and decomposing organic matter. Keep NH₃ below 0.02 mg/L to prevent fish stress, disease, and mortality.',
-        ),
-      ],
-    ),
-    FAQCategory(
-      title: 'Alerts',
-      icon: Icons.notifications,
-      color: const Color(0xFFF59E0B),
-      questions: [
-        FAQItem(
-          question: 'How do I know if there\'s a problem?',
-          answer:
-              'The app sends alerts when parameters go outside safe ranges. Critical alerts (red) require immediate action, warnings (yellow) need attention soon, and info alerts (blue) are for general updates.',
-        ),
-        FAQItem(
-          question: 'Can I customize alert thresholds?',
-          answer:
-              'Currently, alert thresholds are set based on standard tilapia farming best practices. Custom threshold settings will be available in a future update.',
-        ),
-        FAQItem(
-          question: 'How do I clear or dismiss alerts?',
-          answer:
-              'Alerts automatically clear when the parameter returns to the safe range. You can view all alerts history in the Alerts tab.',
-        ),
-      ],
-    ),
-    FAQCategory(
-      title: 'Data & Export',
-      icon: Icons.table_chart,
-      color: const Color(0xFF8B5CF6),
-      questions: [
-        FAQItem(
-          question: 'How far back can I view historical data?',
-          answer:
-              'Historical data is available for the past 30 days. You can filter by 24 hours, 7 days, 30 days, or select a custom date range in the History tab.',
-        ),
-        FAQItem(
-          question: 'How do I export data? (Admin only)',
-          answer:
-              'Admin users can export data as CSV files from the History tab or Settings. The exported file includes all parameters with timestamps.',
-        ),
-        FAQItem(
-          question: 'Where are exported files saved?',
-          answer:
-              'Exported CSV files are saved to your device\'s Documents/Aquality folder. You can access them through your file manager.',
-        ),
-      ],
-    ),
-    FAQCategory(
-      title: 'Troubleshooting',
-      icon: Icons.build,
-      color: const Color(0xFFEF4444),
-      questions: [
-        FAQItem(
-          question: 'The app shows "No data available"',
-          answer:
-              'This means the sensors are not sending data. Check if the Arduino device is powered on and connected to the internet. Verify all sensor connections.',
-        ),
-        FAQItem(
-          question: 'Data seems inaccurate or frozen',
-          answer:
-              'Try refreshing the dashboard by pulling down. If data remains frozen, check the Arduino device status and sensor calibration.',
-        ),
-        FAQItem(
-          question: 'Dark mode isn\'t working',
-          answer:
-              'Toggle dark mode from Settings > Appearance > Dark Mode. If it still doesn\'t work, try restarting the app.',
-        ),
-      ],
-    ),
-  ];
+  String t(String key) => _lang.t(key);
 
-  List<FAQCategory> get _filteredCategories {
-    if (_searchQuery.isEmpty) return _categories;
-    
-    return _categories.map((category) {
-      final filteredQuestions = category.questions.where((faq) {
-        final query = _searchQuery.toLowerCase();
-        return faq.question.toLowerCase().contains(query) ||
-            faq.answer.toLowerCase().contains(query);
-      }).toList();
-      
-      return FAQCategory(
-        title: category.title,
-        icon: category.icon,
-        color: category.color,
-        questions: filteredQuestions,
-      );
-    }).where((category) => category.questions.isNotEmpty).toList();
+  @override
+  void initState() {
+    super.initState();
+    _lang.addListener(_onLangChanged);
   }
 
   @override
   void dispose() {
+    _lang.removeListener(_onLangChanged);
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _onLangChanged() => setState(() {});
+
+  List<FAQCategory> get _categories => [
+        FAQCategory(
+          title: t('faq_general'),
+          icon: Icons.info_outline,
+          color: const Color(0xFF2563EB),
+          questions: [
+            FAQItem(question: t('faq_q_what_is'),     answer: t('faq_a_what_is')),
+            FAQItem(question: t('faq_q_update_freq'), answer: t('faq_a_update_freq')),
+            FAQItem(question: t('faq_q_offline'),     answer: t('faq_a_offline')),
+          ],
+        ),
+        FAQCategory(
+          title: t('faq_parameters'),
+          icon: Icons.science,
+          color: const Color(0xFF10B981),
+          questions: [
+            FAQItem(question: t('faq_q_temp'),     answer: t('faq_a_temp')),
+            FAQItem(question: t('faq_q_ph'),        answer: t('faq_a_ph')),
+            FAQItem(question: t('faq_q_turbidity'), answer: t('faq_a_turbidity')),
+            FAQItem(question: t('faq_q_ammonia'),   answer: t('faq_a_ammonia')),
+            FAQItem(question: t('faq_q_ammonia2'),  answer: t('faq_a_ammonia2')),
+          ],
+        ),
+        FAQCategory(
+          title: t('faq_alerts'),
+          icon: Icons.notifications,
+          color: const Color(0xFFF59E0B),
+          questions: [
+            FAQItem(question: t('faq_q_problem'),   answer: t('faq_a_problem')),
+            FAQItem(question: t('faq_q_customize'), answer: t('faq_a_customize')),
+            FAQItem(question: t('faq_q_clear'),     answer: t('faq_a_clear')),
+          ],
+        ),
+        FAQCategory(
+          title: t('faq_data'),
+          icon: Icons.table_chart,
+          color: const Color(0xFF8B5CF6),
+          questions: [
+            FAQItem(question: t('faq_q_history'), answer: t('faq_a_history')),
+            FAQItem(question: t('faq_q_export'),  answer: t('faq_a_export')),
+            FAQItem(question: t('faq_q_files'),   answer: t('faq_a_files')),
+          ],
+        ),
+        FAQCategory(
+          title: t('faq_troubleshoot'),
+          icon: Icons.build,
+          color: const Color(0xFFEF4444),
+          questions: [
+            FAQItem(question: t('faq_q_no_data'), answer: t('faq_a_no_data')),
+            FAQItem(question: t('faq_q_frozen'),  answer: t('faq_a_frozen')),
+            FAQItem(question: t('faq_q_dark'),    answer: t('faq_a_dark')),
+          ],
+        ),
+      ];
+
+  List<FAQCategory> get _filteredCategories {
+    if (_searchQuery.isEmpty) return _categories;
+    return _categories.map((category) {
+      final filtered = category.questions.where((faq) {
+        final q = _searchQuery.toLowerCase();
+        return faq.question.toLowerCase().contains(q) ||
+            faq.answer.toLowerCase().contains(q);
+      }).toList();
+      return FAQCategory(
+        title: category.title,
+        icon: category.icon,
+        color: category.color,
+        questions: filtered,
+      );
+    }).where((c) => c.questions.isNotEmpty).toList();
   }
 
   @override
@@ -165,32 +108,27 @@ class _FAQViewState extends State<FAQView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Help & FAQ'),
+        title: Text(t('faq_title')),
         backgroundColor: const Color(0xFF2563EB),
       ),
       body: Column(
         children: [
-          // Search bar
           Container(
             padding: const EdgeInsets.all(16),
             color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
             child: TextField(
               controller: _searchCtrl,
-              onChanged: (value) {
-                setState(() => _searchQuery = value);
-              },
+              onChanged: (v) => setState(() => _searchQuery = v),
               decoration: InputDecoration(
-                hintText: 'Search FAQ...',
+                hintText: t('search_faq'),
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            _searchCtrl.clear();
-                            _searchQuery = '';
-                          });
-                        },
+                        onPressed: () => setState(() {
+                          _searchCtrl.clear();
+                          _searchQuery = '';
+                        }),
                       )
                     : null,
                 filled: true,
@@ -202,35 +140,27 @@ class _FAQViewState extends State<FAQView> {
               ),
             ),
           ),
-          // FAQ list
           Expanded(
             child: _filteredCategories.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.search_off,
-                          size: 64,
-                          color: isDark ? Colors.grey.shade700 : Colors.grey.shade400,
-                        ),
+                        Icon(Icons.search_off, size: 64,
+                            color: isDark ? Colors.grey.shade700 : Colors.grey.shade400),
                         const SizedBox(height: 16),
-                        Text(
-                          'No results found',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
-                          ),
-                        ),
+                        Text(t('no_results'),
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+                            )),
                       ],
                     ),
                   )
                 : ListView.builder(
                     itemCount: _filteredCategories.length,
-                    itemBuilder: (context, categoryIndex) {
-                      final category = _filteredCategories[categoryIndex];
-                      return _buildCategorySection(category, isDark);
-                    },
+                    itemBuilder: (context, i) =>
+                        _buildCategorySection(_filteredCategories[i], isDark),
                   ),
           ),
         ],
@@ -252,20 +182,11 @@ class _FAQViewState extends State<FAQView> {
                   color: category.color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  category.icon,
-                  color: category.color,
-                  size: 20,
-                ),
+                child: Icon(category.icon, color: category.color, size: 20),
               ),
               const SizedBox(width: 12),
-              Text(
-                category.title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text(category.title,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ),
         ),
@@ -281,8 +202,7 @@ class _FAQViewState extends State<FAQView> {
         color: isDark ? Colors.grey.shade800 : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDark ? Colors.grey.shade700 : Colors.grey.shade200,
-        ),
+            color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(
@@ -295,22 +215,15 @@ class _FAQViewState extends State<FAQView> {
           ),
         ),
         child: ExpansionTile(
-          title: Text(
-            faq.question,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
-            ),
-          ),
+          title: Text(faq.question,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
           children: [
-            Text(
-              faq.answer,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-              ),
-            ),
+            Text(faq.answer,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                )),
           ],
         ),
       ),
@@ -323,21 +236,11 @@ class FAQCategory {
   final IconData icon;
   final Color color;
   final List<FAQItem> questions;
-
-  FAQCategory({
-    required this.title,
-    required this.icon,
-    required this.color,
-    required this.questions,
-  });
+  FAQCategory({required this.title, required this.icon, required this.color, required this.questions});
 }
 
 class FAQItem {
   final String question;
   final String answer;
-
-  FAQItem({
-    required this.question,
-    required this.answer,
-  });
+  FAQItem({required this.question, required this.answer});
 }

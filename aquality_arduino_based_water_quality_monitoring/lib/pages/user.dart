@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/language_service.dart';
 import './edit_profile.dart';
 
 class UserView extends StatefulWidget {
@@ -10,18 +11,33 @@ class UserView extends StatefulWidget {
 }
 
 class _UserViewState extends State<UserView> {
-  final _nameController = TextEditingController(text: 'User Name');
+  final _nameController  = TextEditingController(text: 'User Name');
   final _emailController = TextEditingController(text: 'user@example.com');
   final _phoneController = TextEditingController(text: '');
-  String _userRole = '';
-  String _memberSince = 'Jan 2026';
-  bool _isLoadingProfile = true;
+  String _userRole     = '';
+  String _memberSince  = 'Jan 2026';
+  bool   _isLoadingProfile = true;
+  final  _lang = LanguageService();
+
+  String t(String key) => _lang.t(key);
 
   @override
   void initState() {
     super.initState();
+    _lang.addListener(_onLangChanged);
     _loadProfile();
   }
+
+  @override
+  void dispose() {
+    _lang.removeListener(_onLangChanged);
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  void _onLangChanged() => setState(() {});
 
   Future<void> _loadProfile() async {
     setState(() => _isLoadingProfile = true);
@@ -29,9 +45,9 @@ class _UserViewState extends State<UserView> {
       final profile = await AuthService.getCurrentUserProfile();
       if (profile != null && mounted) {
         setState(() {
-          _nameController.text = profile['fullName'] ?? 'User Name';
-          _emailController.text = profile['email'] ?? 'user@example.com';
-          _phoneController.text = profile['phone'] ?? '';
+          _nameController.text  = profile['fullName'] ?? 'User Name';
+          _emailController.text = profile['email']    ?? 'user@example.com';
+          _phoneController.text = profile['phone']    ?? '';
           _userRole = profile['userType'] ?? '';
           final createdAt = profile['createdAt'];
           if (createdAt != null) {
@@ -45,16 +61,16 @@ class _UserViewState extends State<UserView> {
   }
 
   String _monthName(int month) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return months[month - 1];
   }
 
   String _roleLabel(String role) {
     switch (role) {
-      case 'tilapiaFarmer': return 'Tilapia Farmer';
-      case 'fishPondOwner': return 'Fish Pond Owner';
-      case 'lgu': return 'LGU Member';
-      default: return 'User';
+      case 'tilapiaFarmer':  return t('tilapia_farmer');
+      case 'fishPondOwner':  return t('fish_pond_owner');
+      case 'lgu':            return t('lgu_member');
+      default:               return t('user');
     }
   }
 
@@ -62,8 +78,8 @@ class _UserViewState extends State<UserView> {
     switch (role) {
       case 'tilapiaFarmer': return Icons.set_meal;
       case 'fishPondOwner': return Icons.water_damage;
-      case 'lgu': return Icons.account_balance;
-      default: return Icons.person;
+      case 'lgu':           return Icons.account_balance;
+      default:              return Icons.person;
     }
   }
 
@@ -71,23 +87,15 @@ class _UserViewState extends State<UserView> {
     switch (role) {
       case 'tilapiaFarmer': return const Color(0xFF16A34A);
       case 'fishPondOwner': return const Color(0xFF2563EB);
-      case 'lgu': return const Color(0xFF9333EA);
-      default: return Colors.grey;
+      case 'lgu':           return const Color(0xFF9333EA);
+      default:              return Colors.grey;
     }
   }
 
   @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final roleColor = _roleColor(_userRole);
+    final isDark     = Theme.of(context).brightness == Brightness.dark;
+    final roleColor  = _roleColor(_userRole);
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
@@ -116,13 +124,10 @@ class _UserViewState extends State<UserView> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const SizedBox(height: 40),
-                            // Avatar with Glow
                             Container(
                               padding: const EdgeInsets.all(4),
                               decoration: const BoxDecoration(
-                                color: Colors.white24,
-                                shape: BoxShape.circle,
-                              ),
+                                color: Colors.white24, shape: BoxShape.circle),
                               child: CircleAvatar(
                                 radius: 45,
                                 backgroundColor: Colors.white,
@@ -145,10 +150,8 @@ class _UserViewState extends State<UserView> {
                                   Text(
                                     _roleLabel(_userRole).toUpperCase(),
                                     style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.1,
+                                      color: Colors.white, fontSize: 11,
+                                      fontWeight: FontWeight.bold, letterSpacing: 1.1,
                                     ),
                                   ),
                                 ],
@@ -170,44 +173,44 @@ class _UserViewState extends State<UserView> {
                       child: Column(
                         children: [
                           _buildModernCard(
-                            title: 'Personal Information',
+                            title: t('personal_information'),
                             children: [
-                              _buildInfoTile(Icons.person_outline, 'Full Name', _nameController.text, roleColor),
-                              _buildInfoTile(Icons.email_outlined, 'Email Address', _emailController.text, roleColor),
+                              _buildInfoTile(Icons.person_outline,  t('full_name'),     _nameController.text,  roleColor),
+                              _buildInfoTile(Icons.email_outlined,  t('email_address'), _emailController.text, roleColor),
                               if (_phoneController.text.isNotEmpty)
-                                _buildInfoTile(Icons.phone_outlined, 'Phone Number', _phoneController.text, roleColor),
+                                _buildInfoTile(Icons.phone_outlined, t('phone_number'), _phoneController.text, roleColor),
                             ],
                           ),
 
                           const SizedBox(height: 16),
 
                           _buildModernCard(
-                            title: 'Activity Insights',
+                            title: t('activity_insights'),
                             children: [
-                              _buildStatRow('Member Since', _memberSince),
+                              _buildStatRow(t('member_since'),   _memberSince),
                               const Divider(height: 24),
-                              _buildStatRow('Total Readings', '1,234'),
+                              _buildStatRow(t('total_readings'), '1,234'),
                               const Divider(height: 24),
-                              _buildStatRow('Active Ponds', '1'),
+                              _buildStatRow(t('active_ponds'),   '1'),
                             ],
                           ),
 
                           const SizedBox(height: 16),
 
                           _buildModernCard(
-                            title: 'Account Actions',
+                            title: t('account_actions'),
                             children: [
                               _buildActionTile(
                                 context,
                                 icon: Icons.edit_note_rounded,
-                                title: 'Edit Profile Details',
+                                title: t('edit_profile'),
                                 color: const Color(0xFF2563EB),
                                 onTap: () => _navigateToEdit(context),
                               ),
                               _buildActionTile(
                                 context,
                                 icon: Icons.security_rounded,
-                                title: 'Security & Password',
+                                title: t('security_password'),
                                 color: const Color(0xFF6366F1),
                                 onTap: () {},
                               ),
@@ -224,9 +227,9 @@ class _UserViewState extends State<UserView> {
                                 if (mounted) Navigator.of(context).pushReplacementNamed('/login');
                               },
                               icon: const Icon(Icons.logout_rounded, color: Colors.red),
-                              label: const Text(
-                                'LOGOUT SYSTEM ',
-                                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                              label: Text(
+                                t('logout_system'),
+                                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                               ),
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -252,12 +255,12 @@ class _UserViewState extends State<UserView> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => EditProfileView(
-          initialName: _nameController.text,
+          initialName:  _nameController.text,
           initialEmail: _emailController.text,
           initialPhone: _phoneController.text,
           onSave: (name, email, phone) {
             setState(() {
-              _nameController.text = name;
+              _nameController.text  = name;
               _emailController.text = email;
               _phoneController.text = phone;
             });
@@ -275,20 +278,13 @@ class _UserViewState extends State<UserView> {
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5)),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueGrey),
-          ),
+          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
           const SizedBox(height: 20),
           ...children,
         ],
@@ -303,10 +299,7 @@ class _UserViewState extends State<UserView> {
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
+            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 16),
@@ -334,7 +327,8 @@ class _UserViewState extends State<UserView> {
     );
   }
 
-  Widget _buildActionTile(BuildContext context, {required IconData icon, required String title, required Color color, required VoidCallback onTap}) {
+  Widget _buildActionTile(BuildContext context,
+      {required IconData icon, required String title, required Color color, required VoidCallback onTap}) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: CircleAvatar(

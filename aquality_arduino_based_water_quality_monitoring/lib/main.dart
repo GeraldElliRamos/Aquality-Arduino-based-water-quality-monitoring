@@ -21,6 +21,7 @@ import 'admin/admin_login.dart';
 import 'services/auth_service.dart';
 import 'services/theme_service.dart';
 import 'services/preferences_service.dart';
+import 'services/language_service.dart';
 import 'services/esp32_weather_service.dart';
 import 'pages/role_selection.dart';
 import 'widgets/chatbot.dart';
@@ -33,6 +34,7 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await PreferencesService.instance.init();
+  LanguageService().loadSavedLanguage();
   AuthService.init();
 
   // Initialize weather service with OpenWeatherMap API key
@@ -51,13 +53,13 @@ class AqualityApp extends StatefulWidget {
 
 class _AqualityAppState extends State<AqualityApp> {
   final themeService = ThemeService();
+  final languageService = LanguageService();
 
   @override
   void initState() {
     super.initState();
-    themeService.addListener(() {
-      setState(() {});
-    });
+    themeService.addListener(() => setState(() {}));
+    languageService.addListener(() => setState(() {}));
   }
 
   @override
@@ -68,6 +70,7 @@ class _AqualityAppState extends State<AqualityApp> {
       theme: themeService.lightTheme,
       darkTheme: themeService.darkTheme,
       themeMode: themeService.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      locale: languageService.locale,
 
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
@@ -117,7 +120,6 @@ class _AqualityAppState extends State<AqualityApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('en'), Locale('tl')],
-      locale: const Locale('en'),
     );
   }
 }
