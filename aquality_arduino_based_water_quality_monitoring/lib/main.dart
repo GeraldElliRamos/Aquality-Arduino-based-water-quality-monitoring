@@ -7,6 +7,7 @@ import 'pages/dashboard_enhanced.dart';
 import 'pages/trends_enhanced.dart';
 import 'pages/alerts_enhanced.dart';
 import 'pages/history.dart';
+import 'pages/weather.dart';
 import 'pages/user.dart';
 import 'pages/admin_user.dart';
 import 'pages/login.dart';
@@ -20,6 +21,7 @@ import 'admin/admin_login.dart';
 import 'services/auth_service.dart';
 import 'services/theme_service.dart';
 import 'services/preferences_service.dart';
+import 'services/esp32_weather_service.dart';
 import 'pages/role_selection.dart';
 import 'widgets/chatbot.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -32,6 +34,11 @@ void main() async {
 
   await PreferencesService.instance.init();
   AuthService.init();
+
+  // Initialize weather service with OpenWeatherMap API key
+  final weatherApiKey = dotenv.env['OPENWEATHER_API_KEY'] ?? '';
+  await ESP32WeatherService().init(apiKey: weatherApiKey);
+
   runApp(const AqualityApp());
 }
 
@@ -130,6 +137,7 @@ class _AppScreenState extends State<AppScreen> {
     DashboardEnhanced(),
     TrendsViewEnhanced(),
     AlertsViewEnhanced(),
+    WeatherView(),
     HistoryView(),
   ];
 
@@ -291,6 +299,10 @@ class _AppScreenState extends State<AppScreen> {
               BottomNavigationBarItem(
                 icon: Icon(Icons.notifications),
                 label: 'Alerts',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.cloud),
+                label: 'Weather',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.history),
