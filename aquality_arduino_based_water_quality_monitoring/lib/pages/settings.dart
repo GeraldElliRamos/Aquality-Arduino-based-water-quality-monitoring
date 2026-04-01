@@ -245,7 +245,7 @@ class _SettingsViewState extends State<SettingsView> {
                   textColor: textColor,
                   trailing: Switch.adaptive(
                     value: isDark,
-                    activeColor: primaryBlue,
+                    activeTrackColor: primaryBlue,
                     onChanged: (_) =>
                         setState(() => themeService.toggleTheme()),
                   ),
@@ -314,7 +314,7 @@ class _SettingsViewState extends State<SettingsView> {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withOpacity(0.05)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
       child: Column(children: children),
     );
@@ -428,7 +428,7 @@ class _LanguageOption extends StatelessWidget {
     final borderColor =
         isSelected ? primaryBlue : (isDark ? Colors.white12 : Colors.black12);
     final bgColor = isSelected
-        ? primaryBlue.withOpacity(isDark ? 0.18 : 0.07)
+        ? primaryBlue.withValues(alpha: isDark ? 0.18 : 0.07)
         : Colors.transparent;
     final labelColor = isDark ? Colors.white : Colors.black87;
     final subColor = isDark ? Colors.white54 : Colors.black45;

@@ -96,20 +96,6 @@ class _SignupViewState extends State<SignupView> {
     return null;
   }
 
-  void _navigateByRole() {
-    final role = _selectedUserType?.name ?? 'tilapiaFarmer';
-    switch (role) {
-      case 'fishPondOwner':
-        Navigator.of(context).pushReplacementNamed('/app-owner');
-        break;
-      case 'lgu':
-        Navigator.of(context).pushReplacementNamed('/app-lgu');
-        break;
-      default:
-        Navigator.of(context).pushReplacementNamed('/app');
-    }
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_agreeToTerms) {
@@ -219,7 +205,7 @@ class _SignupViewState extends State<SignupView> {
         centerTitle: true,
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         elevation: 0,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         surfaceTintColor: Colors.transparent,
         shape: Border(bottom: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, width: 1)),
       ),
@@ -241,7 +227,7 @@ class _SignupViewState extends State<SignupView> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2563EB).withOpacity(isDark ? 0.2 : 0.08),
+                      color: const Color(0xFF2563EB).withValues(alpha: isDark ? 0.2 : 0.08),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFF2563EB)),
                     ),

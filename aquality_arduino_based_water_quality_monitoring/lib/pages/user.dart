@@ -138,7 +138,7 @@ class _UserViewState extends State<UserView> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(color: Colors.white38),
                               ),
@@ -224,7 +224,9 @@ class _UserViewState extends State<UserView> {
                             child: TextButton.icon(
                               onPressed: () async {
                                 await AuthService.logout();
-                                if (mounted) Navigator.of(context).pushReplacementNamed('/login');
+                                if (context.mounted) {
+                                  Navigator.of(context).pushReplacementNamed('/login');
+                                }
                               },
                               icon: const Icon(Icons.logout_rounded, color: Colors.red),
                               label: Text(
@@ -278,7 +280,7 @@ class _UserViewState extends State<UserView> {
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15, offset: const Offset(0, 5)),
         ],
       ),
       child: Column(
@@ -299,7 +301,7 @@ class _UserViewState extends State<UserView> {
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 16),
@@ -332,7 +334,7 @@ class _UserViewState extends State<UserView> {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: CircleAvatar(
-        backgroundColor: color.withOpacity(0.1),
+        backgroundColor: color.withValues(alpha: 0.1),
         child: Icon(icon, color: color, size: 20),
       ),
       title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),

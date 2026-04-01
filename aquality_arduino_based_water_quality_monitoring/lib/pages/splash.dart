@@ -85,7 +85,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -124,7 +124,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                 child: Text(
                   'Smart Water Monitoring',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     fontSize: 16,
                   ),
                 ),
