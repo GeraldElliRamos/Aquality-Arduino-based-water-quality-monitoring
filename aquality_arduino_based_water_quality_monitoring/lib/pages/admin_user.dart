@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'edit_admin_profile.dart';
 
 class AdminUserView extends StatefulWidget {
   const AdminUserView({super.key});
@@ -104,6 +105,41 @@ class _AdminUserViewState extends State<AdminUserView> {
                       color: Colors.white70,
                       fontSize: 14,
                       letterSpacing: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => EditAdminProfileView(
+                            initialName: _nameController.text,
+                            initialEmail: _emailController.text,
+                            initialPhone: _phoneController.text,
+                            onSave: (name, email, phone) {
+                              setState(() {
+                                _nameController.text = name;
+                                _emailController.text = email;
+                                _phoneController.text = phone;
+                              });
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Edit Profile'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: primaryBlue,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
                     ),
                   ),
                 ],
