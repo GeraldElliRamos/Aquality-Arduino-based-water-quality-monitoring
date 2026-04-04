@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
 class SecuritySettingsPage extends StatefulWidget {
   const SecuritySettingsPage({super.key});
@@ -12,6 +13,7 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isObscure = true;
+  bool _isUpdating = false;
 
   @override
   void dispose() {
@@ -21,17 +23,30 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
     super.dispose();
   }
 
-  Future<void> _showSaveConfirmation() async {
+  void _showSnack(String msg, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: color),
+    );
+  }
+
+  Future<void> _handleUpdate() async {
+    if (_currentPasswordController.text.isEmpty || _newPasswordController.text.isEmpty) {
+      _showSnack("Please fill in all fields", Colors.orange);
+      return;
+    }
+    if (_newPasswordController.text != _confirmPasswordController.text) {
+      _showSnack("New passwords do not match", Colors.red);
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Security Update'),
+        title: const Text('Confirm Update'),
         content: const Text('Are you sure you want to update your password?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: const Color(0xFF2563EB)),
@@ -42,64 +57,53 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
     );
 
     if (confirmed == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Security settings updated successfully')),
-      );
-      Navigator.pop(context);
+      setState(() => _isUpdating = true);
+      try {
+        await AuthService.updateUserPassword(
+          _currentPasswordController.text, 
+          _newPasswordController.text
+        );
+        
+        if (mounted) {
+          _showSnack("Success! Password updated in Firebase.", Colors.green);
+          await Future.delayed(const Duration(milliseconds: 500));
+          Navigator.pop(context); 
+        }
+      } catch (e) {
+        if (mounted) {
+          _showSnack("Update Failed: ${e.toString()}", Colors.red);
+        }
+      } finally {
+        if (mounted) setState(() => _isUpdating = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
-
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text('Security & Password'),
-        titleTextStyle: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold),
-        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-        elevation: 0,
-        leading: BackButton(color: textColor),
-        shape: Border(bottom: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200)),
-      ),
-      body: SingleChildScrollView(
+      appBar: AppBar(title: const Text('Security & Password')),
+      body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            const SizedBox(height: 32),
-            _buildTextField(_currentPasswordController, 'Current Password', Icons.lock_outline),
+            _buildField(_currentPasswordController, 'Current Password'),
             const SizedBox(height: 16),
-            _buildTextField(_newPasswordController, 'New Password', Icons.lock_reset_outlined),
+            _buildField(_newPasswordController, 'New Password'),
             const SizedBox(height: 16),
-            _buildTextField(_confirmPasswordController, 'Confirm New Password', Icons.check_circle_outline),
+            _buildField(_confirmPasswordController, 'Confirm New Password'),
             const SizedBox(height: 32),
-            
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _showSaveConfirmation,
+                onPressed: _isUpdating ? null : _handleUpdate,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(vertical: 15)
                 ),
-                child: const Text('Update Password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  side: const BorderSide(color: Color(0xFF2563EB)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                child: const Text('Cancel', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                child: _isUpdating 
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Update Password', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -108,18 +112,17 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon) {
+  Widget _buildField(TextEditingController ctrl, String label) {
     return TextField(
-      controller: controller,
+      controller: ctrl,
       obscureText: _isObscure,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFF2563EB)),
+        border: const OutlineInputBorder(),
         suffixIcon: IconButton(
-          icon: Icon(_isObscure ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+          icon: Icon(_isObscure ? Icons.visibility_off : Icons.visibility),
           onPressed: () => setState(() => _isObscure = !_isObscure),
         ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }

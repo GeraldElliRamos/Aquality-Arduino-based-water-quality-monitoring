@@ -32,11 +32,7 @@ class AuthService {
   static final ValueNotifier<String> userRole = ValueNotifier<String>('');
 
   static void init() {
-    // Initialize GoogleSignIn for web with serverClientId for better web support
-    if (kIsWeb) {
-      // Note: For web, consider using renderButton() instead of signIn()
-      // See: https://pub.dev/packages/google_sign_in_web#migrating-to-v011-and-v012-google-identity-services
-    }
+    if (kIsWeb) {}
     
     _auth.authStateChanges().listen((user) async {
       if (user == null) {
@@ -62,7 +58,6 @@ class AuthService {
     return doc.data();
   }
 
-  // ── Sign Up ─────────────────────────────────────────────────────
   static Future<void> signUp({
     required String fullName,
     required String username,
@@ -106,7 +101,6 @@ class AuthService {
     userRole.value = userType;
   }
 
-  // ── Login ───────────────────────────────────────────────────────
   static Future<void> login({
     required String username,
     required String password,
@@ -134,66 +128,63 @@ class AuthService {
     userRole.value = userData['userType'] ?? '';
   }
 
-  // ── Reset Password ──────────────────────────────────────────────
-  /// Accepts a username OR email address.
-  /// Looks up the linked email from Firestore if a username is given,
-  /// then sends a Firebase password-reset email to that address.
-  /// Returns a masked email string for display (e.g. jo*****e@gmail.com).
+ static Future<void> updateUserPassword(String currentPassword, String newPassword) async {
+  final user = _auth.currentUser;
+
+  if (user != null && user.email != null) {
+    try {
+      AuthCredential credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(e.code, e.message ?? 'Authentication failed');
+    }
+  } else {
+    throw const AuthException('no-user', 'No user is currently logged in.');
+  }
+}
+
   static Future<String> resetPassword(String usernameOrEmail) async {
     final input = usernameOrEmail.trim();
-
     if (input.isEmpty) {
-      throw const AuthException(
-        'empty-input',
-        'Please enter your username or email.',
-      );
+      throw const AuthException('empty-input', 'Please enter your username or email.');
     }
-
     String email;
     final isEmail = input.contains('@');
-
     if (isEmail) {
       email = input.toLowerCase();
     } else {
-      // Look up email by username
       final query = await _db
           .collection('users')
           .where('username', isEqualTo: input.toLowerCase())
           .limit(1)
           .get();
-
       if (query.docs.isEmpty) {
-        throw const AuthException(
-          'user-not-found',
-          'No account found with that username.',
-        );
+        throw const AuthException('user-not-found', 'No account found with that username.');
       }
-
       email = query.docs.first.data()['email'] as String;
     }
-
     try {
       await _auth.sendPasswordResetEmail(email: email);
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
         case 'user-not-found':
-          throw const AuthException(
-              'user-not-found', 'No account found with that email.');
+          throw const AuthException('user-not-found', 'No account found with that email.');
         case 'invalid-email':
-          throw const AuthException(
-              'invalid-email', 'The email address is invalid.');
+          throw const AuthException('invalid-email', 'The email address is invalid.');
         case 'too-many-requests':
-          throw const AuthException(
-              'too-many-requests', 'Too many requests. Please try again later.');
+          throw const AuthException('too-many-requests', 'Too many requests. Please try again later.');
         default:
           throw AuthException(e.code, 'Failed to send reset email. Try again.');
       }
     }
-
     return _maskEmail(email);
   }
 
-  /// Masks email for display: john.doe@gmail.com → jo*****e@gmail.com
   static String _maskEmail(String email) {
     final parts = email.split('@');
     if (parts.length != 2) return email;
@@ -203,34 +194,24 @@ class AuthService {
     return '${local[0]}${local[1]}${'*' * (local.length - 2)}${local[local.length - 1]}@$domain';
   }
 
-  // ── Google Sign In ──────────────────────────────────────────────
   static Future<GoogleSignInResult> signInWithGoogle() async {
     final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
     if (googleUser == null) {
       throw const AuthException('cancelled', 'Google sign-in was cancelled.');
     }
-
-    final GoogleSignInAuthentication googleAuth =
-        await googleUser.authentication;
-
+    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
     final credential = GoogleAuthProvider.credential(
       accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
     );
-
     final userCredential = await _auth.signInWithCredential(credential);
     final user = userCredential.user!;
-
     final docRef = _db.collection('users').doc(user.uid);
     final doc = await docRef.get();
-
     bool isNewUser = false;
     final normalizedEmail = user.email?.trim().toLowerCase() ?? '';
-    final generatedUsername =
-        normalizedEmail.isNotEmpty ? normalizedEmail.split('@').first : '';
+    final generatedUsername = normalizedEmail.isNotEmpty ? normalizedEmail.split('@').first : '';
     final displayName = user.displayName?.trim() ?? '';
-
     if (!doc.exists) {
       isNewUser = true;
       await docRef.set({
@@ -248,7 +229,6 @@ class AuthService {
     } else {
       final data = doc.data() ?? {};
       final updates = <String, dynamic>{};
-
       if ((data['email'] as String?)?.trim().isEmpty ?? true) {
         updates['email'] = normalizedEmail;
       }
@@ -261,11 +241,9 @@ class AuthService {
       if (updates.isNotEmpty) {
         await docRef.set(updates, SetOptions(merge: true));
       }
-
       userRole.value = (data['userType'] as String?) ?? '';
       isAdmin.value = data['isAdmin'] == true;
     }
-
     isLoggedIn.value = true;
     return GoogleSignInResult(
       isNewUser: isNewUser,
@@ -283,22 +261,15 @@ class AuthService {
     if (user == null) {
       throw const AuthException('not-authenticated', 'Please sign in first.');
     }
-
     final normalizedUsername = username.trim().toLowerCase();
     final usernameQuery = await _db
         .collection('users')
         .where('username', isEqualTo: normalizedUsername)
         .limit(1)
         .get();
-
-    if (usernameQuery.docs.isNotEmpty &&
-        usernameQuery.docs.first.id != user.uid) {
-      throw const AuthException(
-        'username-already-taken',
-        'That username is already taken. Please choose another.',
-      );
+    if (usernameQuery.docs.isNotEmpty && usernameQuery.docs.first.id != user.uid) {
+      throw const AuthException('username-already-taken', 'That username is already taken. Please choose another.');
     }
-
     await _db.collection('users').doc(user.uid).set({
       'uid': user.uid,
       'fullName': fullName.trim(),
@@ -309,13 +280,11 @@ class AuthService {
       'authProvider': 'google',
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-
     isLoggedIn.value = true;
     isAdmin.value = false;
     userRole.value = userType;
   }
 
-  // ── Logout ──────────────────────────────────────────────────────
   static Future<void> logout() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
