@@ -26,8 +26,9 @@ class _LoginViewState extends State<LoginView> {
 
   String? _validateUsername(String? value) {
     if (value == null || value.trim().isEmpty) return 'Username is required';
-    if (value.trim().length < 3)
+    if (value.trim().length < 3) {
       return 'Username must be at least 3 characters';
+    }
     return null;
   }
 

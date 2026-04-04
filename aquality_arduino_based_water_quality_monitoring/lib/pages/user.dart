@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/language_service.dart';
 import './edit_profile.dart';
+import 'security_passwords.dart';
 
 class UserView extends StatefulWidget {
   const UserView({super.key});
@@ -198,24 +199,31 @@ class _UserViewState extends State<UserView> {
                           const SizedBox(height: 16),
 
                           _buildModernCard(
-                            title: t('account_actions'),
-                            children: [
-                              _buildActionTile(
-                                context,
-                                icon: Icons.edit_note_rounded,
-                                title: t('edit_profile'),
-                                color: const Color(0xFF2563EB),
-                                onTap: () => _navigateToEdit(context),
-                              ),
-                              _buildActionTile(
-                                context,
-                                icon: Icons.security_rounded,
-                                title: t('security_password'),
-                                color: const Color(0xFF6366F1),
-                                onTap: () {},
-                              ),
-                            ],
-                          ),
+                              title: t('account_actions'),
+                              children: [
+                          _buildActionTile(
+                                  context,
+                                  icon: Icons.edit_note_rounded,
+                                  title: t('edit_profile'),
+                                  color: const Color(0xFF2563EB),
+                                  onTap: () => _navigateToEdit(context),
+                                ),
+
+                          _buildActionTile(
+                                  context,
+                                  icon: Icons.security_rounded,
+                                  title: t('security_password'), 
+                                  color: const Color(0xFF6366F1),
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) => const SecuritySettingsPage(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
 
                           const SizedBox(height: 32),
 
@@ -343,3 +351,4 @@ class _UserViewState extends State<UserView> {
     );
   }
 }
+
