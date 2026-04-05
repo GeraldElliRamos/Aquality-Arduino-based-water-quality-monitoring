@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'edit_admin_profile.dart';
+import 'security_passwords.dart'; // Ensure this matches your file name
 
 class AdminUserView extends StatefulWidget {
   const AdminUserView({super.key});
@@ -26,90 +27,112 @@ class _AdminUserViewState extends State<AdminUserView> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Aquality Color Palette
     const primaryBlue = Color(0xFF2563EB);
-    // Dynamic colors for dark mode support
-    final cardBgColor = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final subTextColor = isDark ? Colors.blueGrey.shade200 : Colors.grey;
-    final mainTextColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final scaffoldBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final subTextColor = isDark ? Colors.white54 : Colors.black54;
 
     return Scaffold(
-      backgroundColor: isDark
-          ? const Color(0xFF0F172A)
-          : const Color(0xFFF1F5F9),
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        title: const Text('Aquality Admin'),
-        centerTitle: true,
-        backgroundColor: primaryBlue,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
+        title: Text(
+          'Admin Profile',
+          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none),
+            icon: Icon(Icons.notifications_none, color: textColor),
             onPressed: () {},
           ),
         ],
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
+            // 1. Profile Header Card
             Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: primaryBlue,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: isDark ? [] : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  )
+                ],
               ),
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
               child: Column(
                 children: [
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
                       CircleAvatar(
-                        radius: 55,
-                        backgroundColor: Colors.white.withValues(alpha: 0.2),
-                        child: const Icon(
-                          Icons.account_circle,
-                          size: 80,
-                          color: Colors.white,
-                        ),
+                        radius: 50,
+                        backgroundColor: primaryBlue.withOpacity(0.1),
+                        child: const Icon(Icons.person, size: 50, color: primaryBlue),
                       ),
                       Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.verified,
-                          color: Colors.blue,
-                          size: 24,
-                        ),
+                        decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+                        child: const Icon(Icons.verified, color: Colors.white, size: 18),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
                   Text(
                     _nameController.text,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
                   ),
-                  const Text(
+                  Text(
                     'System Administrator',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                      letterSpacing: 1.1,
-                    ),
+                    style: TextStyle(color: subTextColor, fontSize: 14, letterSpacing: 0.5),
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // 2. Stats Row
+            Row(
+              children: [
+                _buildStatCard('Total Ponds', '12', Icons.water_drop, primaryBlue, cardBg, textColor, isDark),
+                const SizedBox(width: 16),
+                _buildStatCard('Active IoT', '08', Icons.router, Colors.indigoAccent, cardBg, textColor, isDark),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // 3. Account Actions Card
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8, bottom: 12),
+                child: Text('Account Actions', 
+                  style: TextStyle(color: subTextColor, fontWeight: FontWeight.w600, fontSize: 14)),
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+              ),
+              child: Column(
+                children: [
+                  _buildActionTile(
+                    icon: Icons.edit_note_rounded,
+                    title: 'Edit Profile Details',
+                    onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (context) => EditAdminProfileView(
@@ -127,276 +150,105 @@ class _AdminUserViewState extends State<AdminUserView> {
                         ),
                       );
                     },
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: const Text('Edit Profile'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: primaryBlue,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
+                    textColor: textColor,
+                  ),
+                  Divider(height: 1, indent: 60, color: isDark ? Colors.white10 : Colors.grey.shade100),
+                  _buildActionTile(
+                    icon: Icons.shield_outlined,
+                    title: 'Security & Password',
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const SecuritySettingsPage()));
+                    },
+                    textColor: textColor,
                   ),
                 ],
               ),
             ),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            const SizedBox(height: 24),
+
+            // 4. Management Card
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8, bottom: 12),
+                child: Text('Management Tools', 
+                  style: TextStyle(color: subTextColor, fontWeight: FontWeight.w600, fontSize: 14)),
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Column(
                 children: [
-                  Row(
-                    children: [
-                      _buildBlueStat(
-                        'Total Ponds',
-                        '12',
-                        Icons.water_drop,
-                        primaryBlue,
-                        cardBgColor,
-                        mainTextColor,
-                      ),
-                      const SizedBox(width: 16),
-                      _buildBlueStat(
-                        'Active IoT',
-                        '08',
-                        Icons.router,
-                        Colors.indigoAccent,
-                        cardBgColor,
-                        mainTextColor,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  _buildBlueSectionHeader('Profile Details', subTextColor),
-                  _buildBlueCard(
-                    bgColor: cardBgColor,
-                    children: [
-                      _buildBlueTile(
-                        Icons.alternate_email,
-                        'Email Address',
-                        _emailController.text,
-                        primaryBlue,
-                        subTextColor,
-                        mainTextColor,
-                      ),
-                      Divider(
-                        indent: 50,
-                        color: isDark ? Colors.white10 : Colors.grey.shade200,
-                      ),
-                      _buildBlueTile(
-                        Icons.phone_android,
-                        'Contact Number',
-                        _phoneController.text,
-                        primaryBlue,
-                        subTextColor,
-                        mainTextColor,
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  _buildBlueSectionHeader('Management Tools', subTextColor),
-                  _buildBlueCard(
-                    bgColor: cardBgColor,
-                    children: [
-                      _buildBlueAction(
-                        context,
-                        Icons.analytics_outlined,
-                        'Analyze Water History',
-                        '/history',
-                        mainTextColor,
-                      ),
-                      Divider(
-                        indent: 50,
-                        color: isDark ? Colors.white10 : Colors.grey.shade200,
-                      ),
-                      _buildBlueAction(
-                        context,
-                        Icons.settings_input_component,
-                        'Sensor Thresholds',
-                        '/thresholds',
-                        mainTextColor,
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        AuthService.logout();
-                        Navigator.of(context).pushReplacementNamed('/login');
-                      },
-                      icon: const Icon(Icons.logout),
-                      label: const Text('LOGOUT SYSTEM'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            cardBgColor, // Changes to dark blue in night mode
-                        foregroundColor: Colors.redAccent,
-                        elevation: 0,
-                        side: const BorderSide(
-                          color: Colors.redAccent,
-                          width: 1.5,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
+                  _buildActionTile(icon: Icons.analytics_outlined, title: 'Analyze Water History', onTap: () {}, textColor: textColor),
+                  Divider(height: 1, indent: 60, color: isDark ? Colors.white10 : Colors.grey.shade100),
+                  _buildActionTile(icon: Icons.settings_input_component, title: 'Sensor Thresholds', onTap: () {}, textColor: textColor),
                 ],
               ),
             ),
+
+            const SizedBox(height: 32),
+
+            // 5. Logout Button
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  AuthService.logout();
+                  Navigator.of(context).pushReplacementNamed('/login');
+                },
+                icon: const Icon(Icons.logout_rounded),
+                label: const Text('LOGOUT SYSTEM', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.redAccent,
+                  side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBlueSectionHeader(String title, Color textColor) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.only(left: 8, bottom: 10),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: textColor,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBlueStat(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-    Color bgColor,
-    Color textColor,
-  ) {
+  // Helper Widgets
+  Widget _buildStatCard(String label, String value, IconData icon, Color color, Color bg, Color text, bool isDark) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
-          color: bgColor,
+          color: bg,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            Icon(icon, color: color, size: 30),
+            const SizedBox(height: 8),
+            Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: text)),
+            Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w500)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBlueCard({
-    required List<Widget> children,
-    required Color bgColor,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15),
-        ],
-      ),
-      child: Column(children: children),
-    );
-  }
-
-  Widget _buildBlueTile(
-    IconData icon,
-    String label,
-    String value,
-    Color color,
-    Color labelColor,
-    Color valColor,
-  ) {
+  Widget _buildActionTile({required IconData icon, required String title, required VoidCallback onTap, required Color textColor}) {
     return ListTile(
       leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: color, size: 20),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(color: const Color(0xFF2563EB).withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+        child: Icon(icon, color: const Color(0xFF2563EB), size: 22),
       ),
-      title: Text(label, style: TextStyle(fontSize: 11, color: labelColor)),
-      subtitle: Text(
-        value,
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: valColor,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBlueAction(
-    BuildContext context,
-    IconData icon,
-    String title,
-    String route,
-    Color textColor,
-  ) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.blueAccent.withValues(alpha: 0.7)),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          color: textColor,
-        ),
-      ),
-      trailing: const Icon(
-        Icons.arrow_forward_ios,
-        size: 14,
-        color: Colors.grey,
-      ),
-      onTap: () => Navigator.of(context).pushNamed(route),
+      title: Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: textColor)),
+      trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+      onTap: onTap,
     );
   }
 }
