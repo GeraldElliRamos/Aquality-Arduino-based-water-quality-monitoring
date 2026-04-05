@@ -111,7 +111,7 @@ AQUALITY automates water quality monitoring with:
 - **Hardware**:
   - Arduino microcontroller (Uno/Mega recommended)
   - Water quality sensors: Temperature, pH, Turbidity, Ammonia
-  - WiFi/Bluetooth module for connectivity
+  - WiFi module for connectivity
 
 - **Software**:
   - Android 6.0+ for mobile application
