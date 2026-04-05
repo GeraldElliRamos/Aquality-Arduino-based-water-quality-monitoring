@@ -109,7 +109,7 @@ class _EditProfileViewState extends State<EditProfileView> {
             Center(
               child: CircleAvatar(
                 radius: 60,
-                backgroundColor: const Color(0xFF2563EB).withOpacity(0.1),
+                backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.1),
                 child: const Icon(
                   Icons.person,
                   size: 60,
@@ -192,3 +192,4 @@ class _EditProfileViewState extends State<EditProfileView> {
     );
   }
 }
+

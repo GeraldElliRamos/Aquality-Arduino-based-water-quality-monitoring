@@ -542,81 +542,83 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
     final bgColor = ColorUtils.getAlertBgColor(alert.level, isDark: isDark);
     final levelColor = ColorUtils.getAlertLevelColor(alert.level, isDark: isDark);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: levelColor.withOpacity(0.3),
-            width: 1,
+    return RepaintBoundary(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: levelColor.withOpacity(0.3),
+              width: 1,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: levelColor.withOpacity(0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Icon(
-                  _getAlertIcon(alert.level),
-                  color: levelColor,
-                  size: 20,
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: levelColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Icon(
+                    _getAlertIcon(alert.level),
+                    color: levelColor,
+                    size: 20,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      alert.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      alert.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color:
+                            isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    alert.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    alert.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    alert.formattedTime,
                     style: TextStyle(
-                      fontSize: 12,
-                      color:
-                          isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: levelColor,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Icon(Icons.arrow_forward_ios, size: 14, color: levelColor),
                 ],
               ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  alert.formattedTime,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: levelColor,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Icon(Icons.arrow_forward_ios, size: 14, color: levelColor),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

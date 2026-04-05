@@ -912,3 +912,4 @@ class _TypingDotState extends State<_TypingDot>
     );
   }
 }
+

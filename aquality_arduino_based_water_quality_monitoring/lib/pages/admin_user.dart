@@ -69,7 +69,7 @@ class _AdminUserViewState extends State<AdminUserView> {
                     children: [
                       CircleAvatar(
                         radius: 55,
-                        backgroundColor: Colors.white.withOpacity(0.2),
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
                         child: const Icon(
                           Icons.account_circle,
                           size: 80,
@@ -297,7 +297,7 @@ class _AdminUserViewState extends State<AdminUserView> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -338,7 +338,7 @@ class _AdminUserViewState extends State<AdminUserView> {
         color: bgColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15),
         ],
       ),
       child: Column(children: children),
@@ -357,7 +357,7 @@ class _AdminUserViewState extends State<AdminUserView> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: color, size: 20),
@@ -382,7 +382,7 @@ class _AdminUserViewState extends State<AdminUserView> {
     Color textColor,
   ) {
     return ListTile(
-      leading: Icon(icon, color: Colors.blueAccent.withOpacity(0.7)),
+      leading: Icon(icon, color: Colors.blueAccent.withValues(alpha: 0.7)),
       title: Text(
         title,
         style: TextStyle(

@@ -163,7 +163,7 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
         centerTitle: true,
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         elevation: 0,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         surfaceTintColor: Colors.transparent,
         automaticallyImplyLeading: !_isFromGoogle,
         shape: Border(
@@ -279,7 +279,7 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF2563EB).withOpacity(isDark ? 0.2 : 0.08)
+              ? const Color(0xFF2563EB).withValues(alpha: isDark ? 0.2 : 0.08)
               : (isDark ? Colors.grey.shade800 : Colors.grey.shade50),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
@@ -291,7 +291,7 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF2563EB).withOpacity(0.12),
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.12),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -355,3 +355,4 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
     );
   }
 }
+

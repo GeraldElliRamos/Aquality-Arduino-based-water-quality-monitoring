@@ -55,15 +55,15 @@ class ColorUtils {
     switch (status.toLowerCase()) {
       case 'optimal':
         return isDark
-            ? const Color(0xFF10B981).withOpacity(0.2)
+            ? const Color(0xFF10B981).withValues(alpha: 0.2)
             : const Color(0xFFECFDF5);
       case 'warning':
         return isDark
-            ? const Color(0xFFF59E0B).withOpacity(0.2)
+            ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
             : const Color(0xFFFEF3C7);
       case 'critical':
         return isDark
-            ? const Color(0xFFEF4444).withOpacity(0.2)
+            ? const Color(0xFFEF4444).withValues(alpha: 0.2)
             : const Color(0xFFFEE2E2);
       default:
         return isDark ? Colors.grey.shade800 : Colors.grey.shade100;
@@ -87,15 +87,15 @@ class ColorUtils {
     switch (level) {
       case AlertLevel.critical:
         return isDark
-            ? const Color(0xFFEF4444).withOpacity(0.2)
+            ? const Color(0xFFEF4444).withValues(alpha: 0.2)
             : const Color(0xFFFEE2E2);
       case AlertLevel.warning:
         return isDark
-            ? const Color(0xFFF59E0B).withOpacity(0.2)
+            ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
             : const Color(0xFFFEF3C7);
       case AlertLevel.info:
         return isDark
-            ? const Color(0xFF3B82F6).withOpacity(0.2)
+            ? const Color(0xFF3B82F6).withValues(alpha: 0.2)
             : const Color(0xFFEFF6FF);
     }
   }
@@ -103,6 +103,7 @@ class ColorUtils {
   /// Get text color for parameter card (light bg)
   static Color getCardTextColor(ParameterColor color) {
     // Return a darker shade for text on light backgrounds
-    return parameterColors[color]?.withOpacity(0.8) ?? Colors.blue;
+    return parameterColors[color]?.withValues(alpha: 0.8) ?? Colors.blue;
   }
 }
+

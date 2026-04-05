@@ -79,7 +79,7 @@ class HelpIcon extends StatelessWidget {
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: isDark
-              ? Colors.blue.shade900.withOpacity(0.3)
+              ? Colors.blue.shade900.withValues(alpha: 0.3)
               : Colors.blue.shade100,
           shape: BoxShape.circle,
         ),
@@ -92,3 +92,4 @@ class HelpIcon extends StatelessWidget {
     );
   }
 }
+

@@ -11,13 +11,12 @@ class WeatherView extends StatefulWidget {
 
 class _WeatherViewState extends State<WeatherView> {
   late ESP32WeatherService _weatherService;
-  late Future<void> _fetchWeatherFuture;
 
   @override
   void initState() {
     super.initState();
     _weatherService = ESP32WeatherService();
-    _fetchWeatherFuture = _weatherService.fetchWeatherData();
+    _weatherService.fetchWeatherData();
   }
 
   @override
@@ -48,10 +47,11 @@ class _WeatherViewState extends State<WeatherView> {
       onRefresh: () => _weatherService.fetchWeatherData(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        child: FutureBuilder<void>(
-          future: _fetchWeatherFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+        child: ValueListenableBuilder<WeatherData?>(
+          valueListenable: _weatherService.weatherDataNotifier,
+          builder: (context, weatherData, _) {
+            // Show loading state while fetching
+            if (_weatherService.stateNotifier.value.isLoading && weatherData == null) {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(32.0),
@@ -74,62 +74,57 @@ class _WeatherViewState extends State<WeatherView> {
               );
             }
 
-            return ValueListenableBuilder<WeatherData?>(
-              valueListenable: _weatherService.weatherDataNotifier,
-              builder: (context, weatherData, _) {
-                if (weatherData == null) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.cloud_off_outlined,
-                            size: 48,
-                            color: isDark ? Colors.grey[600] : Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Failed to load weather data',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+            if (weatherData == null) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Current Weather Card
-                      _buildCurrentWeatherCard(weatherData, isDark),
-                      const SizedBox(height: 20),
-
-                      // Safe Parameters Section
-                      _buildSafeParametersSection(weatherData, isDark),
-                      const SizedBox(height: 20),
-
-                      // 7-Day Forecast
-                      _buildForecastSection(isDark),
-                      const SizedBox(height: 20),
-
-                      // Weather-based safe parameter prediction
-                      _buildWeatherSafetyPredictionSection(isDark),
-                      const SizedBox(height: 20),
-
-                      // Recommendations
-                      _buildRecommendationsCard(weatherData, isDark),
-                      const SizedBox(height: 20),
-
-                      // ESP32 Sensor Info
-                      _buildSensorInfoCard(weatherData, isDark),
+                      Icon(
+                        Icons.cloud_off_outlined,
+                        size: 48,
+                        color: isDark ? Colors.grey[600] : Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Failed to load weather data',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
                     ],
                   ),
-                );
-              },
+                ),
+              );
+            }
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              child: Column(
+                children: [
+                  // Current Weather Card
+                  _buildCurrentWeatherCard(weatherData, isDark),
+                  const SizedBox(height: 20),
+
+                  // Safe Parameters Section
+                  _buildSafeParametersSection(weatherData, isDark),
+                  const SizedBox(height: 20),
+
+                  // 7-Day Forecast
+                  _buildForecastSection(isDark),
+                  const SizedBox(height: 20),
+
+                  // Weather-based safe parameter prediction
+                  _buildWeatherSafetyPredictionSection(isDark),
+                  const SizedBox(height: 20),
+
+                  // Recommendations
+                  _buildRecommendationsCard(weatherData, isDark),
+                  const SizedBox(height: 20),
+
+                  // ESP32 Sensor Info
+                  _buildSensorInfoCard(weatherData, isDark),
+                ],
+              ),
             );
           },
         ),
@@ -152,7 +147,7 @@ class _WeatherViewState extends State<WeatherView> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -229,7 +224,7 @@ class _WeatherViewState extends State<WeatherView> {
               _buildWeatherMetric(
                 icon: Icons.sunny,
                 label: 'UV Index',
-                value: '${weatherData.uvIndex.toStringAsFixed(1)}',
+                value: weatherData.uvIndex.toStringAsFixed(1),
                 color: Colors.white,
               ),
             ],
@@ -251,7 +246,7 @@ class _WeatherViewState extends State<WeatherView> {
         const SizedBox(height: 8),
         Text(
           label,
-          style: TextStyle(color: color.withOpacity(0.7), fontSize: 12),
+          style: TextStyle(color: color.withValues(alpha: 0.7), fontSize: 12),
         ),
         const SizedBox(height: 4),
         Text(
@@ -332,10 +327,10 @@ class _WeatherViewState extends State<WeatherView> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withOpacity(0.3), width: 2),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 2),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withOpacity(0.1),
+            color: statusColor.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -351,7 +346,7 @@ class _WeatherViewState extends State<WeatherView> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -386,7 +381,7 @@ class _WeatherViewState extends State<WeatherView> {
             child: LinearProgressIndicator(
               value: hasReading ? (isSafe ? 1.0 : 0.5) : 0,
               minHeight: 4,
-              backgroundColor: Colors.grey.withOpacity(0.2),
+              backgroundColor: Colors.grey.withValues(alpha: 0.2),
               valueColor: AlwaysStoppedAnimation<Color>(statusColor),
             ),
           ),
@@ -436,7 +431,7 @@ class _WeatherViewState extends State<WeatherView> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -522,7 +517,7 @@ class _WeatherViewState extends State<WeatherView> {
         border: Border.all(color: prediction['riskColor'] as Color, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -544,7 +539,7 @@ class _WeatherViewState extends State<WeatherView> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: (prediction['riskColor'] as Color).withOpacity(0.15),
+                  color: (prediction['riskColor'] as Color).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -680,9 +675,9 @@ class _WeatherViewState extends State<WeatherView> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.amber.withOpacity(0.1),
+        color: isDark ? const Color(0xFF1E293B) : Colors.amber.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.amber.withOpacity(0.3), width: 1),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -772,3 +767,4 @@ class _WeatherViewState extends State<WeatherView> {
     );
   }
 }
+

@@ -18,40 +18,60 @@ class LocationService {
       // Check if location services are enabled
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        debugPrint('Location services are disabled.');
+        debugPrint('❌ Location services are disabled.');
         return null;
       }
+      debugPrint('✅ Location services enabled');
 
       // Check current permission status
       LocationPermission permission = await Geolocator.checkPermission();
+      debugPrint('   Current permission: $permission');
 
       if (permission == LocationPermission.denied) {
         // Request permission if not granted
+        debugPrint('   Requesting location permission...');
         permission = await Geolocator.requestPermission();
+        debugPrint('   Permission result: $permission');
         if (permission == LocationPermission.denied) {
-          debugPrint('Location permissions are denied.');
+          debugPrint('❌ Location permissions are denied by user.');
           return null;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        debugPrint('Location permissions are permanently denied.');
+        debugPrint('❌ Location permissions are permanently denied.');
         // User can enable in settings
         await Geolocator.openLocationSettings();
         return null;
       }
 
       // Get current position
+      debugPrint('   Fetching position...');
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.best,
       );
 
-      debugPrint('Location: ${position.latitude}, ${position.longitude}');
+      debugPrint('✅ Location: ${position.latitude}, ${position.longitude}');
       return position;
     } catch (e) {
-      debugPrint('Error getting location: $e');
+      debugPrint('❌ Error getting location: $e');
       return null;
     }
+  }
+
+  /// Stream of position updates for real-time location tracking.
+  /// `distanceFilter` is in meters — set to an appropriate value to avoid
+  /// frequent updates (default 50m).
+  Stream<Position> getPositionStream({
+    LocationAccuracy accuracy = LocationAccuracy.best,
+    int distanceFilter = 50,
+  }) {
+    return Geolocator.getPositionStream(
+      locationSettings: LocationSettings(
+        accuracy: accuracy,
+        distanceFilter: distanceFilter,
+      ),
+    );
   }
 
   /// Get location with high accuracy (for one-time fetch)

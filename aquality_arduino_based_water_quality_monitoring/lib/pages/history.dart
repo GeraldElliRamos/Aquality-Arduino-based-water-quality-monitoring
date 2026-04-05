@@ -476,7 +476,8 @@ class _HistoryViewState extends State<HistoryView> {
                   itemBuilder: (context, i) {
                     final r = _records[i];
                     final recordId = r['id'] as String;
-                    return Dismissible(
+                    return RepaintBoundary(
+                      child: Dismissible(
                       key: Key('${recordId}_${_undoCount[recordId] ?? 0}'),
                       direction: DismissDirection.endToStart,
                       background: Container(),
@@ -617,6 +618,7 @@ class _HistoryViewState extends State<HistoryView> {
                           ),
                         ),
                       ),
+                    ),
                     );
                   },
                   padding: const EdgeInsets.only(top: 8),

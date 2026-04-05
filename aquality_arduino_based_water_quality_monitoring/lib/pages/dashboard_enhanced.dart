@@ -19,6 +19,14 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
   DateTime _lastRefreshedAt = DateTime.now();
   Timer? _refreshTimer;
   Timer? _displayTimer;
+  
+  // Smart refresh: cache parameter values to skip rebuilds when unchanged
+  final Map<String, double> _lastParameterValues = {
+    'temperature': -1,
+    'pH': -1,
+    'ammonia': -1,
+    'turbidity': -1,
+  };
 
   @override
   void initState() {
@@ -57,13 +65,42 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
 
   Future<void> _autoRefresh() async {
     if (_isRefreshing || !mounted) return;
+    
+    // Check if parameters have changed before updating UI
+    final hasChanges = _hasParametersChanged();
+    
     setState(() => _isRefreshing = true);
     await Future.delayed(const Duration(milliseconds: 300));
     _lastRefreshedAt = DateTime.now();
     if (mounted) {
       setState(() => _isRefreshing = false);
-      unawaited(_checkThresholds());
+      // Only check thresholds if data changed (skip redundant notifications)
+      if (hasChanges) {
+        unawaited(_checkThresholds());
+      }
     }
+  }
+  
+  /// Compare current param values with cached values to detect changes
+  bool _hasParametersChanged() {
+    final mockValues = <String, double>{
+      'temperature': 29.4,
+      'pH': 6.81,
+      'ammonia': 0.016,
+      'turbidity': 18.4,
+    };
+    
+    for (final entry in mockValues.entries) {
+      final id = entry.key;
+      final value = entry.value;
+      final lastValue = _lastParameterValues[id] ?? -1;
+      // Threshold: 0.01 change triggers update (prevents jitter from sensor noise)
+      if ((value - lastValue).abs() > 0.01) {
+        _lastParameterValues[id] = value;
+        return true;
+      }
+    }
+    return false;
   }
 
   Future<void> _onRefresh() async {
@@ -88,7 +125,6 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
       'pH': (6.81, ''),
       'ammonia': (0.016, 'mg/L'),
       'turbidity': (18.4, 'NTU'),
-      'ammonia': (0.16, 'mg/L'),
     };
 
     for (final t in effective) {
@@ -124,19 +160,19 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
         'label': 'Optimal',
         'count': 5,
         'color': Colors.green[700],
-        'bg': isDark ? Colors.green[900]!.withOpacity(0.3) : Colors.green[50],
+        'bg': isDark ? Colors.green[900]!.withValues(alpha: 0.3) : Colors.green[50],
       },
       {
         'label': 'Warning',
         'count': 0,
         'color': Colors.orange[800],
-        'bg': isDark ? Colors.orange[900]!.withOpacity(0.3) : Colors.orange[50],
+        'bg': isDark ? Colors.orange[900]!.withValues(alpha: 0.3) : Colors.orange[50],
       },
       {
         'label': 'Critical',
         'count': 0,
         'color': Colors.red[700],
-        'bg': isDark ? Colors.red[900]!.withOpacity(0.3) : Colors.red[50],
+        'bg': isDark ? Colors.red[900]!.withValues(alpha: 0.3) : Colors.red[50],
       },
     ];
 
@@ -209,7 +245,7 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.blue.withOpacity(0.2),
+                    color: Colors.blue.withValues(alpha: 0.2),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -239,8 +275,8 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                               color: item['bg'] as Color,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: (item['color'] as Color).withOpacity(
-                                  0.3,
+                                color: (item['color'] as Color).withValues(
+                                  alpha: 0.3,
                                 ),
                               ),
                             ),
@@ -285,10 +321,10 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.2),
+                          color: Colors.green.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: Colors.green.withOpacity(0.4),
+                            color: Colors.green.withValues(alpha: 0.4),
                           ),
                         ),
                         child: const Row(
@@ -381,90 +417,6 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
               },
             ),
             const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionCard({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    required bool isDark,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 24, color: Colors.blue.shade600),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showExportOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Export Data',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.table_chart),
-              title: const Text('Export as CSV'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Exporting as CSV...')),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.picture_as_pdf),
-              title: const Text('Export as PDF'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Exporting as PDF...')),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.data_object),
-              title: const Text('Export as JSON'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Exporting as JSON...')),
-                );
-              },
-            ),
           ],
         ),
       ),

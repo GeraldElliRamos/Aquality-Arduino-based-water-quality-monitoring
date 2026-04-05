@@ -23,6 +23,7 @@ import 'services/theme_service.dart';
 import 'services/preferences_service.dart';
 import 'services/language_service.dart';
 import 'services/esp32_weather_service.dart';
+import 'services/connectivity_service.dart';
 import 'pages/role_selection.dart';
 import 'widgets/chatbot.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -36,6 +37,9 @@ void main() async {
   await PreferencesService.instance.init();
   LanguageService().loadSavedLanguage();
   AuthService.init();
+
+  // Initialize connectivity service for network detection
+  await ConnectivityService().init();
 
   // Initialize weather service with OpenWeatherMap API key
   final weatherApiKey = dotenv.env['OPENWEATHER_API_KEY'] ?? '';
@@ -275,7 +279,10 @@ class _AppScreenState extends State<AppScreen> {
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: _views[_selectedIndex],
+                        child: IndexedStack(
+                          index: _selectedIndex,
+                          children: _views,
+                        ),
                       ),
                     ),
                   ],

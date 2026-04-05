@@ -3,6 +3,37 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/weather_data.dart';
 import 'location_service.dart';
+import 'connectivity_service.dart';
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
+
+/// Composite state class for weather data to reduce rebuild cycles
+/// Combines weatherData, loading status, and error into single notifier
+class WeatherState {
+  final WeatherData? data;
+  final bool isLoading;
+  final String? error;
+
+  WeatherState({
+    this.data,
+    this.isLoading = false,
+    this.error,
+  });
+
+  WeatherState copyWith({
+    WeatherData? data,
+    bool? isLoading,
+    String? error,
+    bool clearError = false,
+    bool clearData = false,
+  }) {
+    return WeatherState(
+      data: data ?? (clearData ? null : this.data),
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+    );
+  }
+}
 
 /// Service to communicate with ESP32 weather sensor
 /// Handles data fetching, parsing, and caching with real weather API
@@ -25,33 +56,122 @@ class ESP32WeatherService {
   static const String openWeatherBaseUrl =
       'https://api.openweathermap.org/data/2.5';
 
-  final ValueNotifier<WeatherData?> weatherDataNotifier = ValueNotifier(null);
-  final ValueNotifier<bool> isLoadingNotifier = ValueNotifier(false);
-  final ValueNotifier<String?> errorNotifier = ValueNotifier(null);
+  /// Composite notifier: combines data, loading, and error into single rebuild cycle
+  final ValueNotifier<WeatherState> stateNotifier = ValueNotifier(
+    WeatherState(),
+  );
+
+  /// Legacy accessors for backward compatibility
+  ValueNotifier<WeatherData?> get weatherDataNotifier {
+    final notifier = ValueNotifier<WeatherData?>(stateNotifier.value.data);
+    stateNotifier.addListener(() {
+      notifier.value = stateNotifier.value.data;
+    });
+    return notifier;
+  }
+
+  ValueNotifier<bool> get isLoadingNotifier {
+    final notifier = ValueNotifier<bool>(stateNotifier.value.isLoading);
+    stateNotifier.addListener(() {
+      notifier.value = stateNotifier.value.isLoading;
+    });
+    return notifier;
+  }
+
+  ValueNotifier<String?> get errorNotifier {
+    final notifier = ValueNotifier<String?>(stateNotifier.value.error);
+    stateNotifier.addListener(() {
+      notifier.value = stateNotifier.value.error;
+    });
+    return notifier;
+  }
 
   final LocationService _locationService = LocationService();
+  final ConnectivityService _connectivityService = ConnectivityService();
   double? _lastLatitude;
   double? _lastLongitude;
+  StreamSubscription<Position>? _positionSubscription;
+  DateTime? _lastFetchTime;
+  
+  /// Cache for API responses (5-minute TTL)
+  WeatherData? _cachedWeatherData;
+  DateTime? _cacheTimestamp;
+  static const Duration _cacheTTL = Duration(minutes: 5);
+  
+  /// Minimum movement (meters) required to trigger a weather fetch
+  final double _movementThresholdMeters = 50.0;
+  /// Minimum interval between API fetches to avoid spamming (seconds)
+  final int _minFetchIntervalSeconds = 30;
 
   /// Initialize the service with API key from environment
   Future<void> init({String? apiKey}) async {
     openWeatherApiKey = (apiKey ?? '').trim();
+    // Subscribe to location updates for real-time weather refreshes.
+    try {
+      _positionSubscription?.cancel();
+      _positionSubscription = _locationService
+          .getPositionStream(distanceFilter: _movementThresholdMeters.toInt())
+          .listen((position) async {
+        debugPrint('Location stream update: ${position.latitude},${position.longitude}');
+
+        final shouldFetch = _shouldFetchForPosition(position);
+        if (!shouldFetch) {
+          debugPrint('Skipping weather fetch — movement/interval below threshold');
+          return;
+        }
+
+        _lastLatitude = position.latitude;
+        _lastLongitude = position.longitude;
+        _lastFetchTime = DateTime.now();
+
+        if (openWeatherApiKey.isNotEmpty) {
+          final weatherData = await _fetchOpenWeatherData(
+            position.latitude,
+            position.longitude,
+          );
+          if (weatherData != null) {
+            stateNotifier.value = stateNotifier.value.copyWith(
+              data: weatherData,
+              clearError: true,
+            );
+          }
+        }
+      }, onError: (e) {
+        debugPrint('Location stream error: $e');
+      });
+    } catch (e) {
+      debugPrint('Failed to subscribe to location stream: $e');
+    }
+
+    // Initial fetch (single-shot) to populate UI immediately.
     await fetchWeatherData();
   }
 
   /// Fetch real weather data from OpenWeatherMap using device location
   Future<WeatherData?> fetchWeatherData() async {
-    isLoadingNotifier.value = true;
-    errorNotifier.value = null;
+    stateNotifier.value = stateNotifier.value.copyWith(
+      isLoading: true,
+      clearError: true,
+    );
 
     try {
       // Get user's current location
       final position = await _locationService.getCurrentLocation();
 
       if (position == null) {
-        errorNotifier.value =
-            'Unable to get location. Please enable location services.';
-        debugPrint('Location not available');
+        // Detailed diagnostics
+        final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        final permission = await Geolocator.checkPermission();
+        
+        String diagnostics = 'Location fetch failed:\n';
+        diagnostics += '- Services enabled: $serviceEnabled\n';
+        diagnostics += '- Permission status: $permission\n';
+        diagnostics += '- API key set: ${openWeatherApiKey.isNotEmpty}';
+        
+        stateNotifier.value = stateNotifier.value.copyWith(
+          error: 'Unable to get location.\n\n$diagnostics\n\nPlease enable location services and grant permission.',
+        );
+        debugPrint('=== LOCATION DEBUG ===\n$diagnostics');
         return _getMockWeatherData();
       }
 
@@ -68,8 +188,11 @@ class ESP32WeatherService {
         );
 
         if (weatherData != null) {
-          weatherDataNotifier.value = weatherData;
-          errorNotifier.value = null;
+          stateNotifier.value = stateNotifier.value.copyWith(
+            data: weatherData,
+            isLoading: false,
+            clearError: true,
+          );
           return weatherData;
         }
       }
@@ -77,21 +200,45 @@ class ESP32WeatherService {
       // Fallback to mock data
       debugPrint('Using mock weather data (no API key or request failed)');
       final mockData = _getMockWeatherData();
-      weatherDataNotifier.value = mockData;
-      errorNotifier.value =
-          'Using demo data. Add OpenWeatherMap API key to .env for real data.';
+      stateNotifier.value = stateNotifier.value.copyWith(
+        data: mockData,
+        isLoading: false,
+        error: 'Using demo data. Add OpenWeatherMap API key to .env for real data.',
+      );
       return mockData;
     } catch (e) {
-      errorNotifier.value = 'Failed to fetch weather data: $e';
+      stateNotifier.value = stateNotifier.value.copyWith(
+        error: 'Failed to fetch weather data: $e',
+        isLoading: false,
+      );
       debugPrint('Weather fetch error: $e');
       return _getMockWeatherData();
-    } finally {
-      isLoadingNotifier.value = false;
     }
   }
 
-  /// Fetch weather from OpenWeatherMap API
+  /// Fetch weather from OpenWeatherMap API with caching
   Future<WeatherData?> _fetchOpenWeatherData(double lat, double lon) async {
+    // Check cache first - if fresh, return cached data
+    if (_isCacheValid()) {
+      debugPrint('✓ Using cached weather data (${_getCacheAge().inSeconds}s old)');
+      return _cachedWeatherData;
+    }
+
+    // Check connectivity - if offline, use cache or mock
+    if (!_connectivityService.isOnline) {
+      debugPrint('✗ Offline: Cannot fetch weather. Using cached data if available.');
+      if (_cachedWeatherData != null) {
+        stateNotifier.value = stateNotifier.value.copyWith(
+          error: 'Using cached weather data (offline mode)',
+        );
+        return _cachedWeatherData;
+      }
+      stateNotifier.value = stateNotifier.value.copyWith(
+        error: 'No internet connection. Unable to fetch weather.',
+      );
+      return _getMockWeatherData();
+    }
+
     try {
       final url = Uri.parse(
         '$openWeatherBaseUrl/weather?lat=$lat&lon=$lon&units=metric&appid=$openWeatherApiKey',
@@ -106,16 +253,26 @@ class ESP32WeatherService {
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
-        return _parseOpenWeatherData(json, lat, lon);
+        final weatherData = _parseOpenWeatherData(json, lat, lon);
+        
+        // Cache the response
+        _cachedWeatherData = weatherData;
+        _cacheTimestamp = DateTime.now();
+        debugPrint('✓ Cached weather data (TTL: 5 min)');
+        
+        return weatherData;
       } else if (response.statusCode == 401) {
         final apiMessage = _extractApiMessage(response.body);
-        errorNotifier.value = 'OpenWeather API key unauthorized: $apiMessage';
+        stateNotifier.value = stateNotifier.value.copyWith(
+          error: 'OpenWeather API key unauthorized: $apiMessage',
+        );
         debugPrint('OpenWeather API error 401: $apiMessage');
         return null;
       } else {
         final apiMessage = _extractApiMessage(response.body);
-        errorNotifier.value =
-            'Weather API request failed (${response.statusCode}): $apiMessage';
+        stateNotifier.value = stateNotifier.value.copyWith(
+          error: 'Weather API request failed (${response.statusCode}): $apiMessage',
+        );
         debugPrint('OpenWeather API error ${response.statusCode}: $apiMessage');
         return null;
       }
@@ -123,6 +280,29 @@ class ESP32WeatherService {
       debugPrint('Error fetching OpenWeather data: $e');
       return null;
     }
+  }
+
+  bool _shouldFetchForPosition(Position position) {
+    // If we have no previous fetch, allow it.
+    if (_lastLatitude == null || _lastLongitude == null || _lastFetchTime == null) {
+      return true;
+    }
+
+    // Time debounce: don't fetch if last fetch was recent.
+    final elapsed = DateTime.now().difference(_lastFetchTime!).inSeconds;
+    if (elapsed < _minFetchIntervalSeconds) {
+      return false;
+    }
+
+    // Distance check
+    final distance = _locationService.getDistance(
+      startLatitude: _lastLatitude!,
+      startLongitude: _lastLongitude!,
+      endLatitude: position.latitude,
+      endLongitude: position.longitude,
+    );
+
+    return distance >= _movementThresholdMeters;
   }
 
   /// Parse OpenWeatherMap JSON response
@@ -186,6 +366,23 @@ class ESP32WeatherService {
     return (baseUV - reduction).clamp(0, 11).toDouble();
   }
 
+  /// Check if weather cache is still valid (< 5 minutes old)
+  bool _isCacheValid() {
+    if (_cachedWeatherData == null || _cacheTimestamp == null) {
+      return false;
+    }
+    final age = DateTime.now().difference(_cacheTimestamp!);
+    return age < _cacheTTL;
+  }
+
+  /// Get age of cached weather data
+  Duration _getCacheAge() {
+    if (_cacheTimestamp == null) {
+      return const Duration();
+    }
+    return DateTime.now().difference(_cacheTimestamp!);
+  }
+
   String _extractApiMessage(String responseBody) {
     try {
       final decoded = jsonDecode(responseBody);
@@ -201,7 +398,7 @@ class ESP32WeatherService {
 
   /// Get current weather data
   WeatherData? getCurrentWeather() {
-    return weatherDataNotifier.value;
+    return stateNotifier.value.data;
   }
 
   /// Update safe parameter ranges
@@ -211,14 +408,14 @@ class ESP32WeatherService {
     required double safeTurbidityMin,
     required double safeTurbidityMax,
   }) {
-    if (weatherDataNotifier.value != null) {
-      final updated = weatherDataNotifier.value!.copyWith(
+    if (stateNotifier.value.data != null) {
+      final updated = stateNotifier.value.data!.copyWith(
         safeTemperatureMin: safeTemperatureMin,
         safeTemperatureMax: safeTemperatureMax,
         safeTurbidityMin: safeTurbidityMin,
         safeTurbidityMax: safeTurbidityMax,
       );
-      weatherDataNotifier.value = updated;
+      stateNotifier.value = stateNotifier.value.copyWith(data: updated);
     }
   }
 
@@ -314,9 +511,8 @@ class ESP32WeatherService {
 
   /// Dispose resources
   void dispose() {
-    weatherDataNotifier.dispose();
-    isLoadingNotifier.dispose();
-    errorNotifier.dispose();
+    stateNotifier.dispose();
+    _positionSubscription?.cancel();
   }
 }
 

@@ -109,7 +109,7 @@ class _EditAdminProfileViewState extends State<EditAdminProfileView> {
             Center(
               child: CircleAvatar(
                 radius: 60,
-                backgroundColor: const Color(0xFF2563EB).withOpacity(0.1),
+                backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.1),
                 child: const Icon(Icons.shield, size: 60, color: Color(0xFF2563EB)),
               ),
             ),
@@ -190,3 +190,4 @@ class _EditAdminProfileViewState extends State<EditAdminProfileView> {
     );
   }
 }
+

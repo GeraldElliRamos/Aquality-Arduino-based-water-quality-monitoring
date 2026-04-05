@@ -186,7 +186,7 @@ class _OnboardingViewState extends State<OnboardingView> {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: page.color.withOpacity(0.1),
+              color: page.color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(page.icon, size: 64, color: page.color),
@@ -228,3 +228,4 @@ class OnboardingPage {
     required this.color,
   });
 }
+

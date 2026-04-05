@@ -165,10 +165,10 @@ class _GaugeWidgetState extends State<GaugeWidget>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: widget.statusColor.withOpacity(0.1),
+                        color: widget.statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: widget.statusColor.withOpacity(0.3),
+                          color: widget.statusColor.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Text(
@@ -265,7 +265,7 @@ class GaugePainter extends CustomPainter {
     // Center circle
     paint
       ..style = PaintingStyle.fill
-      ..color = statusColor.withOpacity(0.1);
+      ..color = statusColor.withValues(alpha: 0.1);
     canvas.drawCircle(center, radius - 10, paint);
   }
 
@@ -276,3 +276,4 @@ class GaugePainter extends CustomPainter {
         oldDelegate.statusColor != statusColor;
   }
 }
+

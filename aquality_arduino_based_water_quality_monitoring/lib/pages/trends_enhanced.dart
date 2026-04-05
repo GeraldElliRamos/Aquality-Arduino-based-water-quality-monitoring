@@ -137,7 +137,7 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                   color: isDark ? Colors.grey.shade800 : Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: Colors.blue.withOpacity(0.3),
+                    color: Colors.blue.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Text(
@@ -173,7 +173,7 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                     },
                     backgroundColor:
                         isDark ? Colors.grey.shade700 : Colors.grey.shade200,
-                    selectedColor: Colors.blue.withOpacity(0.2),
+                    selectedColor: Colors.blue.withValues(alpha: 0.2),
                     side: BorderSide(
                       color: isSelected
                           ? Colors.blue
@@ -217,7 +217,7 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                     },
                     backgroundColor:
                         isDark ? Colors.grey.shade700 : Colors.grey.shade200,
-                    selectedColor: Colors.purple.withOpacity(0.2),
+                    selectedColor: Colors.purple.withValues(alpha: 0.2),
                     side: BorderSide(
                       color: isSelected
                           ? Colors.purple
@@ -430,10 +430,10 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -461,3 +461,4 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
     );
   }
 }
+
