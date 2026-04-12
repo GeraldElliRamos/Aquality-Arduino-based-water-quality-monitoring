@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/language_service.dart';
 import 'edit_admin_profile.dart';
 import 'security_passwords.dart'; // Ensure this matches your file name
 
@@ -14,14 +15,26 @@ class _AdminUserViewState extends State<AdminUserView> {
   final _nameController = TextEditingController(text: 'Admin User');
   final _emailController = TextEditingController(text: 'admin@aquality.com');
   final _phoneController = TextEditingController(text: '+63 912 345 6789');
+  final languageService = LanguageService();
+
+  String t(String key) => languageService.t(key);
+
+  @override
+  void initState() {
+    super.initState();
+    languageService.addListener(_onLanguageChanged);
+  }
 
   @override
   void dispose() {
+    languageService.removeListener(_onLanguageChanged);
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
+
+  void _onLanguageChanged() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +130,7 @@ class _AdminUserViewState extends State<AdminUserView> {
               alignment: Alignment.centerLeft,
               child: Padding(
                 padding: const EdgeInsets.only(left: 8, bottom: 12),
-                child: Text('Account Actions', 
+                child: Text(t('account_actions'), 
                   style: TextStyle(color: subTextColor, fontWeight: FontWeight.w600, fontSize: 14)),
               ),
             ),
@@ -131,7 +144,7 @@ class _AdminUserViewState extends State<AdminUserView> {
                 children: [
                   _buildActionTile(
                     icon: Icons.edit_note_rounded,
-                    title: 'Edit Profile Details',
+                    title: t('edit_profile'),
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -155,7 +168,7 @@ class _AdminUserViewState extends State<AdminUserView> {
                   Divider(height: 1, indent: 60, color: isDark ? Colors.white10 : Colors.grey.shade100),
                   _buildActionTile(
                     icon: Icons.shield_outlined,
-                    title: 'Security & Password',
+                    title: t('security_password'),
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const SecuritySettingsPage()));
                     },
@@ -172,7 +185,7 @@ class _AdminUserViewState extends State<AdminUserView> {
               alignment: Alignment.centerLeft,
               child: Padding(
                 padding: const EdgeInsets.only(left: 8, bottom: 12),
-                child: Text('Management Tools', 
+                child: Text(t('management_tools'), 
                   style: TextStyle(color: subTextColor, fontWeight: FontWeight.w600, fontSize: 14)),
               ),
             ),
@@ -202,7 +215,7 @@ class _AdminUserViewState extends State<AdminUserView> {
                   Navigator.of(context).pushReplacementNamed('/login');
                 },
                 icon: const Icon(Icons.logout_rounded),
-                label: const Text('LOGOUT SYSTEM', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
+                label: Text(t('logout_system'), style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.redAccent,
                   side: const BorderSide(color: Colors.redAccent, width: 1.5),

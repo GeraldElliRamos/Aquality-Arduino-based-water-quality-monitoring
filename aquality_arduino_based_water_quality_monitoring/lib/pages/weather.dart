@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/language_service.dart';
 import '../services/esp32_weather_service.dart';
 import '../models/weather_data.dart';
 
@@ -11,16 +12,23 @@ class WeatherView extends StatefulWidget {
 
 class _WeatherViewState extends State<WeatherView> {
   late ESP32WeatherService _weatherService;
+  final languageService = LanguageService();
+
+  String t(String key) => languageService.t(key);
 
   @override
   void initState() {
     super.initState();
+    languageService.addListener(_onLanguageChanged);
     _weatherService = ESP32WeatherService();
     _weatherService.fetchWeatherData();
   }
 
+  void _onLanguageChanged() => setState(() {});
+
   @override
   void dispose() {
+    languageService.removeListener(_onLanguageChanged);
     super.dispose();
   }
 
@@ -65,7 +73,7 @@ class _WeatherViewState extends State<WeatherView> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Getting your location & fetching weather data...',
+                        t('fetching_weather'),
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
@@ -88,7 +96,7 @@ class _WeatherViewState extends State<WeatherView> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Failed to load weather data',
+                        t('failed_weather'),
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
@@ -162,7 +170,7 @@ class _WeatherViewState extends State<WeatherView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Current Weather',
+                    t('current_weather'),
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -205,25 +213,25 @@ class _WeatherViewState extends State<WeatherView> {
             children: [
               _buildWeatherMetric(
                 icon: Icons.thermostat,
-                label: 'Ambient',
+                label: t('ambient'),
                 value: '${weatherData.temperature.toStringAsFixed(1)}°C',
                 color: Colors.white,
               ),
               _buildWeatherMetric(
                 icon: Icons.opacity,
-                label: 'Humidity',
+                label: t('humidity'),
                 value: '${weatherData.humidity.toStringAsFixed(0)}%',
                 color: Colors.white,
               ),
               _buildWeatherMetric(
                 icon: Icons.air,
-                label: 'Wind',
+                label: t('wind'),
                 value: '${weatherData.windSpeed.toStringAsFixed(1)} km/h',
                 color: Colors.white,
               ),
               _buildWeatherMetric(
                 icon: Icons.sunny,
-                label: 'UV Index',
+                label: t('uv_index'),
                 value: weatherData.uvIndex.toStringAsFixed(1),
                 color: Colors.white,
               ),
@@ -268,7 +276,7 @@ class _WeatherViewState extends State<WeatherView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Safe Parameter Status',
+            t('safe_parameter_status'),
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -278,7 +286,7 @@ class _WeatherViewState extends State<WeatherView> {
             children: [
               Expanded(
                 child: _buildParameterCard(
-                  title: 'Water Temperature',
+                  title: t('water_temperature'),
                   currentValue: weatherData.currentTemperature,
                   minSafe: weatherData.safeTemperatureMin,
                   maxSafe: weatherData.safeTemperatureMax,
@@ -291,7 +299,7 @@ class _WeatherViewState extends State<WeatherView> {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildParameterCard(
-                  title: 'Turbidity',
+                  title: t('turbidity'),
                   currentValue: weatherData.currentTurbidity,
                   minSafe: weatherData.safeTurbidityMin,
                   maxSafe: weatherData.safeTurbidityMax,
@@ -399,7 +407,7 @@ class _WeatherViewState extends State<WeatherView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '7-Day Forecast',
+            t('forecast_7day'),
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -485,14 +493,14 @@ class _WeatherViewState extends State<WeatherView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Predicted Safe Parameters by Weather',
+            t('predicted_safe_params'),
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
           Text(
-            'These ranges adjust based on expected weather conditions.',
+            t('ranges_adjust_weather'),
             style: TextStyle(
               fontSize: 12,
               color: isDark ? Colors.grey[400] : Colors.grey[600],
@@ -559,7 +567,7 @@ class _WeatherViewState extends State<WeatherView> {
               Expanded(
                 child: _buildPredictionMetric(
                   icon: Icons.thermostat,
-                  label: 'Temp Safe',
+                  label: t('temp_safe'),
                   value: '${prediction['tempMin']}-${prediction['tempMax']}°C',
                   color: const Color(0xFFEF4444),
                 ),
@@ -568,7 +576,7 @@ class _WeatherViewState extends State<WeatherView> {
               Expanded(
                 child: _buildPredictionMetric(
                   icon: Icons.opacity,
-                  label: 'Turbidity Safe',
+                  label: t('turbidity_safe'),
                   value:
                       '${prediction['turbMin']}-${prediction['turbMax']} NTU',
                   color: const Color(0xFF2563EB),
@@ -739,11 +747,11 @@ class _WeatherViewState extends State<WeatherView> {
             '${weatherData.lastUpdated.hour.toString().padLeft(2, '0')}:${weatherData.lastUpdated.minute.toString().padLeft(2, '0')}',
           ),
           _buildInfoRow(
-            'Temperature Range',
+            t('temp_range'),
             '${weatherData.safeTemperatureMin}°C - ${weatherData.safeTemperatureMax}°C',
           ),
           _buildInfoRow(
-            'Turbidity Range',
+            t('turbidity_range'),
             '${weatherData.safeTurbidityMin} - ${weatherData.safeTurbidityMax} NTU',
           ),
         ],

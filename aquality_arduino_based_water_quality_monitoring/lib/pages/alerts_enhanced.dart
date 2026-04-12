@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/alert.dart';
+import '../services/language_service.dart';
 import '../utils/color_utils.dart';
 import '../utils/format_utils.dart';
 import '../widgets/empty_state.dart';
@@ -15,11 +16,15 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
   String _filter = 'All';
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
+  final languageService = LanguageService();
 
-  final List<Alert> alerts = [
+  String t(String key) => languageService.t(key);
+
+  /// Generate alerts list dynamically so translations update when language changes
+  List<Alert> get alerts => [
     Alert(
       id: '1',
-      title: 'Turbidity critically high',
+      title: t('water_cloudy'),
       subtitle: 'Turbidity: 58.2 NTU',
       level: AlertLevel.critical,
       parameterName: 'Turbidity',
@@ -29,7 +34,7 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
     ),
     Alert(
       id: '2',
-      title: 'pH slightly acidic',
+      title: t('water_acidic'),
       subtitle: 'pH: 6.01',
       level: AlertLevel.warning,
       parameterName: 'pH Level',
@@ -38,7 +43,7 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
     ),
     Alert(
       id: '3',
-      title: 'Turbidity critically high',
+      title: t('water_cloudy'),
       subtitle: 'Turbidity: 52.4 NTU',
       level: AlertLevel.critical,
       parameterName: 'Turbidity',
@@ -48,21 +53,21 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
     ),
     Alert(
       id: '4',
-      title: 'Sensor calibration recommended',
+      title: t('check_sensors'),
       subtitle: 'System: 0',
       level: AlertLevel.info,
       timestamp: DateTime.now().subtract(const Duration(hours: 5)),
     ),
     Alert(
       id: '5',
-      title: 'Daily data backup completed',
+      title: t('backup_done'),
       subtitle: 'System: 0',
       level: AlertLevel.info,
       timestamp: DateTime.now().subtract(const Duration(hours: 7)),
     ),
     Alert(
       id: '6',
-      title: 'Temperature critically high',
+      title: t('water_too_hot'),
       subtitle: 'Temperature: 34.16 °C',
       level: AlertLevel.critical,
       parameterName: 'Temperature',
@@ -73,8 +78,10 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
   ];
 
   @override
+  @override
   void initState() {
     super.initState();
+    languageService.addListener(_onLanguageChanged);
     _searchCtrl.addListener(() {
       setState(() {
         _searchQuery = _searchCtrl.text.toLowerCase();
@@ -82,8 +89,11 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
     });
   }
 
+  void _onLanguageChanged() => setState(() {});
+
   @override
   void dispose() {
+    languageService.removeListener(_onLanguageChanged);
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -349,7 +359,7 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                             Navigator.pop(ctx);
                           },
                           icon: const Icon(Icons.close_rounded),
-                          label: const Text('Dismiss'),
+                          label: Text(t('dismiss')),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             side: BorderSide(
@@ -368,14 +378,14 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: const Text('Alert acknowledged'),
+                                content: Text(t('alert_acknowledged')),
                                 backgroundColor: Colors.green.shade600,
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
                           },
                           icon: const Icon(Icons.check_circle_rounded),
-                          label: const Text('Acknowledge'),
+                          label: Text(t('acknowledge')),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             backgroundColor: levelColor,

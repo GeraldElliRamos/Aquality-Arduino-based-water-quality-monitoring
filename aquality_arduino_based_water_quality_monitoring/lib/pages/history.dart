@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'parameter_detail.dart';
 import '../services/auth_service.dart';
 import '../services/preferences_service.dart';
+import '../services/language_service.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/shimmer_loading.dart';
 
@@ -16,13 +17,25 @@ class _HistoryViewState extends State<HistoryView> {
   String _range = '7d';
   DateTimeRange? _customDateRange;
   bool _isLoading = true;
+  final languageService = LanguageService();
+
+  String t(String key) => languageService.t(key);
 
   @override
   void initState() {
     super.initState();
+    languageService.addListener(_onLanguageChanged);
     _range = PreferencesService.instance.lastTimeRange;
     _customDateRange = _loadSavedDateRange();
     _loadHistoryData();
+  }
+
+  void _onLanguageChanged() => setState(() {});
+
+  @override
+  void dispose() {
+    languageService.removeListener(_onLanguageChanged);
+    super.dispose();
   }
 
   Future<void> _loadHistoryData() async {
@@ -292,9 +305,9 @@ class _HistoryViewState extends State<HistoryView> {
                         Navigator.of(ctx).pop();
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: const Text('Record deleted'),
+                            content: Text(t('record_deleted')),
                             action: SnackBarAction(
-                              label: 'Undo',
+                              label: t('undo'),
                               onPressed: () {
                                 setState(() {
                                   _records.insert(
@@ -310,7 +323,7 @@ class _HistoryViewState extends State<HistoryView> {
                         );
                       },
                       icon: const Icon(Icons.delete_forever),
-                      label: const Text('Delete'),
+                      label: Text(t('delete')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                       ),
@@ -329,7 +342,7 @@ class _HistoryViewState extends State<HistoryView> {
                         Navigator.of(ctx).pop();
                       },
                       icon: const Icon(Icons.share),
-                      label: const Text('Share'),
+                      label: Text(t('share')),
                     ),
                   ),
                 ],
@@ -376,9 +389,9 @@ class _HistoryViewState extends State<HistoryView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Historical Data',
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        Text(
+          t('historical_data'),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
         ),
         const SizedBox(height: 12),
         // Quick filters
@@ -386,10 +399,10 @@ class _HistoryViewState extends State<HistoryView> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _quickFilterChip('Today', 'today', isDark),
-              _quickFilterChip('Yesterday', 'yesterday', isDark),
-              _quickFilterChip('Week', 'week', isDark),
-              _quickFilterChip('Month', 'month', isDark),
+              _quickFilterChip(t('today'), 'today', isDark),
+              _quickFilterChip(t('yesterday'), 'yesterday', isDark),
+              _quickFilterChip(t('week'), 'week', isDark),
+              _quickFilterChip(t('month'), 'month', isDark),
               _customDateRangeButton(isDark),
             ],
           ),
@@ -451,9 +464,9 @@ class _HistoryViewState extends State<HistoryView> {
               child: ElevatedButton.icon(
                 onPressed: _exportCsv,
                 icon: const Icon(Icons.download, size: 18, color: Colors.white),
-                label: const Text(
-                  'Export CSV',
-                  style: TextStyle(color: Colors.white),
+                label: Text(
+                  t('export_csv'),
+                  style: const TextStyle(color: Colors.white),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color.fromARGB(255, 34, 96, 231),
@@ -490,10 +503,10 @@ class _HistoryViewState extends State<HistoryView> {
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
-                          children: const [
-                            Icon(Icons.delete, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Delete'),
+                          children: [
+                            const Icon(Icons.delete, color: Colors.red),
+                            const SizedBox(width: 8),
+                            Text(t('delete')),
                           ],
                         ),
                       ),
@@ -509,9 +522,9 @@ class _HistoryViewState extends State<HistoryView> {
                         );
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: const Text('Record deleted'),
+                            content: Text(t('record_deleted')),
                             action: SnackBarAction(
-                              label: 'Undo',
+                              label: t('undo'),
                               onPressed: () {
                                 setState(() {
                                   _records.insert(

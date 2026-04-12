@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:math';
 import 'dart:async';
+import '../services/language_service.dart';
 import '../utils/chart_utils.dart';
 import '../utils/format_utils.dart';
 
@@ -18,6 +19,51 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
   String _selectedParam = 'pH Level';
   List<double> _currentData = [];
   Timer? _updateTimer;
+  final languageService = LanguageService();
+
+  String t(String key) => languageService.t(key);
+
+  /// Helper function to translate parameter names
+  String getTranslatedParamName(String paramName) {
+    final translations = {
+      'Temperature': t('temperature'),
+      'pH Level': t('ph_level'),
+      'Turbidity': t('turbidity'),
+      'Ammonia': t('ammonia'),
+    };
+    return translations[paramName] ?? paramName;
+  }
+
+  /// Helper function to get color for each parameter
+  Map<String, Color> getParameterColors(String paramName) {
+    switch (paramName) {
+      case 'Temperature':
+        return {
+          'primary': const Color(0xFFF59E0B), // Orange
+          'light': const Color(0xFFFCD34D),  // Light Orange
+        };
+      case 'pH Level':
+        return {
+          'primary': const Color(0xFF8B5CF6), // Purple
+          'light': const Color(0xFFDDD6FE),  // Light Purple
+        };
+      case 'Turbidity':
+        return {
+          'primary': const Color(0xFF3B82F6), // Blue
+          'light': const Color(0xFFBFDBFE),  // Light Blue
+        };
+      case 'Ammonia':
+        return {
+          'primary': const Color(0xFF10B981), // Green
+          'light': const Color(0xFFD1FAE5),  // Light Green
+        };
+      default:
+        return {
+          'primary': const Color(0xFF6B7280), // Gray
+          'light': const Color(0xFFE5E7EB),  // Light Gray
+        };
+    }
+  }
 
   final Map<String, List<double>> sampleData = {
     'Temperature': [
@@ -83,6 +129,7 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
   @override
   void initState() {
     super.initState();
+    languageService.addListener(_onLanguageChanged);
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -106,8 +153,11 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
     });
   }
 
+  void _onLanguageChanged() => setState(() {});
+
   @override
   void dispose() {
+    languageService.removeListener(_onLanguageChanged);
     _animationController.dispose();
     _updateTimer?.cancel();
     super.dispose();
@@ -127,9 +177,9 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Parameter Trends',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Text(
+                t('parameter_trends'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -189,9 +239,9 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
           const SizedBox(height: 20),
 
           // Parameter Selector
-          const Text(
-            'Select Parameter',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          Text(
+            t('select_parameter'),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
           SizedBox(
@@ -201,10 +251,11 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
               children:
                   sampleData.keys.map((paramName) {
                 final isSelected = paramName == _selectedParam;
+                final paramColor = getParameterColors(paramName)['primary'] ?? Colors.purple;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: FilterChip(
-                    label: Text(paramName),
+                    label: Text(getTranslatedParamName(paramName)),
                     selected: isSelected,
                     onSelected: (selected) {
                       setState(() {
@@ -217,10 +268,10 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                     },
                     backgroundColor:
                         isDark ? Colors.grey.shade700 : Colors.grey.shade200,
-                    selectedColor: Colors.purple.withValues(alpha: 0.2),
+                    selectedColor: paramColor.withValues(alpha: 0.2),
                     side: BorderSide(
                       color: isSelected
-                          ? Colors.purple
+                          ? paramColor
                           : (isDark
                               ? Colors.grey.shade600
                               : Colors.grey.shade400),
@@ -237,27 +288,27 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
             children: [
               Expanded(
                 child: _buildStatCard(
-                  label: 'Min',
+                  label: t('min'),
                   value: FormatUtils.formatParamValue(stats['min'] ?? 0),
-                  color: Colors.blue,
+                  color: getParameterColors(_selectedParam)['primary']!,
                   isDark: isDark,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _buildStatCard(
-                  label: 'Max',
+                  label: t('max'),
                   value: FormatUtils.formatParamValue(stats['max'] ?? 0),
-                  color: Colors.orange,
+                  color: getParameterColors(_selectedParam)['primary']!.withOpacity(0.7),
                   isDark: isDark,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _buildStatCard(
-                  label: 'Avg',
+                  label: t('avg'),
                   value: FormatUtils.formatParamValue(stats['avg'] ?? 0),
-                  color: Colors.green,
+                  color: getParameterColors(_selectedParam)['primary']!.withOpacity(0.4),
                   isDark: isDark,
                 ),
               ),
@@ -278,9 +329,9 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Trend (24h)',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                Text(
+                  t('trend_24h'),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
                 Row(
                   children: [
@@ -335,9 +386,9 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                   child: LineChart(
                     ChartUtils.buildLineChartData(
                       _currentData,
-                      lineColor: Colors.purple,
-                      gradientStartColor: Colors.purple,
-                      gradientEndColor: Colors.purple.shade100,
+                      lineColor: getParameterColors(_selectedParam)['primary']!,
+                      gradientStartColor: getParameterColors(_selectedParam)['primary']!,
+                      gradientEndColor: getParameterColors(_selectedParam)['light']!,
                     ),
                   ),
                 ),
@@ -357,10 +408,10 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Time')),
-                  DataColumn(label: Text('Value')),
-                  DataColumn(label: Text('Change')),
+                columns: [
+                  DataColumn(label: Text(t('time'))),
+                  DataColumn(label: Text(t('value'))),
+                  DataColumn(label: Text(t('change'))),
                 ],
                 rows: List.generate(
                   min(5, _currentData.length),
@@ -372,7 +423,7 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                     return DataRow(
                       cells: [
                         DataCell(
-                          Text('${index * 2}h ago'),
+                          Text('${index * 2} ${t('hours_ago')}'),
                         ),
                         DataCell(
                           Text(FormatUtils.formatParamValue(value)),

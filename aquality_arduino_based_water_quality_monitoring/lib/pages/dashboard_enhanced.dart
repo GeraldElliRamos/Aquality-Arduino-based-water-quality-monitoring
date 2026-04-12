@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../widgets/gauge_widget.dart';
 import '../widgets/shimmer_loading.dart';
 import '../utils/format_utils.dart';
+import '../services/language_service.dart';
 import '../services/notification_service.dart';
 import '../services/threshold_service.dart';
 
@@ -19,6 +20,9 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
   DateTime _lastRefreshedAt = DateTime.now();
   Timer? _refreshTimer;
   Timer? _displayTimer;
+  final languageService = LanguageService();
+
+  String t(String key) => languageService.t(key);
   
   // Smart refresh: cache parameter values to skip rebuilds when unchanged
   final Map<String, double> _lastParameterValues = {
@@ -31,16 +35,20 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
   @override
   void initState() {
     super.initState();
+    languageService.addListener(_onLanguageChanged);
     _loadInitialData();
     _startTimers();
   }
 
   @override
   void dispose() {
+    languageService.removeListener(_onLanguageChanged);
     _refreshTimer?.cancel();
     _displayTimer?.cancel();
     super.dispose();
   }
+
+  void _onLanguageChanged() => setState(() {});
 
   void _startTimers() {
     // Auto-refresh sensor data every 30 seconds.
@@ -157,19 +165,19 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
 
     final summary = [
       {
-        'label': 'Optimal',
+        'label': t('optimal'),
         'count': 5,
         'color': Colors.green[700],
         'bg': isDark ? Colors.green[900]!.withValues(alpha: 0.3) : Colors.green[50],
       },
       {
-        'label': 'Warning',
+        'label': t('warning'),
         'count': 0,
         'color': Colors.orange[800],
         'bg': isDark ? Colors.orange[900]!.withValues(alpha: 0.3) : Colors.orange[50],
       },
       {
-        'label': 'Critical',
+        'label': t('critical'),
         'count': 0,
         'color': Colors.red[700],
         'bg': isDark ? Colors.red[900]!.withValues(alpha: 0.3) : Colors.red[50],
@@ -179,45 +187,45 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
     final parameters = [
       {
         'id': 'temperature',
-        'title': 'Temperature',
+        'title': t('temperature'),
         'rawValue': 29.4,
         'unit': '°C',
         'minSafe': 27.0,
         'maxSafe': 30.0,
-        'status': 'Optimal range',
+        'status': t('optimal_range'),
         'statusColor': Color(0xFF10B981),
         'gaugeColor': Colors.orange,
       },
       {
         'id': 'pH',
-        'title': 'pH Level',
+        'title': t('ph_level'),
         'rawValue': 6.81,
         'unit': '',
         'minSafe': 6.5,
         'maxSafe': 9.0,
-        'status': 'Optimal range',
+        'status': t('optimal_range'),
         'statusColor': Color(0xFF10B981),
         'gaugeColor': Colors.purple,
       },
       {
         'id': 'ammonia',
-        'title': 'Ammonia',
+        'title': t('ammonia'),
         'rawValue': 0.016,
         'unit': 'mg/L',
         'minSafe': 0.0,
         'maxSafe': 0.02,
-        'status': 'Safe level',
+        'status': t('safe_level'),
         'statusColor': Color(0xFF10B981),
         'gaugeColor': Colors.amber,
       },
       {
         'id': 'turbidity',
-        'title': 'Turbidity',
+        'title': t('turbidity'),
         'rawValue': 18.4,
         'unit': 'NTU',
         'minSafe': 0.0,
         'maxSafe': 30.0,
-        'status': 'Safe level',
+        'status': t('safe_level'),
         'statusColor': Color(0xFF10B981),
         'gaugeColor': Colors.blue,
       },

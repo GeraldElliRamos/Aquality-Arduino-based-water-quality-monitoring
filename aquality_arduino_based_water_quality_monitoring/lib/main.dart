@@ -35,6 +35,7 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await PreferencesService.instance.init();
+  await ThemeService().loadSavedTheme();
   LanguageService().loadSavedLanguage();
   AuthService.init();
 
@@ -148,11 +149,12 @@ class _AppScreenState extends State<AppScreen> {
   ];
 
   String get _roleLabel {
+    final languageService = LanguageService();
     switch (widget.role) {
       case 'fishPondOwner':
-        return 'Fish Pond Monitor';
+        return languageService.t('fish_pond_owner');
       case 'lgu':
-        return 'LGU Monitor';
+        return languageService.t('lgu_member');
       default:
         return 'Tilapia Pond Monitor';
     }

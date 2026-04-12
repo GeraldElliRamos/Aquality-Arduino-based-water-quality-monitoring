@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/language_service.dart';
 
 /// Edit Admin Profile Screen
 class EditAdminProfileView extends StatefulWidget {
@@ -23,6 +24,9 @@ class _EditAdminProfileViewState extends State<EditAdminProfileView> {
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
+  final languageService = LanguageService();
+
+  String t(String key) => languageService.t(key);
 
   @override
   void initState() {
@@ -44,19 +48,19 @@ class _EditAdminProfileViewState extends State<EditAdminProfileView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Changes'),
-        content: const Text('Are you sure you want to save your changes?'),
+        title: Text(t('confirm_changes')),
+        content: Text(t('are_you_sure_save')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(t('cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFF2563EB),
             ),
-            child: const Text('Confirm'),
+            child: Text(t('confirm')),
           ),
         ],
       ),
@@ -70,7 +74,7 @@ class _EditAdminProfileViewState extends State<EditAdminProfileView> {
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
+          SnackBar(content: Text(t('profile_updated'))),
         );
         Navigator.pop(context);
       }
@@ -84,7 +88,7 @@ class _EditAdminProfileViewState extends State<EditAdminProfileView> {
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Admin Profile'),
+        title: Text(t('edit_admin_profile')),
         titleTextStyle: TextStyle(
           color: textColor,
           fontSize: 20,

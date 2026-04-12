@@ -16,6 +16,7 @@ class LanguageService extends ChangeNotifier {
     final saved = PreferencesService.instance.getLanguage();
     if (saved != null && (saved == 'en' || saved == 'tl')) {
       _languageCode = saved;
+      notifyListeners();
     }
   }
 
@@ -123,6 +124,29 @@ class AppTranslations {
       'uv_index': 'UV Index',
       'safe_parameter_status': 'Safe Parameter Status',
       'water_temperature': 'Water Temperature',
+      'forecast_7day': '7-Day Forecast',
+      'predicted_safe_params': 'Predicted Safe Parameters by Weather',
+      'ranges_adjust_weather': 'These ranges adjust based on expected weather conditions.',
+      'temp_safe': 'Temp Safe',
+      'turbidity_safe': 'Turbidity Safe',
+      'temp_range': 'Temperature Range',
+      'turbidity_range': 'Turbidity Range',
+
+      // ── Alert Messages (Farmer-friendly) ──────────────────────
+      'water_too_hot': 'Water is too hot',
+      'water_cold': 'Water is too cold',
+      'water_cloudy': 'Water is very cloudy',
+      'water_clear': 'Water is clear',
+      'water_acidic': 'Water is acidic',
+      'water_basic': 'Water is basic',
+      'ammonia_high': 'Ammonia is high',
+      'check_sensors': 'Please check your sensors',
+      'backup_done': 'Backup completed',
+      'water_clarity_issue': 'Water clarity issue',
+      'water_temp_issue': 'Water temperature issue',
+      'water_ph_issue': 'Water acidity/alkalinity issue',
+      'action_needed': 'Action needed soon',
+      'info_system': 'System information',
 
       // ── User / Profile ───────────────────────────────────────────
       'personal_information': 'Personal Information',
@@ -194,6 +218,22 @@ class AppTranslations {
       'faq_a_frozen': 'Try refreshing the dashboard by pulling down. If data remains frozen, check the Arduino device status and sensor calibration.',
       'faq_q_dark': 'Dark mode isn\'t working',
       'faq_a_dark': 'Toggle dark mode from Settings > Appearance > Dark Mode. If it still doesn\'t work, try restarting the app.',
+
+      // ── Additional Common Strings ────────────────────────────
+      'confirm_changes': 'Confirm Changes',
+      'are_you_sure_save': 'Are you sure you want to save your changes?',
+      'profile_updated': 'Profile updated successfully',
+      'edit_admin_profile': 'Edit Admin Profile',
+      'data_updated': 'Data updated successfully',
+      'error_occurred': 'An error occurred',
+      'try_again': 'Try Again',
+      'ok': 'OK',
+      'successfully': 'Successfully',
+      'failed': 'Failed',
+      'unsaved_changes': 'You have unsaved changes',
+      'discard_changes': 'Discard Changes',
+      'keep_editing': 'Keep Editing',
+      'management_tools': 'Management Tools',
     },
 
     'tl': {
@@ -246,7 +286,7 @@ class AppTranslations {
       'safe_level': 'Ligtas na antas',
       'temperature': 'Temperatura',
       'ph_level': 'Antas ng pH',
-      'ammonia': 'Ammonia',
+      'ammonia': 'Ammonia (NH₃)',
       'turbidity': 'Kalabuan',
 
       // ── Trends ───────────────────────────────────────────────────
@@ -259,7 +299,7 @@ class AppTranslations {
       'time': 'Oras',
       'value': 'Halaga',
       'change': 'Pagbabago',
-      'hours_ago': 'oras na ang nakakaraan',
+      'hours_ago': 'oras na',
 
       // ── Alerts ───────────────────────────────────────────────────
       'alerts': 'Mga Alerto',
@@ -288,6 +328,29 @@ class AppTranslations {
       'uv_index': 'UV Index',
       'safe_parameter_status': 'Ligtas na Katayuan ng Parameter',
       'water_temperature': 'Temperatura ng Tubig',
+      'forecast_7day': 'Forecast ng 7 Araw',
+      'predicted_safe_params': 'Predicted na Ligtas na Parameter ayon sa Panahon',
+      'ranges_adjust_weather': 'Ang mga ranggo na ito ay nag-adjust batay sa inaasahang kondisyon ng panahon.',
+      'temp_safe': 'Ligtas na Temp',
+      'turbidity_safe': 'Ligtas na Kalabuan',
+      'temp_range': 'Hanay ng Temperatura',
+      'turbidity_range': 'Hanay ng Kalabuan',
+
+      // ── Alert Messages (Farmer-friendly) ──────────────────────
+      'water_too_hot': 'Masyadong mainit ang tubig',
+      'water_cold': 'Masyadong malamig ang tubig',
+      'water_cloudy': 'Masyadong malabo ang tubig',
+      'water_clear': 'Malinaw ang tubig',
+      'water_acidic': 'Acidic ang tubig',
+      'water_basic': 'Basic ang tubig',
+      'ammonia_high': 'Mataas ang ammonia',
+      'check_sensors': 'Mangyaring suriin ang iyong mga sensor',
+      'backup_done': 'Backup ay tapos na',
+      'water_clarity_issue': 'Problema sa kalinisan ng tubig',
+      'water_temp_issue': 'Problema sa temperatura ng tubig',
+      'water_ph_issue': 'Problema sa asididad/alkalinity ng tubig',
+      'action_needed': 'May aksyon na kailangan malapit nang',
+      'info_system': 'Impormasyon ng sistema',
 
       // ── User / Profile ───────────────────────────────────────────
       'personal_information': 'Personal na Impormasyon',
@@ -359,6 +422,22 @@ class AppTranslations {
       'faq_a_frozen': 'Subukang i-refresh ang dashboard sa pamamagitan ng pag-pull down. Kung nananatiling frozen ang data, suriin ang katayuan ng Arduino device at pag-calibrate ng sensor.',
       'faq_q_dark': 'Hindi gumagana ang dark mode',
       'faq_a_dark': 'I-toggle ang dark mode mula sa Settings > Hitsura > Dark Mode. Kung hindi pa rin gumagana, subukang i-restart ang app.',
+
+      // ── Additional Common Strings ────────────────────────────
+      'confirm_changes': 'Kumpirmahin ang Mga Pagbabago',
+      'are_you_sure_save': 'Sigurado ka na bang gusto mong i-save ang iyong mga pagbabago?',
+      'profile_updated': 'Matagumpay na ina-update ang profile',
+      'edit_admin_profile': 'I-edit ang Admin Profile',
+      'data_updated': 'Matagumpay na ina-update ang data',
+      'error_occurred': 'Naganap ang isang error',
+      'try_again': 'Subukan Muli',
+      'ok': 'OK',
+      'successfully': 'Matagumpay',
+      'failed': 'Nabigong',
+      'unsaved_changes': 'Mayroon kang hindi na-save na mga pagbabago',
+      'discard_changes': 'Itapon ang Mga Pagbabago',
+      'keep_editing': 'Magpatuloy sa Pag-edit',
+      'management_tools': 'Mga Tool ng Pamamahala',
     },
   };
 
