@@ -1,9 +1,165 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 
+/// Draggable wrapper for admin panel (similar to chatbot)
+class AdminPanel extends StatefulWidget {
+  const AdminPanel({super.key});
+
+  @override
+  State<AdminPanel> createState() => _AdminPanelState();
+}
+
+class _AdminPanelState extends State<AdminPanel> {
+  bool _isOpen = false;
+  Offset _position = const Offset(20, 100);
+  static const double _windowHeight = 600;
+  static const double _windowWidth = 420;
+  static const double _buttonSize = 60;
+  static const double _windowPadding = 16;
+
+  void _toggle() => setState(() => _isOpen = !_isOpen);
+  void _close() => setState(() => _isOpen = false);
+
+  void _updatePosition(DragUpdateDetails details) {
+    final size = MediaQuery.of(context).size;
+    final newX = _position.dx + details.delta.dx;
+    final newY = _position.dy + details.delta.dy;
+
+    setState(() {
+      _position = Offset(
+        newX.clamp(0, size.width - _buttonSize),
+        newY.clamp(0, size.height - _buttonSize),
+      );
+    });
+  }
+
+  Offset _getWindowPosition(Size screenSize) {
+    double left = _position.dx - (_windowWidth - _buttonSize) / 2;
+    double top = _position.dy - _windowHeight - _windowPadding;
+
+    // Adjust horizontal position to stay within bounds
+    if (left < _windowPadding) {
+      left = _windowPadding;
+    } else if (left + _windowWidth > screenSize.width) {
+      left = screenSize.width - _windowWidth - _windowPadding;
+    }
+
+    // If window goes above screen, position it below the button instead
+    if (top < _windowPadding) {
+      top = _position.dy + _buttonSize + _windowPadding;
+    }
+
+    // Ensure it doesn't go below the screen (clamp to available space)
+    top = top.clamp(
+      _windowPadding,
+      screenSize.height - _windowHeight - _windowPadding,
+    );
+
+    return Offset(left, top);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final windowPos = _getWindowPosition(screenSize);
+
+    return Stack(
+      children: [
+        // Admin window
+        Positioned(
+          left: windowPos.dx,
+          top: windowPos.dy,
+          child: Offstage(
+            offstage: !_isOpen,
+            child: _AdminWindow(onClose: _close),
+          ),
+        ),
+        // Draggable button
+        Positioned(
+          left: _position.dx,
+          top: _position.dy,
+          child: GestureDetector(
+            onPanUpdate: _updatePosition,
+            child: FloatingActionButton(
+              heroTag: 'admin',
+              backgroundColor: const Color(0xFF2563EB),
+              onPressed: _toggle,
+              child: Icon(
+                _isOpen ? Icons.close : Icons.admin_panel_settings,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Admin panel window (similar to chatbot window)
+class _AdminWindow extends StatefulWidget {
+  final VoidCallback onClose;
+  const _AdminWindow({required this.onClose});
+
+  @override
+  State<_AdminWindow> createState() => _AdminWindowState();
+}
+
+class _AdminWindowState extends State<_AdminWindow>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      child: Container(
+        width: 420,
+        height: 600,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: AdminView(
+          tabController: _tabController,
+          onClose: widget.onClose,
+        ),
+      ),
+    );
+  }
+}
+
+// ============ Original AdminView - modified for draggable panel ============
+
 class AdminView extends StatefulWidget {
   final int initialTab;
-  const AdminView({super.key, this.initialTab = 0});
+  final TabController? tabController;
+  final VoidCallback? onClose;
+  
+  const AdminView({
+    super.key,
+    this.initialTab = 0,
+    this.tabController,
+    this.onClose,
+  });
 
   @override
   State<AdminView> createState() => _AdminViewState();
@@ -46,6 +202,7 @@ class ThresholdRule {
 class _AdminViewState extends State<AdminView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late final bool _isWrapped;
 
   final List<Device> _devices = [
     Device(
@@ -92,7 +249,8 @@ class _AdminViewState extends State<AdminView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
+    _isWrapped = widget.tabController != null;
+    _tabController = widget.tabController ?? TabController(
       length: 3,
       vsync: this,
       initialIndex: widget.initialTab,
@@ -101,7 +259,9 @@ class _AdminViewState extends State<AdminView>
 
   @override
   void dispose() {
-    _tabController.dispose();
+    if (!_isWrapped) {
+      _tabController.dispose();
+    }
     super.dispose();
   }
 
@@ -246,7 +406,7 @@ class _AdminViewState extends State<AdminView>
     return ValueListenableBuilder<bool>(
       valueListenable: AuthService.isAdmin,
       builder: (context, isAdmin, _) {
-        if (!isAdmin) {
+        if (!isAdmin && !_isWrapped) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
           final textColor = isDark ? Colors.white : Colors.black;
           return Scaffold(
@@ -259,7 +419,6 @@ class _AdminViewState extends State<AdminView>
               ),
               backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
               elevation: 0,
-              leading: BackButton(color: textColor),
               centerTitle: false,
               shape: Border(
                 bottom: BorderSide(
@@ -275,35 +434,87 @@ class _AdminViewState extends State<AdminView>
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final textColor = isDark ? Colors.white : Colors.black;
 
+        // Full page view
+        if (!_isWrapped) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Admin Panel'),
+              titleTextStyle: TextStyle(
+                color: textColor,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+              elevation: 0,
+              centerTitle: false,
+              shape: Border(
+                bottom: BorderSide(
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                  width: 1,
+                ),
+              ),
+              bottom: TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(icon: Icon(Icons.devices), text: 'Devices', height: 56),
+                  Tab(icon: Icon(Icons.rule), text: 'Rules', height: 56),
+                  Tab(icon: Icon(Icons.terminal), text: 'Commands', height: 56),
+                ],
+              ),
+            ),
+            body: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildDevicesTab(),
+                  _buildRulesTab(),
+                  _buildCommandsTab(),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Draggable window view (compact)
         return Scaffold(
           appBar: AppBar(
             title: const Text('Admin Panel'),
             titleTextStyle: TextStyle(
               color: textColor,
-              fontSize: 20,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
             backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
             elevation: 0,
-            leading: BackButton(color: textColor),
-            centerTitle: false,
+            centerTitle: true,
+            actions: [
+              IconButton(
+                icon: Icon(Icons.close, color: textColor, size: 20),
+                onPressed: widget.onClose,
+              ),
+            ],
             shape: Border(
               bottom: BorderSide(
                 color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                 width: 1,
               ),
             ),
-            bottom: TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(icon: Icon(Icons.devices), text: 'Devices', height: 56),
-                Tab(icon: Icon(Icons.rule), text: 'Rules', height: 56),
-                Tab(icon: Icon(Icons.terminal), text: 'Commands', height: 56),
-              ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(48),
+              child: TabBar(
+                controller: _tabController,
+                indicatorSize: TabBarIndicatorSize.tab,
+                tabs: const [
+                  Tab(icon: Icon(Icons.devices), child: SizedBox()),
+                  Tab(icon: Icon(Icons.rule), child: SizedBox()),
+                  Tab(icon: Icon(Icons.terminal), child: SizedBox()),
+                ],
+              ),
             ),
           ),
           body: Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.all(8.0),
             child: TabBarView(
               controller: _tabController,
               children: [
@@ -578,80 +789,82 @@ class _AdminViewState extends State<AdminView>
                   itemBuilder: (ctx, i) {
                     final r = _rules[i];
                     final severityColor = _getSeverityColor(r.severity);
-                    return Card(
-                      elevation: 2,
+                    return Opacity(
                       opacity: r.enabled ? 1.0 : 0.6,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${r.parameter} ${r.op} ${r.value}',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
+                      child: Card(
+                        elevation: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${r.parameter} ${r.op} ${r.value}',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Chip(
-                                        label: Text(
-                                          r.severity.toUpperCase(),
-                                          style: const TextStyle(fontSize: 10),
+                                        const SizedBox(height: 6),
+                                        Chip(
+                                          label: Text(
+                                            r.severity.toUpperCase(),
+                                            style: const TextStyle(fontSize: 10),
+                                          ),
+                                          backgroundColor: severityColor.withOpacity(0.2),
+                                          labelStyle: TextStyle(
+                                            color: severityColor,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          side: BorderSide(color: severityColor),
                                         ),
-                                        backgroundColor: severityColor.withOpacity(0.2),
-                                        labelStyle: TextStyle(
-                                          color: severityColor,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        side: BorderSide(color: severityColor),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                Switch(
-                                  value: r.enabled,
-                                  onChanged: (v) => setState(() => r.enabled = v),
-                                  activeColor: Colors.green,
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (ctx) => AlertDialog(
-                                        title: const Text('Delete Rule?'),
-                                        content: Text('Are you sure you want to delete the rule "${r.parameter} ${r.op} ${r.value}"?'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(ctx),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          ElevatedButton(
-                                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                                            onPressed: () {
-                                              Navigator.pop(ctx);
-                                              setState(() => _rules.removeAt(i));
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('Rule deleted')),
-                                              );
-                                            },
-                                            child: const Text('Delete'),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
+                                  Switch(
+                                    value: r.enabled,
+                                    onChanged: (v) => setState(() => r.enabled = v),
+                                    activeColor: Colors.green,
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: const Text('Delete Rule?'),
+                                          content: Text('Are you sure you want to delete the rule "${r.parameter} ${r.op} ${r.value}"?'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(ctx),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            ElevatedButton(
+                                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                              onPressed: () {
+                                                Navigator.pop(ctx);
+                                                setState(() => _rules.removeAt(i));
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text('Rule deleted')),
+                                                );
+                                              },
+                                              child: const Text('Delete'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );

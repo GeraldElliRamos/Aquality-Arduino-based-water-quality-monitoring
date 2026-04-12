@@ -361,68 +361,74 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
             ),
             const SizedBox(height: 14),
 
-            Center(
-              child: Text(
-                'Parameter Status',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Center(
+                child: Text(
+                  'Parameter Status',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
               ),
             ),
-            const SizedBox(height: 10),
-            GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 0.7,
-              ),
-              itemCount: parameters.length,
-              itemBuilder: (context, index) {
-                final param = parameters[index];
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            ParameterDetail(title: param['title'] as String),
-                      ),
-                    );
-                  },
-                  child: Builder(
-                    builder: (context) {
-                      final id = param['id'] as String?;
-                      final raw = (param['rawValue'] as double);
-                      double displayValue = raw;
-                      bool anomalous = false;
-                      if (id != null) {
-                        final sv = NotificationService.instance
-                            .getSmoothedValue(id);
-                        if (sv != null) displayValue = sv;
-                        anomalous = NotificationService.instance.isAnomalous(
-                          id,
-                        );
-                      }
-
-                      return GaugeWidget(
-                        title: param['title'] as String,
-                        value: displayValue,
-                        minSafe: param['minSafe'] as double,
-                        maxSafe: param['maxSafe'] as double,
-                        unit: param['unit'] as String,
-                        status: param['status'] as String,
-                        statusColor: param['statusColor'] as Color,
-                        gaugeColor: param['gaugeColor'] as Color,
-                        isAnomalous: anomalous,
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 0.75,
+                ),
+                itemCount: parameters.length,
+                itemBuilder: (context, index) {
+                  final param = parameters[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              ParameterDetail(title: param['title'] as String),
+                        ),
                       );
                     },
-                  ),
-                );
-              },
+                    child: Builder(
+                      builder: (context) {
+                        final id = param['id'] as String?;
+                        final raw = (param['rawValue'] as double);
+                        double displayValue = raw;
+                        bool anomalous = false;
+                        if (id != null) {
+                          final sv = NotificationService.instance
+                              .getSmoothedValue(id);
+                          if (sv != null) displayValue = sv;
+                          anomalous = NotificationService.instance.isAnomalous(
+                            id,
+                          );
+                        }
+
+                        return GaugeWidget(
+                          title: param['title'] as String,
+                          value: displayValue,
+                          minSafe: param['minSafe'] as double,
+                          maxSafe: param['maxSafe'] as double,
+                          unit: param['unit'] as String,
+                          status: param['status'] as String,
+                          statusColor: param['statusColor'] as Color,
+                          gaugeColor: param['gaugeColor'] as Color,
+                          isAnomalous: anomalous,
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
             ),
             const SizedBox(height: 8),
           ],

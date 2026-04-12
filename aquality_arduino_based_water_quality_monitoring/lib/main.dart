@@ -146,6 +146,7 @@ class _AppScreenState extends State<AppScreen> {
     AlertsViewEnhanced(),
     WeatherView(),
     HistoryView(),
+    AdminView(),
   ];
 
   String get _roleLabel {
@@ -292,47 +293,50 @@ class _AppScreenState extends State<AppScreen> {
               ),
             ),
           ),
-          bottomNavigationBar: BottomNavigationBar(
-            type: BottomNavigationBarType.fixed,
-            currentIndex: _selectedIndex,
-            selectedItemColor: const Color(0xFF2563EB),
-            unselectedItemColor: Colors.grey[600],
-            onTap: _onItemTapped,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.dashboard),
-                label: 'Dashboard',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.show_chart),
-                label: 'Trends',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.notifications),
-                label: 'Alerts',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.cloud),
-                label: 'Weather',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.history),
-                label: 'History',
-              ),
-            ],
-          ),
-          floatingActionButton: ValueListenableBuilder<bool>(
+          bottomNavigationBar: ValueListenableBuilder<bool>(
             valueListenable: AuthService.isAdmin,
             builder: (context, isAdmin, _) {
-              if (!isAdmin) return const SizedBox.shrink();
-              return FloatingActionButton(
-                backgroundColor: const Color(0xFF2563EB),
-                onPressed: () => Navigator.of(context).pushNamed('/admin'),
-                tooltip: 'Admin Panel',
-                child: const Icon(Icons.admin_panel_settings),
+              return BottomNavigationBar(
+                type: BottomNavigationBarType.fixed,
+                currentIndex: _selectedIndex,
+                selectedItemColor: const Color(0xFF2563EB),
+                unselectedItemColor: Colors.grey[600],
+                onTap: (index) {
+                  // Prevent navigation to admin panel if not admin
+                  if (index == 5 && !isAdmin) return;
+                  _onItemTapped(index);
+                },
+                items: [
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.dashboard),
+                    label: 'Dashboard',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.show_chart),
+                    label: 'Trends',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.notifications),
+                    label: 'Alerts',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.cloud),
+                    label: 'Weather',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.history),
+                    label: 'History',
+                  ),
+                  if (isAdmin)
+                    const BottomNavigationBarItem(
+                      icon: Icon(Icons.admin_panel_settings),
+                      label: 'Admin',
+                    ),
+                ],
               );
             },
           ),
+
         ),
         // Chatbot floating button
         const AqualityChatbot(),

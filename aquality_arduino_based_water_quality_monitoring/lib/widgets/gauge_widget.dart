@@ -91,7 +91,7 @@ class _GaugeWidgetState extends State<GaugeWidget>
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
@@ -103,109 +103,137 @@ class _GaugeWidgetState extends State<GaugeWidget>
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final gaugeSize = (constraints.maxWidth * 0.62).clamp(92.0, 120.0);
+            final gaugeSize = (constraints.maxWidth * 0.65).clamp(90.0, 110.0);
 
             return Stack(
               alignment: Alignment.center,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      widget.title,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: gaugeSize,
-                      width: gaugeSize,
-                      child: AnimatedBuilder(
-                        animation: _animation,
-                        builder: (context, child) {
-                          return CustomPaint(
-                            painter: GaugePainter(
-                              progress: _animation.value,
-                              color: widget.gaugeColor,
-                              backgroundColor: isDark
-                                  ? Colors.grey.shade700
-                                  : Colors.grey.shade200,
-                              statusColor: widget.statusColor,
-                            ),
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    FormatUtils.formatParamValue(widget.value),
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    widget.unit,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDark
-                                          ? Colors.grey.shade400
-                                          : Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: widget.statusColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: widget.statusColor.withValues(alpha: 0.3),
+                SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      // Title
+                      SizedBox(
+                        width: double.infinity,
+                        child: Text(
+                          widget.title,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            height: 1.2,
+                          ),
                         ),
                       ),
-                      child: Text(
-                        widget.status,
+                      const SizedBox(height: 10),
+                      // Gauge circle
+                      SizedBox(
+                        height: gaugeSize,
+                        width: gaugeSize,
+                        child: AnimatedBuilder(
+                          animation: _animation,
+                          builder: (context, child) {
+                            return CustomPaint(
+                              painter: GaugePainter(
+                                progress: _animation.value,
+                                color: widget.gaugeColor,
+                                backgroundColor: isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade200,
+                                statusColor: widget.statusColor,
+                              ),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      FormatUtils.formatParamValue(widget.value),
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.0,
+                                      ),
+                                    ),
+                                    Text(
+                                      widget.unit,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark
+                                            ? Colors.grey.shade400
+                                            : Colors.grey.shade600,
+                                        height: 1.0,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      // Status badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: widget.statusColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: widget.statusColor.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          widget.status,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: widget.statusColor,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      // Range text
+                      Text(
+                        'Range: ${FormatUtils.formatRange(widget.minSafe, widget.maxSafe)}',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: widget.statusColor,
+                          fontWeight: FontWeight.w500,
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
+                          height: 1.3,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Range: ${FormatUtils.formatRange(widget.minSafe, widget.maxSafe)}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-            // anomaly badge
+                // Anomaly badge
                 if (widget.isAnomalous)
                   Positioned(
-                    right: 6,
-                    top: 6,
+                    right: 2,
+                    top: 2,
                     child: Container(
-                      width: 14,
-                      height: 14,
+                      width: 16,
+                      height: 16,
                       decoration: BoxDecoration(
                         color: Colors.redAccent,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(color: Colors.black26, blurRadius: 4),
                         ],
+                      ),
+                      child: const Icon(
+                        Icons.warning_rounded,
+                        size: 10,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -235,12 +263,12 @@ class GaugePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..strokeWidth = 6
+      ..strokeWidth = 5.5
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = min(size.width, size.height) / 2 - 8;
+    final radius = min(size.width, size.height) / 2 - 7;
 
     // Background gauge
     paint.color = backgroundColor;
@@ -266,7 +294,7 @@ class GaugePainter extends CustomPainter {
     paint
       ..style = PaintingStyle.fill
       ..color = statusColor.withValues(alpha: 0.1);
-    canvas.drawCircle(center, radius - 10, paint);
+    canvas.drawCircle(center, radius - 9, paint);
   }
 
   @override
