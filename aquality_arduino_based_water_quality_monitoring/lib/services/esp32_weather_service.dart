@@ -673,7 +673,9 @@ class WeatherForecast {
 
   String get dayLabel {
     final now = DateTime.now();
-    final difference = date.difference(now).inDays;
+    final today = DateTime(now.year, now.month, now.day);
+    final forecastDay = DateTime(date.year, date.month, date.day);
+    final difference = forecastDay.difference(today).inDays;
 
     if (difference == 0) return 'Today';
     if (difference == 1) return 'Tomorrow';

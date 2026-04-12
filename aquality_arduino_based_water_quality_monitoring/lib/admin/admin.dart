@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/language_service.dart';
 
 /// Draggable wrapper for admin panel (similar to chatbot)
 class AdminPanel extends StatefulWidget {
@@ -225,6 +226,8 @@ class _AdminViewState extends State<AdminView>
 
   final List<String> _commandLog = [];
 
+  String t(String key) => LanguageService().t(key);
+
   String _getTimeAgo(DateTime dt) {
     final now = DateTime.now();
     final diff = now.difference(dt);
@@ -255,10 +258,111 @@ class _AdminViewState extends State<AdminView>
       vsync: this,
       initialIndex: widget.initialTab,
     );
+    // Listen to language changes to rebuild
+    LanguageService().addListener(_onLanguageChanged);
+  }
+
+  void _onLanguageChanged() => setState(() {});
+
+  Widget _buildQuickStats(bool isDark) {
+    final onlineCount = _devices.where((d) => d.status == 'online').length;
+    final activeRules = _rules.where((r) => r.enabled).length;
+    final criticalDevices = _devices.where((d) => !d.enabled).length;
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'System Overview',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  isDark,
+                  '$onlineCount/${_devices.length}',
+                  'Devices Online',
+                  Icons.router,
+                  Colors.green,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildStatCard(
+                  isDark,
+                  activeRules.toString(),
+                  'Active Rules',
+                  Icons.rule,
+                  Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildStatCard(
+                  isDark,
+                  criticalDevices.toString(),
+                  'Disabled',
+                  Icons.warning,
+                  Colors.orange,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(bool isDark, String value, String label, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   void dispose() {
+    LanguageService().removeListener(_onLanguageChanged);
     if (!_isWrapped) {
       _tabController.dispose();
     }
@@ -274,7 +378,7 @@ class _AdminViewState extends State<AdminView>
         String severity = 'high';
         final valueCtrl = TextEditingController();
         return AlertDialog(
-          title: const Text('Add Threshold Rule'),
+          title: Text(t('add_threshold_rule')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -284,7 +388,7 @@ class _AdminViewState extends State<AdminView>
                     .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),
                 onChanged: (v) => param = v ?? param,
-                decoration: const InputDecoration(labelText: 'Parameter'),
+                decoration: InputDecoration(labelText: t('parameter')),
               ),
               const SizedBox(height: 8),
               Row(
@@ -298,7 +402,7 @@ class _AdminViewState extends State<AdminView>
                           )
                           .toList(),
                       onChanged: (v) => op = v ?? op,
-                      decoration: const InputDecoration(labelText: 'Operator'),
+                      decoration: InputDecoration(labelText: t('operator')),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -306,7 +410,7 @@ class _AdminViewState extends State<AdminView>
                     child: TextField(
                       controller: valueCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Value'),
+                      decoration: InputDecoration(labelText: t('value')),
                     ),
                   ),
                 ],
@@ -318,7 +422,7 @@ class _AdminViewState extends State<AdminView>
                     .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),
                 onChanged: (v) => severity = v ?? severity,
-                decoration: const InputDecoration(labelText: 'Severity'),
+                decoration: InputDecoration(labelText: t('severity')),
               ),
             ],
           ),
@@ -351,7 +455,7 @@ class _AdminViewState extends State<AdminView>
       setState(() => _rules.add(result));
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Rule added')));
+      ).showSnackBar(SnackBar(content: Text(t('rule_added'))));
     }
   }
 
@@ -378,8 +482,8 @@ class _AdminViewState extends State<AdminView>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Device?'),
-        content: Text('Are you sure you want to remove "${d.name}"? This action cannot be undone.'),
+        title: Text(t('delete_device')),
+        content: Text('${t('are_you_sure')} "${d.name}"? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -420,6 +524,7 @@ class _AdminViewState extends State<AdminView>
               backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
               elevation: 0,
               centerTitle: false,
+              automaticallyImplyLeading: false,
               shape: Border(
                 bottom: BorderSide(
                   color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
@@ -447,6 +552,7 @@ class _AdminViewState extends State<AdminView>
               backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
               elevation: 0,
               centerTitle: false,
+              automaticallyImplyLeading: false,
               shape: Border(
                 bottom: BorderSide(
                   color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
@@ -455,23 +561,36 @@ class _AdminViewState extends State<AdminView>
               ),
               bottom: TabBar(
                 controller: _tabController,
-                tabs: const [
-                  Tab(icon: Icon(Icons.devices), text: 'Devices', height: 56),
-                  Tab(icon: Icon(Icons.rule), text: 'Rules', height: 56),
-                  Tab(icon: Icon(Icons.terminal), text: 'Commands', height: 56),
+                tabs: [
+                  Tab(icon: Icon(Icons.devices), text: t('devices'), height: 56),
+                  Tab(icon: Icon(Icons.rule), text: t('rules'), height: 56),
+                  Tab(icon: Icon(Icons.terminal), text: t('commands'), height: 56),
                 ],
               ),
             ),
-            body: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildDevicesTab(),
-                  _buildRulesTab(),
-                  _buildCommandsTab(),
-                ],
-              ),
+            body: Column(
+              children: [
+                _buildQuickStats(isDark),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: _buildDevicesTab(),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: _buildRulesTab(),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: _buildCommandsTab(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           );
         }
@@ -488,6 +607,7 @@ class _AdminViewState extends State<AdminView>
             backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
             elevation: 0,
             centerTitle: true,
+            automaticallyImplyLeading: false,
             actions: [
               IconButton(
                 icon: Icon(Icons.close, color: textColor, size: 20),
@@ -541,7 +661,7 @@ class _AdminViewState extends State<AdminView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Connected Devices',
+                    t('connected_devices'),
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   Text(
@@ -563,7 +683,7 @@ class _AdminViewState extends State<AdminView>
                 );
               },
               icon: const Icon(Icons.add),
-              label: const Text('Add Device'),
+              label: Text(t('add_device')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue.shade600,
                 foregroundColor: Colors.white,
@@ -581,7 +701,7 @@ class _AdminViewState extends State<AdminView>
                     children: [
                       Icon(Icons.devices, size: 48, color: Colors.grey.shade300),
                       const SizedBox(height: 8),
-                      Text('No devices yet', style: TextStyle(color: Colors.grey.shade600)),
+                      Text(t('no_devices'), style: TextStyle(color: Colors.grey.shade600)),
                     ],
                   ),
                 )
@@ -681,7 +801,7 @@ class _AdminViewState extends State<AdminView>
                                           children: [
                                             const Icon(Icons.send, size: 18),
                                             const SizedBox(width: 8),
-                                            const Text('Send Command'),
+                                            Text(t('send_command')),
                                           ],
                                         ),
                                       ),
@@ -691,7 +811,7 @@ class _AdminViewState extends State<AdminView>
                                           children: [
                                             Icon(d.enabled ? Icons.pause : Icons.play_arrow, size: 18),
                                             const SizedBox(width: 8),
-                                            Text(d.enabled ? 'Disable' : 'Enable'),
+                                            Text(d.enabled ? t('disable') : t('enable')),
                                           ],
                                         ),
                                       ),
@@ -701,7 +821,7 @@ class _AdminViewState extends State<AdminView>
                                           children: [
                                             const Icon(Icons.delete, size: 18, color: Colors.red),
                                             const SizedBox(width: 8),
-                                            const Text('Remove', style: TextStyle(color: Colors.red)),
+                                            Text(t('delete_device'), style: const TextStyle(color: Colors.red)),
                                           ],
                                         ),
                                       ),
@@ -718,9 +838,9 @@ class _AdminViewState extends State<AdminView>
                                       color: Colors.orange.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
-                                    child: const Text(
-                                      'Device Disabled',
-                                      style: TextStyle(fontSize: 10, color: Colors.orange),
+                                    child: Text(
+                                      t('device_disabled_label'),
+                                      style: const TextStyle(fontSize: 10, color: Colors.orange),
                                     ),
                                   ),
                                 ),
@@ -747,9 +867,9 @@ class _AdminViewState extends State<AdminView>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Threshold Rules',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    t('threshold_rules'),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   Text(
                     '${_rules.where((r) => r.enabled).length} active rule${_rules.where((r) => r.enabled).length != 1 ? 's' : ''}',
@@ -761,7 +881,7 @@ class _AdminViewState extends State<AdminView>
             ElevatedButton.icon(
               onPressed: _addRule,
               icon: const Icon(Icons.add),
-              label: const Text('Add Rule'),
+              label: Text(t('add_rule')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue.shade600,
                 foregroundColor: Colors.white,
@@ -779,7 +899,7 @@ class _AdminViewState extends State<AdminView>
                     children: [
                       Icon(Icons.rule, size: 48, color: Colors.grey.shade300),
                       const SizedBox(height: 8),
-                      Text('No rules yet', style: TextStyle(color: Colors.grey.shade600)),
+                      Text(t('no_rules'), style: TextStyle(color: Colors.grey.shade600)),
                     ],
                   ),
                 )
@@ -838,8 +958,8 @@ class _AdminViewState extends State<AdminView>
                                       showDialog(
                                         context: context,
                                         builder: (ctx) => AlertDialog(
-                                          title: const Text('Delete Rule?'),
-                                          content: Text('Are you sure you want to delete the rule "${r.parameter} ${r.op} ${r.value}"?'),
+                                          title: Text(t('delete_rule')),
+                                          content: Text('${t('are_you_sure')} "${r.parameter} ${r.op} ${r.value}"?'),
                                           actions: [
                                             TextButton(
                                               onPressed: () => Navigator.pop(ctx),
@@ -851,7 +971,7 @@ class _AdminViewState extends State<AdminView>
                                                 Navigator.pop(ctx);
                                                 setState(() => _rules.removeAt(i));
                                                 ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('Rule deleted')),
+                                                  SnackBar(content: Text(t('rule_deleted'))),
                                                 );
                                               },
                                               child: const Text('Delete'),
@@ -883,9 +1003,9 @@ class _AdminViewState extends State<AdminView>
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Remote Commands',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              t('remote_commands'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             Text(
               '${_commandLog.length} command${_commandLog.length != 1 ? 's' : ''} sent',
@@ -906,7 +1026,7 @@ class _AdminViewState extends State<AdminView>
             }
           },
           icon: const Icon(Icons.send),
-          label: const Text('Send test command'),
+          label: Text(t('send_test_command')),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blue.shade600,
             foregroundColor: Colors.white,
@@ -915,7 +1035,7 @@ class _AdminViewState extends State<AdminView>
         const SizedBox(height: 16),
         // Commands log
         Text(
-          'Command Log',
+          t('command_log'),
           style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 8),
@@ -927,7 +1047,7 @@ class _AdminViewState extends State<AdminView>
                     children: [
                       Icon(Icons.history, size: 48, color: Colors.grey.shade300),
                       const SizedBox(height: 8),
-                      Text('No commands sent yet', style: TextStyle(color: Colors.grey.shade600)),
+                      Text(t('no_commands'), style: TextStyle(color: Colors.grey.shade600)),
                     ],
                   ),
                 )
@@ -982,7 +1102,7 @@ class _AdminViewState extends State<AdminView>
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Sent just now',
+                                    t('sent_just_now'),
                                     style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
                                   ),
                                 ],
@@ -1005,7 +1125,7 @@ class _AdminViewState extends State<AdminView>
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: Text('Send command to ${d.name}'),
+          title: Text('${t('send_command_to')} ${d.name}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1034,7 +1154,7 @@ class _AdminViewState extends State<AdminView>
               TextField(
                 controller: ctrl,
                 decoration: InputDecoration(
-                  labelText: 'Command',
+                  labelText: t('send_command'),
                   hintText: 'e.g., reboot, reset',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                   filled: true,
@@ -1058,7 +1178,7 @@ class _AdminViewState extends State<AdminView>
                 Navigator.of(ctx).pop();
                 _sendCommand(d, ctrl.text);
               },
-              child: const Text('Send Command'),
+              child: Text(t('send_command')),
             ),
           ],
         );

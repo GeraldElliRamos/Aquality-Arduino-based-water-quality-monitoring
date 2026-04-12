@@ -315,8 +315,11 @@ class _AppScreenState extends State<AppScreen> {
                     icon: Icon(Icons.show_chart),
                     label: 'Trends',
                   ),
-                  const BottomNavigationBarItem(
-                    icon: Icon(Icons.notifications),
+                  BottomNavigationBarItem(
+                    icon: Badge(
+                      label: const Text('3', style: TextStyle(fontSize: 10)),
+                      child: const Icon(Icons.notifications),
+                    ),
                     label: 'Alerts',
                   ),
                   const BottomNavigationBarItem(
