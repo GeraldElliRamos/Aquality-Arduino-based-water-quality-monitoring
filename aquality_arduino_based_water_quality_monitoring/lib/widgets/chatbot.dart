@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../services/language_service.dart';
 
 // Disable SSL certificate verification for testing (remove in production)
 class MyHttpOverrides extends HttpOverrides {
@@ -127,8 +128,8 @@ class _ChatWindowState extends State<_ChatWindow> {
   bool _isLoading = false;
   String _quotaLabel = '';
 
-  static const String _welcomeMessage =
-      'Hi! I\'m Aqua 🌊 your Aquality assistant. I can help you understand the dashboard, trends, alerts, history, settings, and profile modules. What would you like to know?';
+  /// Get welcome message from language service
+  String get _welcomeMessage => LanguageService().t('aqua_welcome');
 
   static const String _systemPrompt = '''
 You are Aqua, a helpful assistant for the Aquality app — an Arduino-based water quality monitoring system for freshwater tilapia ponds.
@@ -326,71 +327,72 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
 
   String? _getHardcodedAnswer(String question) {
     final q = question.toLowerCase().trim();
+    final lang = LanguageService();
 
     if (q == 'hi' || q == 'hello' || q == 'hey') {
-      return 'Hi! I am Aqua, your Aquality assistant. Ask me about dashboard, alerts, trends, history, settings, or safe water ranges for tilapia.';
+      return lang.t('aqua_greeting');
     }
 
     if (q.contains('what is aquality') || q.contains('what is this app')) {
-      return 'Aquality is an Arduino-based water quality monitoring app for freshwater tilapia ponds. It tracks key parameters and helps you respond quickly to risky changes.';
+      return lang.t('aqua_what_is_aquality');
     }
 
     if (q == 'modules' ||
         q.contains('what are the modules') ||
         q.contains('explain modules')) {
-      return 'Aquality modules:\n1. Dashboard - Live sensor readings and current system status.\n2. Trends - Historical charts to see water quality patterns over time.\n3. Alerts - Warnings when parameters go out of safe range.\n4. History - Full log of past readings for review and reporting.';
+      return lang.t('aqua_modules');
     }
 
     if (q == 'dashboard' ||
         q.contains('what is dashboard') ||
         q.contains('explain dashboard')) {
-      return 'Dashboard shows real-time pH, temperature, ammonia, and turbidity readings, plus status indicators so you can quickly check if pond conditions are safe.';
+      return lang.t('aqua_dashboard');
     }
 
     if (q == 'trends' ||
         q.contains('what is trends') ||
         q.contains('explain trends')) {
-      return 'Trends shows historical charts of your water parameters. Use it to track patterns by day, week, or month and spot changes early.';
+      return lang.t('aqua_trends');
     }
 
     if (q == 'alerts' ||
         q.contains('what is alerts') ||
         q.contains('explain alerts')) {
-      return 'Alerts lists notifications when a parameter becomes unsafe. It helps you respond quickly before conditions affect fish health.';
+      return lang.t('aqua_alerts');
     }
 
     if (q == 'history' ||
         q.contains('what is history') ||
         q.contains('explain history')) {
-      return 'History stores previous water quality readings so you can review, filter, and use records for monitoring and reports.';
+      return lang.t('aqua_history');
     }
 
     if (q.contains('safe ph') ||
         (q.contains('ph') && q.contains('tilapia')) ||
         q.contains('ph range')) {
-      return 'Safe pH for tilapia is usually 6.5 to 8.5.';
+      return lang.t('aqua_ph_safe');
     }
 
     if (q.contains('safe temperature') ||
         (q.contains('temperature') && q.contains('tilapia')) ||
         q.contains('temp range')) {
-      return 'Safe temperature for tilapia is around 25 C to 32 C.';
+      return lang.t('aqua_temp_safe');
     }
 
     if (q.contains('ammonia') || q.contains('nh3')) {
-      return 'Keep ammonia very low, ideally around 0.00 to 0.02 mg/L for safer tilapia conditions.';
+      return lang.t('aqua_ammonia');
     }
 
     if (q.contains('turbidity')) {
-      return 'Recommended turbidity is below 30 NTU for better water quality conditions.';
+      return lang.t('aqua_turbidity');
     }
 
     if (q.contains('who are you')) {
-      return 'I am Aqua, the Aquality Assistant. I help explain your water quality data and app features.';
+      return lang.t('aqua_about');
     }
 
     if (q.contains('how to use') || q.contains('how do i use')) {
-      return 'Start from Dashboard for live readings, check Alerts for warnings, view Trends/History for analysis, then adjust thresholds in Settings.';
+      return lang.t('aqua_how_to_use');
     }
 
     return null;
@@ -712,7 +714,7 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
                       enabled: !_isLoading,
                       onSubmitted: (_) => _sendMessage(),
                       decoration: InputDecoration(
-                        hintText: 'Ask about any module...',
+                        hintText: LanguageService().t('ask_module'),
                         hintStyle: TextStyle(
                           fontSize: 13,
                           color: isDark

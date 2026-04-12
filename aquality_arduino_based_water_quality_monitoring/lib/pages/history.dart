@@ -458,24 +458,29 @@ class _HistoryViewState extends State<HistoryView> {
         ValueListenableBuilder<bool>(
           valueListenable: AuthService.isAdmin,
           builder: (context, isAdmin, _) {
-            if (!isAdmin) return const SizedBox.shrink();
-            return SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _exportCsv,
-                icon: const Icon(Icons.download, size: 18, color: Colors.white),
-                label: Text(
-                  t('export_csv'),
-                  style: const TextStyle(color: Colors.white),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 34, 96, 231),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+            return ValueListenableBuilder<bool>(
+              valueListenable: AuthService.isLGU,
+              builder: (context, isLGU, _) {
+                if (!isAdmin && !isLGU) return const SizedBox.shrink();
+                return SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _exportCsv,
+                    icon: const Icon(Icons.download, size: 18, color: Colors.white),
+                    label: Text(
+                      t('export_csv'),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(255, 34, 96, 231),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             );
           },
         ),

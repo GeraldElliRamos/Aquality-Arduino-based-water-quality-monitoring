@@ -68,6 +68,27 @@ class _AdminViewState extends State<AdminView>
 
   final List<String> _commandLog = [];
 
+  String _getTimeAgo(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    
+    return '${dt.month}/${dt.day} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  Color _getSeverityColor(String severity) {
+    switch (severity.toLowerCase()) {
+      case 'high': return const Color(0xFFDC2626);
+      case 'medium': return const Color(0xFFF59E0B);
+      case 'low': return const Color(0xFF10B981);
+      default: return Colors.grey;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -194,10 +215,30 @@ class _AdminViewState extends State<AdminView>
   }
 
   void _deleteDevice(Device d) {
-    setState(() => _devices.removeWhere((x) => x.id == d.id));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Device removed')));
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Device?'),
+        content: Text('Are you sure you want to remove "${d.name}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() => _devices.removeWhere((x) => x.id == d.id));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Device "${d.name}" removed')),
+              );
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -255,9 +296,9 @@ class _AdminViewState extends State<AdminView>
             bottom: TabBar(
               controller: _tabController,
               tabs: const [
-                Tab(text: 'Devices'),
-                Tab(text: 'Rules'),
-                Tab(text: 'Commands'),
+                Tab(icon: Icon(Icons.devices), text: 'Devices', height: 56),
+                Tab(icon: Icon(Icons.rule), text: 'Rules', height: 56),
+                Tab(icon: Icon(Icons.terminal), text: 'Commands', height: 56),
               ],
             ),
           ),
@@ -281,15 +322,25 @@ class _AdminViewState extends State<AdminView>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header with action
         Row(
           children: [
             Expanded(
-              child: Text(
-                'Devices',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Connected Devices',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    '${_devices.length} device${_devices.length != 1 ? 's' : ''} registered',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
               ),
             ),
-            TextButton.icon(
+            ElevatedButton.icon(
               onPressed: () {
                 setState(
                   () => _devices.add(
@@ -302,55 +353,173 @@ class _AdminViewState extends State<AdminView>
               },
               icon: const Icon(Icons.add),
               label: const Text('Add Device'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade600,
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
+        // Devices list
         Expanded(
-          child: ListView.separated(
-            itemCount: _devices.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (context, i) {
-              final d = _devices[i];
-              return Card(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: d.status == 'online'
-                        ? Colors.green
-                        : Colors.grey,
-                    child: Text(d.name[0]),
-                  ),
-                  title: Text(d.name),
-                  subtitle: Text('Last seen: ${d.lastSeen}'),
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (v) {
-                      if (v == 'toggle') {
-                        setState(() => d.enabled = !d.enabled);
-                      } else if (v == 'remove') {
-                        _deleteDevice(d);
-                      } else if (v == 'command') {
-                        _showCommandDialog(d);
-                      }
-                    },
-                    itemBuilder: (ctx) => [
-                      PopupMenuItem(
-                        value: 'toggle',
-                        child: Text(d.enabled ? 'Disable' : 'Enable'),
-                      ),
-                      const PopupMenuItem(
-                        value: 'command',
-                        child: Text('Send Command'),
-                      ),
-                      const PopupMenuItem(
-                        value: 'remove',
-                        child: Text('Remove'),
-                      ),
+          child: _devices.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.devices, size: 48, color: Colors.grey.shade300),
+                      const SizedBox(height: 8),
+                      Text('No devices yet', style: TextStyle(color: Colors.grey.shade600)),
                     ],
                   ),
+                )
+              : ListView.separated(
+                  itemCount: _devices.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (context, i) {
+                    final d = _devices[i];
+                    final isDark = Theme.of(context).brightness == Brightness.dark;
+                    return Card(
+                      elevation: 2,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: d.status == 'online'
+                                ? Colors.green.withOpacity(0.3)
+                                : Colors.red.withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: d.status == 'online' ? Colors.green : Colors.red,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      d.name,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  Chip(
+                                    label: Text(
+                                      d.status.toUpperCase(),
+                                      style: const TextStyle(fontSize: 10),
+                                    ),
+                                    backgroundColor: d.status == 'online'
+                                        ? Colors.green.withOpacity(0.2)
+                                        : Colors.red.withOpacity(0.2),
+                                    labelStyle: TextStyle(
+                                      color: d.status == 'online' ? Colors.green.shade700 : Colors.red.shade700,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'ID: ${d.id}',
+                                        style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Last seen: ${_getTimeAgo(d.lastSeen)}',
+                                        style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                                      ),
+                                    ],
+                                  ),
+                                  PopupMenuButton<String>(
+                                    onSelected: (v) {
+                                      if (v == 'toggle') {
+                                        setState(() => d.enabled = !d.enabled);
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Device ${d.enabled ? 'enabled' : 'disabled'}')),
+                                        );
+                                      } else if (v == 'remove') {
+                                        _deleteDevice(d);
+                                      } else if (v == 'command') {
+                                        _showCommandDialog(d);
+                                      }
+                                    },
+                                    itemBuilder: (ctx) => [
+                                      PopupMenuItem(
+                                        value: 'command',
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.send, size: 18),
+                                            const SizedBox(width: 8),
+                                            const Text('Send Command'),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'toggle',
+                                        child: Row(
+                                          children: [
+                                            Icon(d.enabled ? Icons.pause : Icons.play_arrow, size: 18),
+                                            const SizedBox(width: 8),
+                                            Text(d.enabled ? 'Disable' : 'Enable'),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'remove',
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.delete, size: 18, color: Colors.red),
+                                            const SizedBox(width: 8),
+                                            const Text('Remove', style: TextStyle(color: Colors.red)),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              if (!d.enabled)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'Device Disabled',
+                                      style: TextStyle(fontSize: 10, color: Colors.orange),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ],
     );
@@ -360,41 +529,129 @@ class _AdminViewState extends State<AdminView>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header with action
         Row(
           children: [
             Expanded(
-              child: Text(
-                'Threshold Rules',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Threshold Rules',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    '${_rules.where((r) => r.enabled).length} active rule${_rules.where((r) => r.enabled).length != 1 ? 's' : ''}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
               ),
             ),
             ElevatedButton.icon(
               onPressed: _addRule,
               icon: const Icon(Icons.add),
               label: const Text('Add Rule'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade600,
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
+        // Rules list
         Expanded(
           child: _rules.isEmpty
-              ? const Center(child: Text('No rules'))
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.rule, size: 48, color: Colors.grey.shade300),
+                      const SizedBox(height: 8),
+                      Text('No rules yet', style: TextStyle(color: Colors.grey.shade600)),
+                    ],
+                  ),
+                )
               : ListView.separated(
                   itemCount: _rules.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (ctx, i) {
                     final r = _rules[i];
+                    final severityColor = _getSeverityColor(r.severity);
                     return Card(
-                      child: ListTile(
-                        title: Text('${r.parameter} ${r.op} ${r.value}'),
-                        subtitle: Text('Severity: ${r.severity}'),
-                        leading: Switch(
-                          value: r.enabled,
-                          onChanged: (v) => setState(() => r.enabled = v),
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () => setState(() => _rules.removeAt(i)),
+                      elevation: 2,
+                      opacity: r.enabled ? 1.0 : 0.6,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${r.parameter} ${r.op} ${r.value}',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Chip(
+                                        label: Text(
+                                          r.severity.toUpperCase(),
+                                          style: const TextStyle(fontSize: 10),
+                                        ),
+                                        backgroundColor: severityColor.withOpacity(0.2),
+                                        labelStyle: TextStyle(
+                                          color: severityColor,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        side: BorderSide(color: severityColor),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Switch(
+                                  value: r.enabled,
+                                  onChanged: (v) => setState(() => r.enabled = v),
+                                  activeColor: Colors.green,
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Delete Rule?'),
+                                        content: Text('Are you sure you want to delete the rule "${r.parameter} ${r.op} ${r.value}"?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                            onPressed: () {
+                                              Navigator.pop(ctx);
+                                              setState(() => _rules.removeAt(i));
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(content: Text('Rule deleted')),
+                                              );
+                                            },
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -409,11 +666,22 @@ class _AdminViewState extends State<AdminView>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Remote Commands',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        // Header
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Remote Commands',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              '${_commandLog.length} command${_commandLog.length != 1 ? 's' : ''} sent',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
+        // Send command button
         ElevatedButton.icon(
           onPressed: () {
             if (_devices.isNotEmpty) {
@@ -424,28 +692,93 @@ class _AdminViewState extends State<AdminView>
               );
             }
           },
-          icon: const Icon(Icons.play_arrow),
+          icon: const Icon(Icons.send),
           label: const Text('Send test command'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue.shade600,
+            foregroundColor: Colors.white,
+          ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
+        // Commands log
+        Text(
+          'Command Log',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+        ),
+        const SizedBox(height: 8),
         Expanded(
           child: _commandLog.isEmpty
-              ? const Center(child: Text('No commands sent yet'))
-              : ListView.builder(
-                  // builder is already virtualised; key ensures stable item identity
-                  itemCount: _commandLog.length,
-                  itemBuilder: (ctx, i) => RepaintBoundary(
-                    child: ListTile(
-                      dense: true,
-                      leading: const Icon(Icons.terminal, size: 16),
-                      title: Text(
-                        _commandLog[i],
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.history, size: 48, color: Colors.grey.shade300),
+                      const SizedBox(height: 8),
+                      Text('No commands sent yet', style: TextStyle(color: Colors.grey.shade600)),
+                    ],
+                  ),
+                )
+              : Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300, width: 1),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey.shade900
+                        : Colors.grey.shade50,
+                  ),
+                  child: ListView.separated(
+                    itemCount: _commandLog.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      color: Colors.grey.shade300,
+                      indent: 12,
+                      endIndent: 12,
                     ),
+                    itemBuilder: (ctx, i) {
+                      final isLast = i == _commandLog.length - 1;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.green.withOpacity(0.2),
+                              ),
+                              child: const Icon(
+                                Icons.check_circle,
+                                size: 16,
+                                color: Colors.green,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _commandLog[i],
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontFamily: 'monospace',
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Sent just now',
+                                    style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
         ),
@@ -460,9 +793,44 @@ class _AdminViewState extends State<AdminView>
       builder: (ctx) {
         return AlertDialog(
           title: Text('Send command to ${d.name}'),
-          content: TextField(
-            controller: ctrl,
-            decoration: const InputDecoration(labelText: 'Command'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.blue.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, size: 18, color: Colors.blue.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Device: ${d.name}',
+                        style: TextStyle(fontSize: 12, color: Colors.blue.shade700, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: ctrl,
+                decoration: InputDecoration(
+                  labelText: 'Command',
+                  hintText: 'e.g., reboot, reset',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  filled: true,
+                  fillColor: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade100,
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -470,11 +838,14 @@ class _AdminViewState extends State<AdminView>
               child: const Text('Cancel'),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade600,
+              ),
               onPressed: () {
                 Navigator.of(ctx).pop();
                 _sendCommand(d, ctrl.text);
               },
-              child: const Text('Send'),
+              child: const Text('Send Command'),
             ),
           ],
         );

@@ -206,8 +206,8 @@ class AppTranslations {
       // FAQ - Data
       'faq_q_history': 'How far back can I view historical data?',
       'faq_a_history': 'Historical data is available for the past 30 days. You can filter by 24 hours, 7 days, 30 days, or select a custom date range in the History tab.',
-      'faq_q_export': 'How do I export data? (Admin only)',
-      'faq_a_export': 'Admin users can export data as CSV files from the History tab or Settings. The exported file includes all parameters with timestamps.',
+      'faq_q_export': 'How do I export data? (Admin and LGU Members)',
+      'faq_a_export': 'Admin users and LGU members can export data as CSV files from the History tab or Settings. The exported file includes all parameters with timestamps.',
       'faq_q_files': 'Where are exported files saved?',
       'faq_a_files': 'Exported CSV files are saved to your device\'s Documents/Aquality folder. You can access them through your file manager.',
 
@@ -234,6 +234,22 @@ class AppTranslations {
       'discard_changes': 'Discard Changes',
       'keep_editing': 'Keep Editing',
       'management_tools': 'Management Tools',
+      // ── Chatbot Messages ────────────────────────────────────────────────
+      'aqua_welcome': 'Hi! I\'m Aqua 🌊 your Aquality assistant. I can help you understand the dashboard, trends, alerts, history, settings, and profile modules. What would you like to know?',
+      'aqua_greeting': 'Hi! I am Aqua, your Aquality assistant. Ask me about dashboard, alerts, trends, history, settings, or safe water ranges for tilapia.',
+      'aqua_what_is_aquality': 'Aquality is an Arduino-based water quality monitoring app for freshwater tilapia ponds. It tracks key parameters and helps you respond quickly to risky changes.',
+      'aqua_modules': 'Aquality modules:\n1. Dashboard - Live sensor readings and current system status.\n2. Trends - Historical charts to see water quality patterns over time.\n3. Alerts - Warnings when parameters go out of safe range.\n4. History - Full log of past readings for review and reporting.',
+      'aqua_dashboard': 'Dashboard shows real-time pH, temperature, ammonia, and turbidity readings, plus status indicators so you can quickly check if pond conditions are safe.',
+      'aqua_trends': 'Trends shows historical charts of your water parameters. Use it to track patterns by day, week, or month and spot changes early.',
+      'aqua_alerts': 'Alerts lists notifications when a parameter becomes unsafe. It helps you respond quickly before conditions affect fish health.',
+      'aqua_history': 'History stores previous water quality readings so you can review, filter, and use records for monitoring and reports.',
+      'aqua_ph_safe': 'Safe pH for tilapia is usually 6.5 to 8.5.',
+      'aqua_temp_safe': 'Safe temperature for tilapia is around 25 C to 32 C.',
+      'aqua_ammonia': 'Keep ammonia very low, ideally around 0.00 to 0.02 mg/L for safer tilapia conditions.',
+      'aqua_turbidity': 'Recommended turbidity is below 30 NTU for better water quality conditions.',
+      'aqua_about': 'I am Aqua, the Aquality Assistant. I help explain your water quality data and app features.',
+      'aqua_how_to_use': 'Start from Dashboard for live readings, check Alerts for warnings, view Trends/History for analysis, then adjust thresholds in Settings.',
+      'ask_module': 'Ask about any module...',
     },
 
     'tl': {
@@ -286,7 +302,7 @@ class AppTranslations {
       'safe_level': 'Ligtas na antas',
       'temperature': 'Temperatura',
       'ph_level': 'Antas ng pH',
-      'ammonia': 'Ammonia (NH₃)',
+      'ammonia': 'Ammonia',
       'turbidity': 'Kalabuan',
 
       // ── Trends ───────────────────────────────────────────────────
@@ -410,8 +426,8 @@ class AppTranslations {
       // FAQ - Data
       'faq_q_history': 'Hanggang kailan ko makikita ang makasaysayang data?',
       'faq_a_history': 'Ang makasaysayang data ay available para sa nakalipas na 30 araw. Maaari kang mag-filter ayon sa 24 na oras, 7 araw, 30 araw, o pumili ng custom na hanay ng petsa sa tab na Kasaysayan.',
-      'faq_q_export': 'Paano ako mag-export ng data? (Admin lamang)',
-      'faq_a_export': 'Ang mga admin user ay maaaring mag-export ng data bilang mga CSV file mula sa tab na Kasaysayan o Settings. Kasama sa na-export na file ang lahat ng parameter na may mga timestamp.',
+      'faq_q_export': 'Paano ako mag-export ng data? (Admin at Mga Miyembro ng LGU)',
+      'faq_a_export': 'Ang mga admin user at mga miyembro ng LGU ay maaaring mag-export ng data bilang mga CSV file mula sa tab na Kasaysayan o Settings. Kasama sa na-export na file ang lahat ng parameter na may mga timestamp.',
       'faq_q_files': 'Saan sino-save ang mga na-export na file?',
       'faq_a_files': 'Ang mga na-export na CSV file ay sino-save sa Documents/Aquality folder ng iyong device. Maaari mong ma-access ang mga ito sa pamamagitan ng iyong file manager.',
 
@@ -438,6 +454,22 @@ class AppTranslations {
       'discard_changes': 'Itapon ang Mga Pagbabago',
       'keep_editing': 'Magpatuloy sa Pag-edit',
       'management_tools': 'Mga Tool ng Pamamahala',
+      // ── Chatbot Messages ────────────────────────────────────────────────
+      'aqua_welcome': 'Kamusta! Ako si Aqua 🌊 ang iyong Aquality assistant. Matutulungan kita na maintindihan ang dashboard, trends, alerts, history, settings, at profile modules. Ano ang gusto mong malaman?',
+      'aqua_greeting': 'Kamusta! Ako si Aqua, ang iyong Aquality assistant. Magtanong sa akin tungkol sa dashboard, alerts, trends, history, settings, o safe water ranges para sa tilapia.',
+      'aqua_what_is_aquality': 'Ang Aquality ay isang Arduino-based water quality monitoring app para sa freshwater tilapia ponds. Sinusubaybayan nito ang mga pangunahing parameters at tumutulong sa iyo na tumugon ng mabilis sa mahigpit na pagbabago.',
+      'aqua_modules': 'Mga module ng Aquality:\n1. Dashboard - Live sensor readings at kasalukuyang system status.\n2. Trends - Historical charts upang makita ang water quality patterns sa paglipas ng panahon.\n3. Alerts - Mga babala kapag lumabas ang isang parameter sa safe range.\n4. History - Buong log ng nakaraang readings para sa review at reporting.',
+      'aqua_dashboard': 'Ang Dashboard ay nagpapakita ng real-time pH, temperature, ammonia, at turbidity readings, kasama ang status indicators para mabilis mong masuri kung ligtas ang kondisyon ng pond.',
+      'aqua_trends': 'Ang Trends ay nagpapakita ng historical charts ng iyong water parameters. Gamitin ito upang subaybayan ang mga pattern araw-araw, linggo, o buwan at makilala ang mga pagbabago nang maaga.',
+      'aqua_alerts': 'Ang Alerts ay nagpapatala ng mga notification kapag hindi ligtas ang isang parameter. Tumutulong ito sa iyo na tumugon ng mabilis bago makaapekto ang mga kondisyon sa kalusugan ng isda.',
+      'aqua_history': 'Ang History ay nagsisimula ng mga nakaraang water quality readings upang mabago, ma-filter, at gamitin ang mga record para sa monitoring at reports.',
+      'aqua_ph_safe': 'Ang ligtas na pH para sa tilapia ay karaniwang 6.5 hanggang 8.5.',
+      'aqua_temp_safe': 'Ang ligtas na temperatura para sa tilapia ay tungkol sa 25 C hanggang 32 C.',
+      'aqua_ammonia': 'Panatilihing napakababa ang ammonia, sa ideal na 0.00 hanggang 0.02 mg/L para sa mas ligtas na kondisyon ng tilapia.',
+      'aqua_turbidity': 'Ang inirekomendang turbidity ay mas mababa sa 30 NTU para sa mas mahusay na water quality conditions.',
+      'aqua_about': 'Ako si Aqua, ang Aquality Assistant. Tinutulungan kita na maunawaan ang iyong water quality data at app features.',
+      'aqua_how_to_use': 'Magsimula sa Dashboard para sa live readings, tuklasin ang Alerts para sa mga babala, tingnan ang Trends/History para sa analysis, pagkatapos ay ayusin ang mga threshold sa Settings.',
+      'ask_module': 'Magtanong tungkol sa anumang module...',
     },
   };
 

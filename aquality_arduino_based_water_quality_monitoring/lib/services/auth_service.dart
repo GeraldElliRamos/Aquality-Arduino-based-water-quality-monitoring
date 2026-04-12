@@ -30,6 +30,7 @@ class AuthService {
   static final ValueNotifier<bool> isAdmin = ValueNotifier<bool>(false);
   static final ValueNotifier<bool> isLoggedIn = ValueNotifier<bool>(false);
   static final ValueNotifier<String> userRole = ValueNotifier<String>('');
+  static final ValueNotifier<bool> isLGU = ValueNotifier<bool>(false);
 
   static void init() {
     if (kIsWeb) {}
@@ -38,12 +39,14 @@ class AuthService {
       if (user == null) {
         isLoggedIn.value = false;
         isAdmin.value = false;
+        isLGU.value = false;
         userRole.value = '';
       } else {
         isLoggedIn.value = true;
         final doc = await _db.collection('users').doc(user.uid).get();
         isAdmin.value = doc.data()?['isAdmin'] == true;
         userRole.value = doc.data()?['userType'] ?? '';
+        isLGU.value = userRole.value == 'lgu';
       }
     });
   }

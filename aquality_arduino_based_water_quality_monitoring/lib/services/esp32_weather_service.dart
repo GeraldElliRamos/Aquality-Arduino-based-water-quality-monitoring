@@ -98,6 +98,11 @@ class ESP32WeatherService {
   DateTime? _cacheTimestamp;
   static const Duration _cacheTTL = Duration(minutes: 5);
   
+  /// Cache for forecast data
+  List<WeatherForecast>? _cachedForecast;
+  DateTime? _forecastCacheTimestamp;
+  static const Duration _forecastCacheTTL = Duration(hours: 1);
+  
   /// Minimum movement (meters) required to trigger a weather fetch
   final double _movementThresholdMeters = 50.0;
   /// Minimum interval between API fetches to avoid spamming (seconds)
@@ -419,9 +424,109 @@ class ESP32WeatherService {
     }
   }
 
-  /// Generate 7-day weather forecast
+  /// Generate 7-day weather forecast - fetches real data from OpenWeatherMap
   List<WeatherForecast> getForecast() {
+    // Check cache first
+    if (_isForecastCacheValid() && _cachedForecast != null) {
+      debugPrint('✓ Using cached forecast data');
+      return _cachedForecast!;
+    }
+
+    // If we have location data, we can fetch real forecast
+    if (_lastLatitude != null && _lastLongitude != null && openWeatherApiKey.isNotEmpty) {
+      debugPrint('Fetching real forecast data...');
+      _fetchForecastDataAsync(_lastLatitude!, _lastLongitude!);
+      
+      // Return cached data if available while fetching
+      if (_cachedForecast != null) {
+        return _cachedForecast!;
+      }
+    }
+
+    // Fallback to mock data
     return _getMockForecast();
+  }
+
+  /// Async method to fetch forecast in background
+  Future<void> _fetchForecastDataAsync(double lat, double lon) async {
+    try {
+      if (!_connectivityService.isOnline) {
+        debugPrint('✗ Offline: Cannot fetch forecast.');
+        return;
+      }
+
+      final url = Uri.parse(
+        '$openWeatherBaseUrl/forecast?lat=$lat&lon=$lon&units=metric&appid=$openWeatherApiKey',
+      );
+
+      final response = await http
+          .get(url)
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final forecast = _parseForecastData(data);
+        _cachedForecast = forecast;
+        _forecastCacheTimestamp = DateTime.now();
+        debugPrint('✓ Forecast data fetched successfully');
+      } else {
+        debugPrint('✗ Forecast fetch failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error fetching forecast: $e');
+    }
+  }
+
+  /// Parse forecast API response into daily forecasts
+  List<WeatherForecast> _parseForecastData(Map<String, dynamic> data) {
+    final forecasts = <WeatherForecast>[];
+    final list = data['list'] as List<dynamic>? ?? [];
+    
+    if (list.isEmpty) return _getMockForecast();
+
+    // Group by day and get daily stats
+    final dayMap = <String, List<Map<String, dynamic>>>{};
+    
+    for (final item in list) {
+      final dt = DateTime.fromMillisecondsSinceEpoch((item['dt'] as int) * 1000);
+      final dayKey = '${dt.year}-${dt.month}-${dt.day}';
+      dayMap.putIfAbsent(dayKey, () => []).add(item as Map<String, dynamic>);
+    }
+
+    // Convert to daily forecasts (up to 7 days)
+    for (final entries in dayMap.values.take(7)) {
+      if (entries.isEmpty) continue;
+
+      final temps = entries.map((e) => (e['main']['temp'] as num).toDouble()).toList();
+      final humidity = (entries.first['main']['humidity'] as num).toDouble();
+      final precipChance = ((entries.first['clouds']['all'] as num).toInt()).clamp(0, 100);
+      final condition = entries.first['weather'][0]['main'] as String;
+      final dt = DateTime.fromMillisecondsSinceEpoch((entries.first['dt'] as int) * 1000);
+
+      forecasts.add(
+        WeatherForecast(
+          date: dt,
+          maxTemp: temps.reduce((a, b) => a > b ? a : b),
+          minTemp: temps.reduce((a, b) => a < b ? a : b),
+          condition: condition,
+          precipitationChance: precipChance,
+          humidity: humidity.toInt(),
+        ),
+      );
+    }
+
+    // If we have less than 7 days, supplement with mock data
+    while (forecasts.length < 7) {
+      forecasts.add(_getMockForecast()[forecasts.length]);
+    }
+
+    return forecasts.take(7).toList();
+  }
+
+  /// Check if forecast cache is still valid
+  bool _isForecastCacheValid() {
+    if (_forecastCacheTimestamp == null) return false;
+    return DateTime.now().difference(_forecastCacheTimestamp!) < _forecastCacheTTL;
   }
 
   /// Mock weather data - fallback
