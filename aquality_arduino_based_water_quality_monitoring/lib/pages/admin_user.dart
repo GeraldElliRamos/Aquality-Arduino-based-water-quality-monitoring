@@ -16,6 +16,7 @@ class _AdminUserViewState extends State<AdminUserView> {
   final _emailController = TextEditingController(text: 'admin@aquality.com');
   final _phoneController = TextEditingController(text: '+63 912 345 6789');
   final languageService = LanguageService();
+  bool _isLoadingProfile = true;
 
   String t(String key) => languageService.t(key);
 
@@ -23,6 +24,22 @@ class _AdminUserViewState extends State<AdminUserView> {
   void initState() {
     super.initState();
     languageService.addListener(_onLanguageChanged);
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() => _isLoadingProfile = true);
+    try {
+      final profile = await AuthService.getCurrentUserProfile();
+      if (profile != null && mounted) {
+        setState(() {
+          _nameController.text = profile['fullName'] ?? 'Admin User';
+          _emailController.text = profile['email'] ?? 'admin@aquality.com';
+          _phoneController.text = profile['phone'] ?? '+63 912 345 6789';
+        });
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _isLoadingProfile = false);
   }
 
   @override
@@ -152,12 +169,28 @@ class _AdminUserViewState extends State<AdminUserView> {
                             initialName: _nameController.text,
                             initialEmail: _emailController.text,
                             initialPhone: _phoneController.text,
-                            onSave: (name, email, phone) {
-                              setState(() {
-                                _nameController.text = name;
-                                _emailController.text = email;
-                                _phoneController.text = phone;
-                              });
+                            onSave: (name, email, phone) async {
+                              try {
+                                // Save to Firebase
+                                await AuthService.updateUserProfile(
+                                  fullName: name,
+                                  email: email,
+                                  phone: phone,
+                                );
+                                // Reload profile from Firebase
+                                await _loadProfile();
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Profile updated successfully')),
+                                  );
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Failed to save: $e')),
+                                  );
+                                }
+                              }
                             },
                           ),
                         ),

@@ -109,6 +109,35 @@ class _WeatherViewState extends State<WeatherView> {
               padding: const EdgeInsets.symmetric(vertical: 16.0),
               child: Column(
                 children: [
+                  // Manual Refresh Button
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Weather Updates',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            await _weatherService.fetchWeatherData();
+                          },
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('Refresh Now'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   // Current Weather Card
                   _buildCurrentWeatherCard(weatherData, isDark),
                   const SizedBox(height: 20),
@@ -117,7 +146,7 @@ class _WeatherViewState extends State<WeatherView> {
                   _buildSafeParametersSection(weatherData, isDark),
                   const SizedBox(height: 20),
 
-                  // 7-Day Forecast
+                  // 5-Day Forecast
                   _buildForecastSection(isDark),
                   const SizedBox(height: 20),
 
@@ -407,7 +436,7 @@ class _WeatherViewState extends State<WeatherView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            t('forecast_7day'),
+            t('forecast_5day'),
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),

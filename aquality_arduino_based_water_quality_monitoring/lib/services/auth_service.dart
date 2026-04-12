@@ -61,6 +61,24 @@ class AuthService {
     return doc.data();
   }
 
+  /// Update user profile information
+  static Future<void> updateUserProfile({
+    String? fullName,
+    String? email,
+    String? phone,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) throw Exception('User not authenticated');
+
+    final updates = <String, dynamic>{};
+    if (fullName != null) updates['fullName'] = fullName.trim();
+    if (email != null) updates['email'] = email.trim().toLowerCase();
+    if (phone != null) updates['phone'] = phone.trim();
+    updates['updatedAt'] = FieldValue.serverTimestamp();
+
+    await _db.collection('users').doc(uid).update(updates);
+  }
+
   static Future<void> signUp({
     required String fullName,
     required String username,

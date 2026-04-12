@@ -268,12 +268,28 @@ class _UserViewState extends State<UserView> {
           initialName:  _nameController.text,
           initialEmail: _emailController.text,
           initialPhone: _phoneController.text,
-          onSave: (name, email, phone) {
-            setState(() {
-              _nameController.text  = name;
-              _emailController.text = email;
-              _phoneController.text = phone;
-            });
+          onSave: (name, email, phone) async {
+            try {
+              // Save to Firebase
+              await AuthService.updateUserProfile(
+                fullName: name,
+                email: email,
+                phone: phone,
+              );
+              // Reload profile from Firebase
+              await _loadProfile();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Profile updated successfully')),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to save: $e')),
+                );
+              }
+            }
           },
         ),
       ),

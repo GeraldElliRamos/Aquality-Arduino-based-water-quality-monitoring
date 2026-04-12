@@ -92,6 +92,7 @@ class ESP32WeatherService {
   double? _lastLongitude;
   StreamSubscription<Position>? _positionSubscription;
   DateTime? _lastFetchTime;
+  Timer? _periodicRefreshTimer;
   
   /// Cache for API responses (5-minute TTL)
   WeatherData? _cachedWeatherData;
@@ -107,6 +108,8 @@ class ESP32WeatherService {
   final double _movementThresholdMeters = 50.0;
   /// Minimum interval between API fetches to avoid spamming (seconds)
   final int _minFetchIntervalSeconds = 30;
+  /// Periodic refresh interval (minutes) - refreshes weather every X minutes
+  static const int _periodicRefreshIntervalMinutes = 30;
 
   /// Initialize the service with API key from environment
   Future<void> init({String? apiKey}) async {
@@ -150,6 +153,27 @@ class ESP32WeatherService {
 
     // Initial fetch (single-shot) to populate UI immediately.
     await fetchWeatherData();
+    
+    // Start periodic refresh timer (every 30 minutes)
+    _startPeriodicRefresh();
+  }
+
+  /// Start periodic weather refresh timer
+  void _startPeriodicRefresh() {
+    _periodicRefreshTimer?.cancel();
+    _periodicRefreshTimer = Timer.periodic(
+      const Duration(minutes: _periodicRefreshIntervalMinutes),
+      (_) {
+        debugPrint('🔄 Periodic weather refresh triggered (every $_periodicRefreshIntervalMinutes min)');
+        fetchWeatherData();
+      },
+    );
+  }
+
+  /// Stop periodic refresh timer
+  void _stopPeriodicRefresh() {
+    _periodicRefreshTimer?.cancel();
+    _periodicRefreshTimer = null;
   }
 
   /// Fetch real weather data from OpenWeatherMap using device location
@@ -493,8 +517,8 @@ class ESP32WeatherService {
       dayMap.putIfAbsent(dayKey, () => []).add(item as Map<String, dynamic>);
     }
 
-    // Convert to daily forecasts (up to 7 days)
-    for (final entries in dayMap.values.take(7)) {
+    // Convert to daily forecasts (up to 5 days)
+    for (final entries in dayMap.values.take(5)) {
       if (entries.isEmpty) continue;
 
       final temps = entries.map((e) => (e['main']['temp'] as num).toDouble()).toList();
@@ -515,12 +539,7 @@ class ESP32WeatherService {
       );
     }
 
-    // If we have less than 7 days, supplement with mock data
-    while (forecasts.length < 7) {
-      forecasts.add(_getMockForecast()[forecasts.length]);
-    }
-
-    return forecasts.take(7).toList();
+    return forecasts.take(5).toList();
   }
 
   /// Check if forecast cache is still valid
@@ -595,29 +614,14 @@ class ESP32WeatherService {
         precipitationChance: 30,
         humidity: 72,
       ),
-      WeatherForecast(
-        date: now.add(const Duration(days: 5)),
-        maxTemp: 33.0,
-        minTemp: 25.0,
-        condition: 'Sunny',
-        precipitationChance: 5,
-        humidity: 65,
-      ),
-      WeatherForecast(
-        date: now.add(const Duration(days: 6)),
-        maxTemp: 32.5,
-        minTemp: 24.5,
-        condition: 'Sunny',
-        precipitationChance: 10,
-        humidity: 68,
-      ),
     ];
   }
 
   /// Dispose resources
   void dispose() {
-    stateNotifier.dispose();
     _positionSubscription?.cancel();
+    _stopPeriodicRefresh();
+    // Note: Don't dispose stateNotifier as it's a singleton that may be reused
   }
 }
 
