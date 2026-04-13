@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "1023376554960",
+    "firebase_url": "https://aquality-80539-default-rtdb.asia-southeast1.firebasedatabase.app",
     "project_id": "aquality-80539",
     "storage_bucket": "aquality-80539.firebasestorage.app"
   },
@@ -14,47 +15,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "1023376554960-9vtf0ai8u27dgd0d082f2r0ukjv1um75.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyD_-fJ4lsuftj82blRRdg81EnrluUuPZZo"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "1023376554960-9vtf0ai8u27dgd0d082f2r0ukjv1um75.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "1023376554960-tee58ctjirj8usgbplgpi52574fe8frk.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.aqualityArduinoBasedWaterQualityMonitoring"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:1023376554960:android:9347e5d25d6c24b10c97d5",
-        "android_client_info": {
-          "package_name": "om.example.aquality_arduino_based_water_quality_monitoring"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "1023376554960-huc8nh1j3uh8n2s2v61382lionlnpkda.apps.googleusercontent.com",
+          "client_id": "1023376554960-q30fcbadnc14s7h1b8uhnmj2fi452lg4.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "om.example.aquality_arduino_based_water_quality_monitoring",
-            "certificate_hash": "c729d1132b0175c898cefb33e6d7d31c183ab997"
+            "package_name": "com.example.aquality_arduino_based_water_quality_monitoring",
+            "certificate_hash": "b97ba5f7b52faee8d24621e78016f248c1ce4a0a"
           }
         },
         {

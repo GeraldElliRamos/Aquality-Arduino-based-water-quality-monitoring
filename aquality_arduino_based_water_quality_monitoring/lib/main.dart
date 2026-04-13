@@ -76,7 +76,6 @@ class _AqualityAppState extends State<AqualityApp> {
       darkTheme: themeService.darkTheme,
       themeMode: themeService.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       locale: languageService.locale,
-
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
@@ -87,7 +86,8 @@ class _AqualityAppState extends State<AqualityApp> {
             return ValueListenableBuilder<String>(
               valueListenable: AuthService.userRole,
               builder: (context, role, _) {
-                if (role.isEmpty) return const SplashView();
+                // FIX: avoid getting stuck on Splash when role is empty
+                if (role.isEmpty) return const RoleSelectionView();
                 switch (role) {
                   case 'fishPondOwner':
                     return const AppScreen(role: 'fishPondOwner');
@@ -102,7 +102,6 @@ class _AqualityAppState extends State<AqualityApp> {
           return const LoginView();
         },
       ),
-
       routes: {
         '/onboarding': (context) => const OnboardingView(),
         '/admin': (context) => const AdminView(),
@@ -118,7 +117,6 @@ class _AqualityAppState extends State<AqualityApp> {
         '/app-owner': (context) => const AppScreen(role: 'fishPondOwner'),
         '/app-lgu': (context) => const AppScreen(role: 'lgu'),
       },
-
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -339,7 +337,6 @@ class _AppScreenState extends State<AppScreen> {
               );
             },
           ),
-
         ),
         // Chatbot floating button
         const AqualityChatbot(),

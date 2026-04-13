@@ -4,7 +4,13 @@ const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3001);
+const MODEL_CANDIDATES = String(
+  process.env.GEMINI_MODELS || 'gemini-2.5-flash,gemini-1.5-flash'
+)
+  .split(',')
+  .map((m) => m.trim())
+  .filter(Boolean);
 
 const FREE_RPM_LIMIT = Number(process.env.FREE_RPM_LIMIT || 5);
 const FREE_RPD_LIMIT = Number(process.env.FREE_RPD_LIMIT || 20);
@@ -52,6 +58,56 @@ function getQuotaStatus(now = Date.now()) {
       day: Math.max(0, Math.ceil((ONE_DAY_MS - (now - dayWindowStart)) / 1000)),
     },
   };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableStatus(status) {
+  return status === 429 || status === 500 || status === 503;
+}
+
+async function callGeminiWithFallback({ apiKey, payload }) {
+  let lastError = null;
+
+  for (const model of MODEL_CANDIDATES) {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const response = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          payload,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            timeout: 20000,
+          }
+        );
+
+        return { model, response };
+      } catch (error) {
+        lastError = error;
+        const status = error?.response?.status;
+
+        // Retry transient failures for the same model.
+        if (isRetryableStatus(status) && attempt < 3) {
+          await sleep(500 * attempt);
+          continue;
+        }
+
+        // Try the next model for unsupported/invalid model errors.
+        if (status === 400 || status === 404) {
+          break;
+        }
+
+        // For non-retryable errors, bubble up immediately.
+        throw error;
+      }
+    }
+  }
+
+  throw lastError || new Error('All configured Gemini models failed.');
 }
 
 // Middleware
@@ -104,26 +160,21 @@ app.post('/api/chat', async (req, res) => {
       parts: [{ text: String(m.content ?? '') }],
     }));
 
-    // Call Gemini API
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${resolvedApiKey}`,
-      {
-        system_instruction: {
-          parts: [{ text: systemPrompt || 'You are a helpful assistant.' }],
-        },
-        contents: geminiMessages,
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 500,
-        },
+    const payload = {
+      system_instruction: {
+        parts: [{ text: systemPrompt || 'You are a helpful assistant.' }],
       },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        timeout: 20000,
-      }
-    );
+      contents: geminiMessages,
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 500,
+      },
+    };
+
+    const { model, response } = await callGeminiWithFallback({
+      apiKey: resolvedApiKey,
+      payload,
+    });
 
     const parts = response.data?.candidates?.[0]?.content?.parts ?? [];
     const reply = parts
@@ -139,7 +190,7 @@ app.post('/api/chat', async (req, res) => {
     }
 
     // Return normalized response
-    res.json({ success: true, reply, quota: getQuotaStatus() });
+    res.json({ success: true, reply, model, quota: getQuotaStatus() });
   } catch (error) {
     console.error('Proxy error:', error.message);
 
@@ -164,8 +215,16 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Chatbot proxy server running on http://localhost:${PORT}`);
   console.log(`📍 POST /api/chat - Forward messages to Gemini API`);
   console.log(`💚 GET /health - Check server status`);
+});
+
+server.on('error', (error) => {
+  if (error && error.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Set PORT in backend/.env to another value and restart.`);
+    process.exit(1);
+  }
+  throw error;
 });

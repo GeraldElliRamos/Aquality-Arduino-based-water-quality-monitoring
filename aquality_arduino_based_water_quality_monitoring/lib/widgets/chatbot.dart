@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import '../services/language_service.dart';
 
@@ -119,7 +120,7 @@ class _ChatWindow extends StatefulWidget {
 class _ChatWindowState extends State<_ChatWindow> {
   static const String _backendBaseUrl = String.fromEnvironment(
     'CHATBOT_BACKEND_URL',
-    defaultValue: 'http://localhost:3000',
+    defaultValue: 'http://127.0.0.1:3001',
   );
 
   final _controller = TextEditingController();
@@ -180,8 +181,10 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
   @override
   void initState() {
     super.initState();
-    // Enable HTTPS for Windows development
-    HttpOverrides.global = MyHttpOverrides();
+    // Only apply HttpOverrides on non-web platforms.
+    if (!kIsWeb) {
+      HttpOverrides.global = MyHttpOverrides();
+    }
     final intro = _backendBaseUrl.isEmpty
         ? '$_welcomeMessage\n\nNote: Chat is currently in local mode (no cloud backend configured).'
         : _welcomeMessage;
@@ -914,4 +917,3 @@ class _TypingDotState extends State<_TypingDot>
     );
   }
 }
-
