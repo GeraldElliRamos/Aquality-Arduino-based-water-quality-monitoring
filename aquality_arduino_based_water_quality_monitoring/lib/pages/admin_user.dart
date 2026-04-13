@@ -16,7 +16,6 @@ class _AdminUserViewState extends State<AdminUserView> {
   final _emailController = TextEditingController(text: 'admin@aquality.com');
   final _phoneController = TextEditingController(text: '+63 912 345 6789');
   final languageService = LanguageService();
-  bool _isLoadingProfile = true;
 
   String t(String key) => languageService.t(key);
 
@@ -28,7 +27,6 @@ class _AdminUserViewState extends State<AdminUserView> {
   }
 
   Future<void> _loadProfile() async {
-    setState(() => _isLoadingProfile = true);
     try {
       final profile = await AuthService.getCurrentUserProfile();
       if (profile != null && mounted) {
@@ -39,7 +37,6 @@ class _AdminUserViewState extends State<AdminUserView> {
         });
       }
     } catch (_) {}
-    if (mounted) setState(() => _isLoadingProfile = false);
   }
 
   @override
