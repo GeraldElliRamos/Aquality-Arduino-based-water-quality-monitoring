@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/language_service.dart';
 import '../services/esp32_weather_service.dart';
+import '../services/firebase_service.dart';
 import '../models/weather_data.dart';
 
 class WeatherView extends StatefulWidget {
@@ -14,6 +16,10 @@ class _WeatherViewState extends State<WeatherView> {
   late ESP32WeatherService _weatherService;
   final languageService = LanguageService();
 
+  // ── Firebase live sensor data ────────────────────────────────────────────
+  StreamSubscription<WaterQualityReading>? _sensorSub;
+  WaterQualityReading? _latestReading;
+
   String t(String key) => languageService.t(key);
 
   @override
@@ -22,6 +28,11 @@ class _WeatherViewState extends State<WeatherView> {
     languageService.addListener(_onLanguageChanged);
     _weatherService = ESP32WeatherService();
     _weatherService.fetchWeatherData();
+
+    // Subscribe to the Firebase realtime sensor stream
+    _sensorSub = FirebaseService.instance.sensorStream.listen((reading) {
+      if (mounted) setState(() => _latestReading = reading);
+    });
   }
 
   void _onLanguageChanged() => setState(() {});
@@ -29,7 +40,26 @@ class _WeatherViewState extends State<WeatherView> {
   @override
   void dispose() {
     languageService.removeListener(_onLanguageChanged);
+    _sensorSub?.cancel();
     super.dispose();
+  }
+
+  // ── Derive water temperature status from live Firebase reading ───────────
+  String _getTemperatureStatus(double temp, double minSafe, double maxSafe) {
+    if (_latestReading == null) return 'not_connected';
+    if (temp >= minSafe && temp <= maxSafe) return 'optimal';
+    final margin = (maxSafe - minSafe) * 0.15;
+    if (temp >= minSafe - margin && temp <= maxSafe + margin) return 'warning';
+    return 'critical';
+  }
+
+  // ── Derive turbidity status from live Firebase reading ───────────────────
+  String _getTurbidityStatus(double turbidity, double minSafe, double maxSafe) {
+    if (_latestReading == null) return 'not_connected';
+    if (turbidity >= minSafe && turbidity <= maxSafe) return 'optimal';
+    final margin = (maxSafe - minSafe) * 0.15;
+    if (turbidity >= minSafe - margin && turbidity <= maxSafe + margin) return 'warning';
+    return 'critical';
   }
 
   Color _getStatusColor(String status) {
@@ -138,11 +168,12 @@ class _WeatherViewState extends State<WeatherView> {
                     ),
                   ),
                   const SizedBox(height: 16),
+
                   // Current Weather Card
                   _buildCurrentWeatherCard(weatherData, isDark),
                   const SizedBox(height: 20),
 
-                  // Safe Parameters Section
+                  // Safe Parameters Section — now driven by Firebase
                   _buildSafeParametersSection(weatherData, isDark),
                   const SizedBox(height: 20),
 
@@ -298,17 +329,76 @@ class _WeatherViewState extends State<WeatherView> {
     );
   }
 
+  // ── Safe Parameters Section ──────────────────────────────────────────────
+  // Water temperature and turbidity values now come from Firebase Realtime DB.
+  // Safe-range bounds are still sourced from WeatherData (weather-adjusted).
   Widget _buildSafeParametersSection(WeatherData weatherData, bool isDark) {
+    // Live values from Firebase (fall back to double.infinity when not yet received)
+    final liveTemp = _latestReading?.temperature ?? double.infinity;
+    final liveTurb = _latestReading?.turbidity ?? double.infinity;
+
+    // Safe-range bounds from weather model
+    final minTemp = weatherData.safeTemperatureMin;
+    final maxTemp = weatherData.safeTemperatureMax;
+    final minTurb = weatherData.safeTurbidityMin;
+    final maxTurb = weatherData.safeTurbidityMax;
+
+    // Statuses computed from live Firebase data
+    final tempStatus = _getTemperatureStatus(liveTemp, minTemp, maxTemp);
+    final turbStatus = _getTurbidityStatus(liveTurb, minTurb, maxTurb);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            t('safe_parameter_status'),
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  t('safe_parameter_status'),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+              // Live indicator badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _latestReading != null
+                      ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                      : Colors.grey.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _latestReading != null
+                          ? Icons.circle
+                          : Icons.circle_outlined,
+                      size: 8,
+                      color: _latestReading != null
+                          ? const Color(0xFF10B981)
+                          : Colors.grey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _latestReading != null ? 'LIVE' : 'WAITING',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: _latestReading != null
+                            ? const Color(0xFF10B981)
+                            : Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Row(
@@ -316,11 +406,11 @@ class _WeatherViewState extends State<WeatherView> {
               Expanded(
                 child: _buildParameterCard(
                   title: t('water_temperature'),
-                  currentValue: weatherData.currentTemperature,
-                  minSafe: weatherData.safeTemperatureMin,
-                  maxSafe: weatherData.safeTemperatureMax,
+                  currentValue: liveTemp,
+                  minSafe: minTemp,
+                  maxSafe: maxTemp,
                   unit: '°C',
-                  status: weatherData.temperatureStatus,
+                  status: tempStatus,
                   icon: Icons.thermostat,
                   isDark: isDark,
                 ),
@@ -329,17 +419,31 @@ class _WeatherViewState extends State<WeatherView> {
               Expanded(
                 child: _buildParameterCard(
                   title: t('turbidity'),
-                  currentValue: weatherData.currentTurbidity,
-                  minSafe: weatherData.safeTurbidityMin,
-                  maxSafe: weatherData.safeTurbidityMax,
+                  currentValue: liveTurb,
+                  minSafe: minTurb,
+                  maxSafe: maxTurb,
                   unit: 'NTU',
-                  status: weatherData.turbidityStatus,
+                  status: turbStatus,
                   icon: Icons.opacity,
                   isDark: isDark,
                 ),
               ),
             ],
           ),
+          // Last updated timestamp from Firebase
+          if (_latestReading != null) ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                'Firebase updated: '
+                '${_latestReading!.timestamp.hour.toString().padLeft(2, '0')}:'
+                '${_latestReading!.timestamp.minute.toString().padLeft(2, '0')}:'
+                '${_latestReading!.timestamp.second.toString().padLeft(2, '0')}',
+                style: const TextStyle(fontSize: 10, color: Colors.grey),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -358,6 +462,12 @@ class _WeatherViewState extends State<WeatherView> {
     final hasReading = currentValue.isFinite;
     final statusColor = _getStatusColor(status);
     final isSafe = status == 'optimal';
+
+    // Progress value: how far through the safe range the reading sits (clamped 0–1)
+    double progressValue = 0;
+    if (hasReading && maxSafe > minSafe) {
+      progressValue = ((currentValue - minSafe) / (maxSafe - minSafe)).clamp(0.0, 1.0);
+    }
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -387,7 +497,7 @@ class _WeatherViewState extends State<WeatherView> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  status.toUpperCase(),
+                  status == 'not_connected' ? 'N/A' : status.toUpperCase(),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -416,7 +526,7 @@ class _WeatherViewState extends State<WeatherView> {
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: hasReading ? (isSafe ? 1.0 : 0.5) : 0,
+              value: hasReading ? (isSafe ? progressValue : 0.5) : 0,
               minHeight: 4,
               backgroundColor: Colors.grey.withValues(alpha: 0.2),
               valueColor: AlwaysStoppedAnimation<Color>(statusColor),
@@ -757,9 +867,9 @@ class _WeatherViewState extends State<WeatherView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'ESP32 Sensor Information',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
               color: Colors.grey,
@@ -783,6 +893,35 @@ class _WeatherViewState extends State<WeatherView> {
             t('turbidity_range'),
             '${weatherData.safeTurbidityMin} - ${weatherData.safeTurbidityMax} NTU',
           ),
+          // Show live Firebase readings in the info card too
+          if (_latestReading != null) ...[
+            const Divider(height: 16),
+            const Text(
+              'Firebase Live Readings',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 4),
+            _buildInfoRow(
+              'Water Temp',
+              '${_latestReading!.temperature.toStringAsFixed(1)}°C',
+            ),
+            _buildInfoRow(
+              'Turbidity',
+              '${_latestReading!.turbidity.toStringAsFixed(1)} NTU',
+            ),
+            _buildInfoRow(
+              'pH',
+              _latestReading!.ph.toStringAsFixed(2),
+            ),
+            _buildInfoRow(
+              'Ammonia (NH₃)',
+              '${_latestReading!.ammonia.toStringAsFixed(2)} ppm',
+            ),
+          ],
         ],
       ),
     );
@@ -804,4 +943,3 @@ class _WeatherViewState extends State<WeatherView> {
     );
   }
 }
-
