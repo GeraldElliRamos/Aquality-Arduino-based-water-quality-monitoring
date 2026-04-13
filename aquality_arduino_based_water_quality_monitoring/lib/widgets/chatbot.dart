@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:http/http.dart' as http;
 import '../services/language_service.dart';
 
@@ -118,14 +119,15 @@ class _ChatWindow extends StatefulWidget {
 }
 
 class _ChatWindowState extends State<_ChatWindow> {
-  static const String _backendBaseUrl = String.fromEnvironment(
+  static const String _configuredBackendUrl = String.fromEnvironment(
     'CHATBOT_BACKEND_URL',
-    defaultValue: 'http://127.0.0.1:3001',
+    defaultValue: '',
   );
 
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final List<Map<String, String>> _messages = [];
+  String? _activeBackendBaseUrl;
   bool _isLoading = false;
   String _quotaLabel = '';
 
@@ -185,19 +187,63 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
     if (!kIsWeb) {
       HttpOverrides.global = MyHttpOverrides();
     }
-    final intro = _backendBaseUrl.isEmpty
-        ? '$_welcomeMessage\n\nNote: Chat is currently in local mode (no cloud backend configured).'
-        : _welcomeMessage;
+    final intro = _welcomeMessage;
     _messages.add({'role': 'assistant', 'content': intro});
     _refreshQuotaStatus();
   }
 
+  List<String> _backendCandidates() {
+    final candidates = <String>[];
+
+    if (_configuredBackendUrl.trim().isNotEmpty) {
+      candidates.add(_configuredBackendUrl.trim());
+    }
+
+    if (kIsWeb) {
+      candidates.add('http://localhost:3001');
+      candidates.add('http://127.0.0.1:3001');
+    } else if (defaultTargetPlatform == TargetPlatform.android) {
+      // Android emulator maps host machine localhost to 10.0.2.2.
+      candidates.add('http://10.0.2.2:3001');
+      candidates.add('http://127.0.0.1:3001');
+      candidates.add('http://localhost:3001');
+    } else {
+      candidates.add('http://127.0.0.1:3001');
+      candidates.add('http://localhost:3001');
+    }
+
+    return candidates.toSet().toList();
+  }
+
+  Future<String?> _resolveBackendBaseUrl() async {
+    if (_activeBackendBaseUrl != null) {
+      return _activeBackendBaseUrl;
+    }
+
+    for (final candidate in _backendCandidates()) {
+      try {
+        final response = await http
+            .get(Uri.parse('$candidate/health'))
+            .timeout(const Duration(seconds: 3));
+        if (response.statusCode == 200) {
+          _activeBackendBaseUrl = candidate;
+          return candidate;
+        }
+      } catch (_) {
+        // Try the next candidate.
+      }
+    }
+
+    return null;
+  }
+
   Future<void> _refreshQuotaStatus() async {
-    if (_backendBaseUrl.isEmpty) return;
+    final backendBaseUrl = await _resolveBackendBaseUrl();
+    if (backendBaseUrl == null) return;
 
     try {
       final response = await http
-          .get(Uri.parse('$_backendBaseUrl/health'))
+          .get(Uri.parse('$backendBaseUrl/health'))
           .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) return;
@@ -437,7 +483,8 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
       apiMessages.removeAt(0);
     }
 
-    if (_backendBaseUrl.isEmpty) {
+    final backendBaseUrl = await _resolveBackendBaseUrl();
+    if (backendBaseUrl == null) {
       final fallback = _buildOfflineAnswer(text);
       setState(() {
         _messages.add({'role': 'assistant', 'content': fallback});
@@ -450,7 +497,7 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
     try {
       final response = await http
           .post(
-            Uri.parse('$_backendBaseUrl/api/chat'),
+            Uri.parse('$backendBaseUrl/api/chat'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'messages': apiMessages,
@@ -558,6 +605,7 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
       }
     } on SocketException catch (e) {
       print('Socket error: $e');
+      _activeBackendBaseUrl = null;
       final fallback = _buildOfflineAnswer(text);
       setState(() {
         _messages.add({
@@ -568,6 +616,7 @@ Keep responses concise, friendly, and helpful. Use emojis sparingly.
       });
     } on TimeoutException {
       print('Request timeout');
+      _activeBackendBaseUrl = null;
       final fallback = _buildOfflineAnswer(text);
       setState(() {
         _messages.add({
