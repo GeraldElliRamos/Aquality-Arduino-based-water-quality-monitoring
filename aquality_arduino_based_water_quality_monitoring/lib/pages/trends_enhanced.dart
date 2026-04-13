@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:math';
+import 'dart:async';
 import '../services/language_service.dart';
-import '../services/firebase_service.dart';
+import '../utils/chart_utils.dart';
+import '../utils/format_utils.dart';
 
 class TrendsViewEnhanced extends StatefulWidget {
   const TrendsViewEnhanced({super.key});
@@ -10,19 +13,144 @@ class TrendsViewEnhanced extends StatefulWidget {
   State<TrendsViewEnhanced> createState() => _TrendsViewEnhancedState();
 }
 
-class _TrendsViewEnhancedState extends State<TrendsViewEnhanced> {
+class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
+    with SingleTickerProviderStateMixin {
   String _range = '24h';
-  String _selectedParam = 'temperature';
-  late FirebaseService _firebaseService;
+  String _selectedParam = 'pH Level';
+  List<double> _currentData = [];
+  Timer? _updateTimer;
   final languageService = LanguageService();
 
   String t(String key) => languageService.t(key);
+
+  /// Helper function to translate parameter names
+  String getTranslatedParamName(String paramName) {
+    final translations = {
+      'Temperature': t('temperature'),
+      'pH Level': t('ph_level'),
+      'Turbidity': t('turbidity'),
+      'Ammonia': t('ammonia'),
+    };
+    return translations[paramName] ?? paramName;
+  }
+
+  /// Helper function to get color for each parameter
+  Map<String, Color> getParameterColors(String paramName) {
+    switch (paramName) {
+      case 'Temperature':
+        return {
+          'primary': const Color(0xFFF59E0B), // Orange
+          'light': const Color(0xFFFCD34D),  // Light Orange
+        };
+      case 'pH Level':
+        return {
+          'primary': const Color(0xFF8B5CF6), // Purple
+          'light': const Color(0xFFDDD6FE),  // Light Purple
+        };
+      case 'Turbidity':
+        return {
+          'primary': const Color(0xFF3B82F6), // Blue
+          'light': const Color(0xFFBFDBFE),  // Light Blue
+        };
+      case 'Ammonia':
+        return {
+          'primary': const Color(0xFF10B981), // Green
+          'light': const Color(0xFFD1FAE5),  // Light Green
+        };
+      default:
+        return {
+          'primary': const Color(0xFF6B7280), // Gray
+          'light': const Color(0xFFE5E7EB),  // Light Gray
+        };
+    }
+  }
+
+  final Map<String, List<double>> sampleData = {
+    'Temperature': [
+      25.2,
+      25.8,
+      26.5,
+      27.1,
+      27.8,
+      28.5,
+      29.1,
+      29.4,
+      28.9,
+      28.2,
+      27.5,
+      26.8
+    ],
+    'pH Level': [
+      6.8,
+      6.75,
+      6.82,
+      6.88,
+      6.92,
+      6.98,
+      7.02,
+      7.05,
+      7.08,
+      7.04,
+      7.0,
+      6.98
+    ],
+    'Turbidity': [
+      18.0,
+      19.2,
+      17.8,
+      20.1,
+      22.5,
+      24.0,
+      23.2,
+      25.4,
+      24.8,
+      22.9,
+      21.7,
+      20.3
+    ],
+    'Ammonia': [
+      0.1,
+      0.12,
+      0.11,
+      0.13,
+      0.15,
+      0.14,
+      0.13,
+      0.12,
+      0.11,
+      0.10,
+      0.09,
+      0.08
+    ],
+  };
+
+  late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
     languageService.addListener(_onLanguageChanged);
-    _firebaseService = FirebaseService();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _animationController.forward();
+    _currentData = List.from(sampleData[_selectedParam] ?? []);
+    
+    // Simulate real-time data updates
+    _updateTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted) {
+        setState(() {
+          // Add new value and remove oldest
+          final random = (sampleData[_selectedParam]?.last ?? 0);
+          final newValue = random + (Random().nextDouble() - 0.5) * 0.3;
+          _currentData.add(newValue);
+          if (_currentData.length > 12) {
+            _currentData.removeAt(0);
+          }
+        });
+      }
+    });
   }
 
   void _onLanguageChanged() => setState(() {});
@@ -30,397 +158,351 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced> {
   @override
   void dispose() {
     languageService.removeListener(_onLanguageChanged);
+    _animationController.dispose();
+    _updateTimer?.cancel();
     super.dispose();
-  }
-
-  DateTime _getRangeStart() {
-    final now = DateTime.now();
-    switch (_range) {
-      case '24h':
-        return now.subtract(const Duration(hours: 24));
-      case '7d':
-        return now.subtract(const Duration(days: 7));
-      case '30d':
-        return now.subtract(const Duration(days: 30));
-      case '90d':
-        return now.subtract(const Duration(days: 90));
-      default:
-        return now.subtract(const Duration(hours: 24));
-    }
-  }
-
-  Color _getParameterColor(String param) {
-    switch (param) {
-      case 'temperature':
-        return const Color(0xFFF59E0B);
-      case 'ph':
-        return const Color(0xFF8B5CF6);
-      case 'turbidity':
-        return const Color(0xFF3B82F6);
-      case 'nh3':
-        return const Color(0xFF10B981);
-      default:
-        return const Color(0xFF6B7280);
-    }
-  }
-
-  String _getParamDisplayName(String param) {
-    switch (param) {
-      case 'temperature':
-        return t('temperature');
-      case 'ph':
-        return t('ph_level');
-      case 'turbidity':
-        return t('turbidity');
-      case 'nh3':
-        return t('ammonia');
-      default:
-        return param;
-    }
-  }
-
-  String _getParamUnit(String param) {
-    switch (param) {
-      case 'temperature':
-        return '°C';
-      case 'ph':
-        return '';
-      case 'turbidity':
-        return 'NTU';
-      case 'nh3':
-        return 'mg/L';
-      default:
-        return '';
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final rangeStart = _getRangeStart();
-    final rangeEnd = DateTime.now();
+    final stats = ChartUtils.calculateStats(_currentData);
+    final trendPercent = ChartUtils.calculateTrendPercentage(_currentData);
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Parameter selector
-          Padding(
-            padding: const EdgeInsets.all(16),
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                t('parameter_trends'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey.shade800 : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.blue.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Text(
+                  _range,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Time Range Selector
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: ['24h', '7d', '30d', '90d'].map((range) {
+                final isSelected = range == _range;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(range),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() => _range = range);
+                      _animationController
+                        ..reset()
+                        ..forward();
+                    },
+                    backgroundColor:
+                        isDark ? Colors.grey.shade700 : Colors.grey.shade200,
+                    selectedColor: Colors.blue.withValues(alpha: 0.2),
+                    side: BorderSide(
+                      color: isSelected
+                          ? Colors.blue
+                          : (isDark
+                              ? Colors.grey.shade600
+                              : Colors.grey.shade400),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Parameter Selector
+          Text(
+            t('select_parameter'),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children:
+                  sampleData.keys.map((paramName) {
+                final isSelected = paramName == _selectedParam;
+                final paramColor = getParameterColors(paramName)['primary'] ?? Colors.purple;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(getTranslatedParamName(paramName)),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedParam = paramName;
+                        _currentData = sampleData[paramName] ?? [];
+                      });
+                      _animationController
+                        ..reset()
+                        ..forward();
+                    },
+                    backgroundColor:
+                        isDark ? Colors.grey.shade700 : Colors.grey.shade200,
+                    selectedColor: paramColor.withValues(alpha: 0.2),
+                    side: BorderSide(
+                      color: isSelected
+                          ? paramColor
+                          : (isDark
+                              ? Colors.grey.shade600
+                              : Colors.grey.shade400),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Statistics Cards
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  label: t('min'),
+                  value: FormatUtils.formatParamValue(stats['min'] ?? 0),
+                  color: getParameterColors(_selectedParam)['primary']!,
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildStatCard(
+                  label: t('max'),
+                  value: FormatUtils.formatParamValue(stats['max'] ?? 0),
+                  color: getParameterColors(_selectedParam)['primary']!.withOpacity(0.7),
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildStatCard(
+                  label: t('avg'),
+                  value: FormatUtils.formatParamValue(stats['avg'] ?? 0),
+                  color: getParameterColors(_selectedParam)['primary']!.withOpacity(0.4),
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Trend Indicator
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  t('trend_24h'),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                Row(
+                  children: [
+                    Icon(
+                      trendPercent > 0
+                          ? Icons.trending_up
+                          : (trendPercent < 0
+                              ? Icons.trending_down
+                              : Icons.trending_flat),
+                      color: ChartUtils.getTrendColor(trendPercent, isDark),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${trendPercent.abs().toStringAsFixed(1)}%',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: ChartUtils.getTrendColor(trendPercent, isDark),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Chart
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+              ),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Select Parameter',
-                  style: Theme.of(context).textTheme.titleSmall,
+                  _selectedParam,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: ['temperature', 'ph', 'nh3', 'turbidity']
-                        .map((param) {
-                      final isSelected = _selectedParam == param;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: GestureDetector(
-                          onTap: () => setState(() => _selectedParam = param),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? _getParameterColor(param)
-                                  : (isDark
-                                      ? Colors.grey.shade800
-                                      : Colors.grey.shade200),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              _getParamDisplayName(param),
-                              style: TextStyle(
-                                color: isSelected ? Colors.white : null,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                SizedBox(
+                  height: 250,
+                  child: LineChart(
+                    ChartUtils.buildLineChartData(
+                      _currentData,
+                      lineColor: getParameterColors(_selectedParam)['primary']!,
+                      gradientStartColor: getParameterColors(_selectedParam)['primary']!,
+                      gradientEndColor: getParameterColors(_selectedParam)['light']!,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 20),
 
-          // Time range selector
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Time Range',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: ['24h', '7d', '30d', '90d'].map((range) {
-                    final isSelected = _range == range;
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _range = range),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? _getParameterColor(_selectedParam)
-                                : (isDark
-                                    ? Colors.grey.shade800
-                                    : Colors.grey.shade200),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Center(
-                            child: Text(
-                              range,
-                              style: TextStyle(
-                                color: isSelected ? Colors.white : null,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
+          // Data Table
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: [
+                  DataColumn(label: Text(t('time'))),
+                  DataColumn(label: Text(t('value'))),
+                  DataColumn(label: Text(t('change'))),
+                ],
+                rows: List.generate(
+                  min(5, _currentData.length),
+                  (index) {
+                    final value = _currentData[index];
+                    final prevValue = index > 0 ? _currentData[index - 1] : value;
+                    final change = value - prevValue;
 
-          // Chart
-          FutureBuilder<Map<String, dynamic>>(
-            future: _firebaseService.getTrendStats(
-              _selectedParam,
-              rangeStart,
-              rangeEnd,
-            ),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Container(
-                  height: 250,
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  child: const Center(child: CircularProgressIndicator()),
-                );
-              }
-
-              if (!snapshot.hasData) {
-                return Container(
-                  height: 250,
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  child: const Center(child: Text('No data available')),
-                );
-              }
-
-              final stats = snapshot.data!;
-              final List<double> data = stats['data'] ?? [];
-
-              if (data.isEmpty) {
-                return Container(
-                  height: 250,
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  child: const Center(child: Text('No data available')),
-                );
-              }
-
-              final minVal = (stats['min'] as double?) ?? 0;
-              final maxVal = (stats['max'] as double?) ?? 0;
-              final avgVal = (stats['avg'] as double?) ?? 0;
-              final trend = (stats['trend'] as double?) ?? 0;
-
-              // Create line chart spots
-              final spots = <FlSpot>[];
-              for (int i = 0; i < data.length; i++) {
-                spots.add(FlSpot(i.toDouble(), data[i]));
-              }
-
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    // Line chart
-                    Container(
-                      height: 250,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isDark
-                              ? Colors.grey.shade700
-                              : Colors.grey.shade300,
+                    return DataRow(
+                      cells: [
+                        DataCell(
+                          Text('${index * 2} ${t('hours_ago')}'),
                         ),
-                      ),
-                      padding: const EdgeInsets.all(16),
-                      child: LineChart(
-                        LineChartData(
-                          gridData: FlGridData(
-                            show: true,
-                            drawVerticalLine: false,
-                            horizontalInterval: (maxVal - minVal) / 4,
-                            getDrawingHorizontalLine: (value) {
-                              return FlLine(
-                                color: isDark
-                                    ? Colors.grey[700]
-                                    : Colors.grey[300],
-                                strokeWidth: 0.5,
-                              );
-                            },
+                        DataCell(
+                          Text(FormatUtils.formatParamValue(value)),
+                        ),
+                        DataCell(
+                          Row(
+                            children: [
+                              Icon(
+                                change > 0
+                                    ? Icons.arrow_upward
+                                    : (change < 0
+                                        ? Icons.arrow_downward
+                                        : Icons.remove),
+                                size: 14,
+                                color: change > 0
+                                    ? Colors.red
+                                    : (change < 0
+                                        ? Colors.green
+                                        : Colors.grey),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                FormatUtils.formatParamValue(change.abs()),
+                                style: TextStyle(
+                                  color: change > 0
+                                      ? Colors.red
+                                      : (change < 0
+                                          ? Colors.green
+                                          : Colors.grey),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
-                          titlesData: FlTitlesData(
-                            show: true,
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                getTitlesWidget: (value, meta) {
-                                  return Text(
-                                    '${value.toInt()}',
-                                    style: const TextStyle(fontSize: 10),
-                                  );
-                                },
-                              ),
-                            ),
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                getTitlesWidget: (value, meta) {
-                                  return Text(
-                                    '${value.toStringAsFixed(1)}',
-                                    style: const TextStyle(fontSize: 10),
-                                  );
-                                },
-                                reservedSize: 40,
-                              ),
-                            ),
-                            topTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            rightTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                          ),
-                          borderData: FlBorderData(show: true),
-                          minX: 0,
-                          maxX: (data.length - 1).toDouble(),
-                          minY: minVal - (maxVal - minVal) * 0.1,
-                          maxY: maxVal + (maxVal - minVal) * 0.1,
-                          lineBarsData: [
-                            LineChartBarData(
-                              spots: spots,
-                              isCurved: true,
-                              color: _getParameterColor(_selectedParam),
-                              barWidth: 2,
-                              isStrokeCapRound: true,
-                              dotData: FlDotData(
-                                show: data.length <= 12,
-                                getDotPainter: (spot, percent, barData, index) {
-                                  return FlDotCirclePainter(
-                                    radius: 3,
-                                    color: _getParameterColor(_selectedParam),
-                                    strokeWidth: 0,
-                                  );
-                                },
-                              ),
-                              belowBarData: BarAreaData(
-                                show: true,
-                                color: _getParameterColor(_selectedParam)
-                                    .withOpacity(0.15),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Statistics cards
-                    GridView.count(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        _buildStatCard(
-                          'Min',
-                          '${minVal.toStringAsFixed(2)}${_getParamUnit(_selectedParam)}',
-                          Colors.blue,
-                          isDark,
-                        ),
-                        _buildStatCard(
-                          'Max',
-                          '${maxVal.toStringAsFixed(2)}${_getParamUnit(_selectedParam)}',
-                          Colors.red,
-                          isDark,
-                        ),
-                        _buildStatCard(
-                          'Average',
-                          '${avgVal.toStringAsFixed(2)}${_getParamUnit(_selectedParam)}',
-                          Colors.green,
-                          isDark,
-                        ),
-                        _buildStatCard(
-                          'Trend',
-                          '${trend.toStringAsFixed(1)}%',
-                          trend > 0 ? Colors.orange : Colors.purple,
-                          isDark,
                         ),
                       ],
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(
-    String label,
-    String value,
-    Color color,
-    bool isDark,
-  ) {
+  Widget _buildStatCard({
+    required String label,
+    required String value,
+    required Color color,
+    required bool isDark,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
               color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             value,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: color,
             ),

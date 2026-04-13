@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../services/firebase_service.dart';
+import 'parameter_detail.dart';
+import '../services/auth_service.dart';
+import '../services/preferences_service.dart';
 import '../services/language_service.dart';
-import '../models/history_entry.dart';
+import '../widgets/dialogs.dart';
+import '../widgets/shimmer_loading.dart';
 
 class HistoryView extends StatefulWidget {
   const HistoryView({super.key});
@@ -13,7 +16,7 @@ class HistoryView extends StatefulWidget {
 class _HistoryViewState extends State<HistoryView> {
   String _range = '7d';
   DateTimeRange? _customDateRange;
-  late FirebaseService _firebaseService;
+  bool _isLoading = true;
   final languageService = LanguageService();
 
   String t(String key) => languageService.t(key);
@@ -22,7 +25,9 @@ class _HistoryViewState extends State<HistoryView> {
   void initState() {
     super.initState();
     languageService.addListener(_onLanguageChanged);
-    _firebaseService = FirebaseService();
+    _range = PreferencesService.instance.lastTimeRange;
+    _customDateRange = _loadSavedDateRange();
+    _loadHistoryData();
   }
 
   void _onLanguageChanged() => setState(() {});
@@ -33,32 +38,36 @@ class _HistoryViewState extends State<HistoryView> {
     super.dispose();
   }
 
-  DateTime _getRangeStart() {
-    final now = DateTime.now();
-    if (_customDateRange != null) return _customDateRange!.start;
-    
-    switch (_range) {
-      case 'today':
-        return DateTime(now.year, now.month, now.day);
-      case 'yesterday':
-        return now.subtract(const Duration(days: 1));
-      case 'week':
-        return now.subtract(const Duration(days: 7));
-      case 'month':
-        return now.subtract(const Duration(days: 30));
-      default:
-        return now.subtract(const Duration(days: 7));
-    }
+  Future<void> _loadHistoryData() async {
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (mounted) setState(() => _isLoading = false);
   }
 
-  DateTime _getRangeEnd() {
-    if (_customDateRange != null) return _customDateRange!.end;
-    return DateTime.now();
+  DateTimeRange? _loadSavedDateRange() {
+    final start = PreferencesService.instance.historyStartDate;
+    final end = PreferencesService.instance.historyEndDate;
+    if (start != null && end != null) {
+      return DateTimeRange(start: start, end: end);
+    }
+    return null;
+  }
+
+  void _saveTimeRange(String range) {
+    PreferencesService.instance.setLastTimeRange(range);
+  }
+
+  void _saveDateRange(DateTimeRange? range) {
+    if (range != null) {
+      PreferencesService.instance.setHistoryDateRange(range.start, range.end);
+    } else {
+      PreferencesService.instance.setHistoryDateRange(null, null);
+    }
   }
 
   Future<void> _pickDateRange() async {
     final now = DateTime.now();
-    final initialRange = _customDateRange ??
+    final initialRange =
+        _customDateRange ??
         DateTimeRange(start: now.subtract(const Duration(days: 7)), end: now);
 
     final picked = await showDateRangePicker(
@@ -75,14 +84,58 @@ class _HistoryViewState extends State<HistoryView> {
       setState(() {
         _customDateRange = picked;
         _range = 'custom';
+        _saveTimeRange('custom');
+        _saveDateRange(picked);
       });
     }
   }
 
   void _setQuickFilter(String filter) {
+    final now = DateTime.now();
+    DateTimeRange range;
+
+    switch (filter) {
+      case 'today':
+        range = DateTimeRange(
+          start: DateTime(now.year, now.month, now.day),
+          end: now,
+        );
+        break;
+      case 'yesterday':
+        final yesterday = now.subtract(const Duration(days: 1));
+        range = DateTimeRange(
+          start: DateTime(yesterday.year, yesterday.month, yesterday.day),
+          end: DateTime(
+            yesterday.year,
+            yesterday.month,
+            yesterday.day,
+            23,
+            59,
+            59,
+          ),
+        );
+        break;
+      case 'week':
+        range = DateTimeRange(
+          start: now.subtract(const Duration(days: 7)),
+          end: now,
+        );
+        break;
+      case 'month':
+        range = DateTimeRange(
+          start: now.subtract(const Duration(days: 30)),
+          end: now,
+        );
+        break;
+      default:
+        return;
+    }
+
     setState(() {
+      _customDateRange = range;
       _range = filter;
-      _customDateRange = null;
+      _saveTimeRange(filter);
+      _saveDateRange(range);
     });
   }
 
@@ -94,246 +147,617 @@ class _HistoryViewState extends State<HistoryView> {
     return _range;
   }
 
-  String _buildCsv(List<HistoryEntry> entries) {
-    final headers = ['Date', 'Time', 'Temperature (°C)', 'pH', 'Ammonia (mg/L)', 'Turbidity (NTU)'];
+  final List<Map<String, dynamic>> _records = [
+    {
+      'id': '1',
+      'date': 'Feb 1',
+      'temp': 28.1,
+      'ph': 8.0,
+      'turbidity': 18.6,
+      'nh3': 0.10,
+    },
+    {
+      'id': '2',
+      'date': 'Feb 1',
+      'temp': 29.8,
+      'ph': 6.8,
+      'turbidity': 26.4,
+      'nh3': 0.15,
+    },
+    {
+      'id': '3',
+      'date': 'Jan 30',
+      'temp': 27.2,
+      'ph': 8.2,
+      'turbidity': 33.1,
+      'nh3': 0.22,
+    },
+  ];
+
+  // Tracks how many times each record has been re-inserted after undo,
+  // so re-inserted Dismissible widgets always get a fresh key.
+  final Map<String, int> _undoCount = {};
+
+  String _buildCsv(List<Map<String, dynamic>> rows) {
+    final headers = ['date', 'temp', 'ph', 'turbidity', 'nh3'];
     final sb = StringBuffer()..writeln(headers.join(','));
-    for (final entry in entries) {
-      sb.writeln(
-        '${entry.formattedDate},${entry.formattedTime},${entry.temperature.toStringAsFixed(2)},${entry.ph.toStringAsFixed(2)},${entry.ammonia.toStringAsFixed(3)},${entry.turbidity.toStringAsFixed(2)}',
-      );
+    for (final r in rows) {
+      sb.writeln('${r['date']},${r['temp']},${r['ph']},${r['turbidity']},${r['nh3']}');
     }
     return sb.toString();
   }
 
-  void _exportCsv(List<HistoryEntry> entries) {
-    final csv = _buildCsv(entries);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('CSV exported (${csv.length} bytes)')),
+  void _exportCsv() {
+    final csv = _buildCsv(_records);
+    SuccessSnackBar.show(context, 'Data exported (${csv.length} chars)');
+  }
+
+  Map<String, Object> _fieldMeta(String field) {
+    switch (field) {
+      case 'temp':
+        return {
+          'title': 'Temperature',
+          'unit': '°C',
+          'range': '27-30°C',
+          'icon': Icons.thermostat,
+          'color': Colors.orange,
+        };
+      case 'ph':
+        return {
+          'title': 'pH Level',
+          'unit': '',
+          'range': '6.5-9.0',
+          'icon': Icons.water_drop,
+          'color': Colors.purple,
+        };
+      case 'turbidity':
+        return {
+          'title': 'Turbidity',
+          'unit': 'NTU',
+          'range': '<=30 NTU',
+          'icon': Icons.blur_on,
+          'color': Colors.blue,
+        };
+      case 'nh3':
+        return {
+          'title': 'Ammonia',
+          'unit': 'mg/L',
+          'range': '<0.3 mg/L',
+          'icon': Icons.waves,
+          'color': Colors.green,
+        };
+      default:
+        return {
+          'title': field,
+          'unit': '',
+          'range': '-',
+          'icon': Icons.show_chart,
+          'color': Colors.blue,
+        };
+    }
+  }
+
+  void _showRecordDetail(
+    BuildContext context,
+    Map<String, dynamic> r,
+    int index,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Record ${r['date']}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    DateFormat.yMMMd().format(DateTime.now()),
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  _detailChip(ctx, 'temp', r['temp']),
+                  _detailChip(ctx, 'ph', r['ph']),
+                  _detailChip(ctx, 'turbidity', r['turbidity']),
+                  _detailChip(ctx, 'nh3', r['nh3']),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        // Delete record
+                        final removed = Map<String, dynamic>.from(r);
+                        final removedId = removed['id'] as String;
+                        final removedIndex = _records.indexWhere(
+                          (rec) => rec['id'] == removedId,
+                        );
+                        setState(
+                          () => _records.removeWhere(
+                            (rec) => rec['id'] == removedId,
+                          ),
+                        );
+                        Navigator.of(ctx).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(t('record_deleted')),
+                            action: SnackBarAction(
+                              label: t('undo'),
+                              onPressed: () {
+                                setState(() {
+                                  _records.insert(
+                                    removedIndex.clamp(0, _records.length),
+                                    removed,
+                                  );
+                                  _undoCount[removedId] =
+                                      (_undoCount[removedId] ?? 0) + 1;
+                                });
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.delete_forever),
+                      label: Text(t('delete')),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        final csv =
+                            'date,metric,value\n${r['date']},temp,${r['temp']}';
+                        SuccessSnackBar.show(
+                          context,
+                          'Prepared CSV snippet (${csv.length} chars)',
+                        );
+                        Navigator.of(ctx).pop();
+                      },
+                      icon: const Icon(Icons.share),
+                      label: Text(t('share')),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _detailChip(BuildContext ctx, String key, dynamic value) {
+    final meta = _fieldMeta(key);
+    return ActionChip(
+      avatar: Icon(
+        meta['icon'] as IconData,
+        size: 18,
+        color: meta['color'] as Color,
+      ),
+      label: Text(
+        '${meta['title']}: ${value.toString()} ${meta['unit'] as String}',
+      ),
+      onPressed: () {
+        Navigator.of(ctx).pop();
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (c) => ParameterDetailView(
+              title: meta['title'] as String,
+              value: value.toString(),
+              unit: meta['unit'] as String,
+              range: meta['range'] as String,
+              icon: meta['icon'] as IconData,
+              color: meta['color'] as Color,
+            ),
+          ),
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final rangeStart = _getRangeStart();
-    final rangeEnd = _getRangeEnd();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Historical Data',
-          style: Theme.of(context).textTheme.titleMedium,
+          t('historical_data'),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
         ),
         const SizedBox(height: 12),
-        
         // Quick filters
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _quickFilterChip('Today', 'today', isDark),
-              const SizedBox(width: 8),
-              _quickFilterChip('Yesterday', 'yesterday', isDark),
-              const SizedBox(width: 8),
-              _quickFilterChip('Week', 'week', isDark),
-              const SizedBox(width: 8),
-              _quickFilterChip('Month', 'month', isDark),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: _pickDateRange,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _range == 'custom' 
-                        ? Colors.blue 
-                        : (isDark ? Colors.grey.shade700 : Colors.grey.shade200),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _range == 'custom' ? Colors.blue : Colors.transparent,
-                    ),
-                  ),
-                  child: Text(
-                    'Custom',
-                    style: TextStyle(
-                      color: _range == 'custom' ? Colors.white : null,
-                      fontWeight: _range == 'custom' ? FontWeight.w600 : FontWeight.normal,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ),
+              _quickFilterChip(t('today'), 'today', isDark),
+              _quickFilterChip(t('yesterday'), 'yesterday', isDark),
+              _quickFilterChip(t('week'), 'week', isDark),
+              _quickFilterChip(t('month'), 'month', isDark),
+              _customDateRangeButton(isDark),
             ],
           ),
         ),
-        
-        if (_range == 'custom' && _customDateRange != null) ...[
-          const SizedBox(height: 8),
+        const SizedBox(height: 8),
+        // Display selected range
+        if (_customDateRange != null || _range == 'custom')
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
             decoration: BoxDecoration(
-              color: isDark ? Colors.grey.shade800.withOpacity(0.5) : Colors.blue.shade50,
+              color: isDark
+                  ? Colors.grey.shade800.withOpacity(0.5)
+                  : Colors.blue.shade50,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.calendar_today, size: 14),
+                Icon(
+                  Icons.calendar_today,
+                  size: 14,
+                  color: isDark ? Colors.grey.shade400 : Colors.blue.shade700,
+                ),
                 const SizedBox(width: 6),
-                Text(_getDateRangeText(), style: const TextStyle(fontSize: 12)),
-                const Spacer(),
+                Text(
+                  _getDateRangeText(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.grey.shade400 : Colors.blue.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 4),
                 GestureDetector(
-                  onTap: () => setState(() => _range = '7d'),
-                  child: const Icon(Icons.close, size: 16),
+                  onTap: () {
+                    setState(() {
+                      _customDateRange = null;
+                      _range = '7d';
+                      _saveTimeRange('7d');
+                      _saveDateRange(null);
+                    });
+                  },
+                  child: Icon(
+                    Icons.close,
+                    size: 14,
+                    color: isDark ? Colors.grey.shade400 : Colors.blue.shade700,
+                  ),
                 ),
               ],
             ),
           ),
-        ],
-        
         const SizedBox(height: 12),
-        
-        // History data
-        Expanded(
-          child: StreamBuilder<List<HistoryEntry>>(
-            stream: _firebaseService.historyStream,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final allEntries = snapshot.data ?? [];
-              final filteredEntries = allEntries
-                  .where((e) => e.timestamp.isAfter(rangeStart) && e.timestamp.isBefore(rangeEnd))
-                  .toList();
-
-              if (filteredEntries.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.history, size: 48, color: Colors.grey.shade400),
-                      const SizedBox(height: 12),
-                      Text('No data available for this period', 
-                        style: TextStyle(color: Colors.grey.shade500)),
-                    ],
+        ValueListenableBuilder<bool>(
+          valueListenable: AuthService.isAdmin,
+          builder: (context, isAdmin, _) {
+            return ValueListenableBuilder<bool>(
+              valueListenable: AuthService.isLGU,
+              builder: (context, isLGU, _) {
+                if (!isAdmin && !isLGU) return const SizedBox.shrink();
+                return SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _exportCsv,
+                    icon: const Icon(Icons.download, size: 18, color: Colors.white),
+                    label: Text(
+                      t('export_csv'),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(255, 34, 96, 231),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                   ),
                 );
-              }
-
-              return ListView.separated(
-                itemCount: filteredEntries.length + 1,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  if (index == filteredEntries.length) {
-                    return Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: ElevatedButton.icon(
-                        onPressed: () => _exportCsv(filteredEntries),
-                        icon: const Icon(Icons.file_download, size: 18),
-                        label: const Text('Export as CSV'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+              },
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: _isLoading
+              ? const ShimmerHistory()
+              : ListView.separated(
+                  itemCount: _records.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (context, i) {
+                    final r = _records[i];
+                    final recordId = r['id'] as String;
+                    return RepaintBoundary(
+                      child: Dismissible(
+                      key: Key('${recordId}_${_undoCount[recordId] ?? 0}'),
+                      direction: DismissDirection.endToStart,
+                      background: Container(),
+                      secondaryBackground: Container(
+                        padding: const EdgeInsets.only(right: 16),
+                        alignment: Alignment.centerRight,
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            const Icon(Icons.delete, color: Colors.red),
+                            const SizedBox(width: 8),
+                            Text(t('delete')),
+                          ],
                         ),
                       ),
+                      onDismissed: (direction) {
+                        final removed = Map<String, dynamic>.from(r);
+                        final removedIndex = _records.indexWhere(
+                          (rec) => rec['id'] == recordId,
+                        );
+                        setState(
+                          () => _records.removeWhere(
+                            (rec) => rec['id'] == recordId,
+                          ),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(t('record_deleted')),
+                            action: SnackBarAction(
+                              label: t('undo'),
+                              onPressed: () {
+                                setState(() {
+                                  _records.insert(
+                                    removedIndex.clamp(0, _records.length),
+                                    removed,
+                                  );
+                                  _undoCount[recordId] =
+                                      (_undoCount[recordId] ?? 0) + 1;
+                                });
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                      child: Semantics(
+                        button: true,
+                        label: 'Record ${r['date']}. Tap for details.',
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => _showRecordDetail(context, r, i),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.grey.shade800
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade200,
+                              ),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 14,
+                            ),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 72,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        r['date'],
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () => _openParamFromRecord(
+                                          'temp',
+                                          r['temp'].toString(),
+                                        ),
+                                        child: _metricColumn(
+                                          '${r['temp']}',
+                                          '°C',
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () => _openParamFromRecord(
+                                          'ph',
+                                          r['ph'].toString(),
+                                        ),
+                                        child: _metricColumn(
+                                          '${r['ph']}',
+                                          'pH',
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () => _openParamFromRecord(
+                                          'turbidity',
+                                          r['turbidity'].toString(),
+                                        ),
+                                        child: _metricColumn(
+                                          '${r['turbidity']}',
+                                          'NTU',
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () => _openParamFromRecord(
+                                          'nh3',
+                                          r['nh3'].toString(),
+                                        ),
+                                        child: _metricColumn(
+                                          '${r['nh3']}',
+                                          'NH₃',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                     );
-                  }
+                  },
+                  padding: const EdgeInsets.only(top: 8),
+                ),
+        ),
+      ],
+    );
+  }
 
-                  final entry = filteredEntries[index];
-                  return _buildHistoryTile(entry, isDark);
-                },
-              );
-            },
+  Widget _metricColumn(String value, String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            color: Color(0xFF10B981),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: isDark ? Colors.grey.shade400 : Colors.black54,
           ),
         ),
       ],
     );
   }
 
+  void _openParamFromRecord(String key, String value) {
+    final meta = _fieldMeta(key);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (c) => ParameterDetailView(
+          title: meta['title'] as String,
+          value: value,
+          unit: meta['unit'] as String,
+          range: meta['range'] as String,
+          icon: meta['icon'] as IconData,
+          color: meta['color'] as Color,
+        ),
+      ),
+    );
+  }
+
   Widget _quickFilterChip(String label, String value, bool isDark) {
-    final isSelected = _range == value;
+    final selected = _range == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: () => _setQuickFilter(value),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFF2563EB)
+                : (isDark ? Colors.grey.shade800 : Colors.white),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected
+                  ? Colors.transparent
+                  : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected
+                  ? Colors.white
+                  : (isDark ? Colors.grey.shade300 : Colors.black87),
+              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _customDateRangeButton(bool isDark) {
+    final selected = _range == 'custom';
     return GestureDetector(
-      onTap: () => _setQuickFilter(value),
+      onTap: _pickDateRange,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue : (isDark ? Colors.grey.shade700 : Colors.grey.shade200),
+          color: selected
+              ? const Color(0xFF2563EB)
+              : (isDark ? Colors.grey.shade800 : Colors.white),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? Colors.blue : Colors.transparent,
+            color: selected
+                ? Colors.transparent
+                : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : null,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            fontSize: 13,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.calendar_today,
+              size: 16,
+              color: selected
+                  ? Colors.white
+                  : (isDark ? Colors.grey.shade300 : Colors.black87),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Custom',
+              style: TextStyle(
+                color: selected
+                    ? Colors.white
+                    : (isDark ? Colors.grey.shade300 : Colors.black87),
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHistoryTile(HistoryEntry entry, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                entry.formattedDate,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              Text(
-                entry.formattedTime,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 16,
-            runSpacing: 8,
-            children: [
-              _parameterBadge('Temp', '${entry.temperature.toStringAsFixed(1)}°C', Colors.orange),
-              _parameterBadge('pH', entry.ph.toStringAsFixed(2), Colors.purple),
-              _parameterBadge('NH₃', '${entry.ammonia.toStringAsFixed(3)}mg/L', Colors.green),
-              _parameterBadge('Turbidity', '${entry.turbidity.toStringAsFixed(1)}NTU', Colors.blue),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _parameterBadge(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600),
-          ),
-          Text(
-            value,
-            style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold),
-          ),
-        ],
       ),
     );
   }

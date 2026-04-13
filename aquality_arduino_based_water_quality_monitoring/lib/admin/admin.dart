@@ -710,6 +710,7 @@ class _AdminViewState extends State<AdminView>
                   separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (context, i) {
                     final d = _devices[i];
+                    final isDark = Theme.of(context).brightness == Brightness.dark;
                     return Card(
                       elevation: 2,
                       child: Container(
@@ -1067,6 +1068,7 @@ class _AdminViewState extends State<AdminView>
                       endIndent: 12,
                     ),
                     itemBuilder: (ctx, i) {
+                      final isLast = i == _commandLog.length - 1;
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         child: Row(

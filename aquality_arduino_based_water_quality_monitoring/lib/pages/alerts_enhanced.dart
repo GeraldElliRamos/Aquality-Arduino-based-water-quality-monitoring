@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/alert.dart';
-import '../models/alert_entry.dart';
 import '../services/language_service.dart';
-import '../services/firebase_service.dart';
 import '../utils/color_utils.dart';
 import '../utils/format_utils.dart';
 import '../widgets/empty_state.dart';
@@ -19,15 +17,71 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
   final languageService = LanguageService();
-  late FirebaseService _firebaseService;
 
   String t(String key) => languageService.t(key);
 
+  /// Generate alerts list dynamically so translations update when language changes
+  List<Alert> get alerts => [
+    Alert(
+      id: '1',
+      title: t('water_cloudy'),
+      subtitle: 'Turbidity: 58.2 NTU',
+      level: AlertLevel.critical,
+      parameterName: 'Turbidity',
+      reading: 58.2,
+      unit: 'NTU',
+      timestamp: DateTime.now().subtract(const Duration(minutes: 30)),
+    ),
+    Alert(
+      id: '2',
+      title: t('water_acidic'),
+      subtitle: 'pH: 6.01',
+      level: AlertLevel.warning,
+      parameterName: 'pH Level',
+      reading: 6.01,
+      timestamp: DateTime.now().subtract(const Duration(minutes: 40)),
+    ),
+    Alert(
+      id: '3',
+      title: t('water_cloudy'),
+      subtitle: 'Turbidity: 52.4 NTU',
+      level: AlertLevel.critical,
+      parameterName: 'Turbidity',
+      reading: 52.4,
+      unit: 'NTU',
+      timestamp: DateTime.now().subtract(const Duration(hours: 4)),
+    ),
+    Alert(
+      id: '4',
+      title: t('check_sensors'),
+      subtitle: 'System: 0',
+      level: AlertLevel.info,
+      timestamp: DateTime.now().subtract(const Duration(hours: 5)),
+    ),
+    Alert(
+      id: '5',
+      title: t('backup_done'),
+      subtitle: 'System: 0',
+      level: AlertLevel.info,
+      timestamp: DateTime.now().subtract(const Duration(hours: 7)),
+    ),
+    Alert(
+      id: '6',
+      title: t('water_too_hot'),
+      subtitle: 'Temperature: 34.16 °C',
+      level: AlertLevel.critical,
+      parameterName: 'Temperature',
+      reading: 34.16,
+      unit: '°C',
+      timestamp: DateTime.now().subtract(const Duration(hours: 12)),
+    ),
+  ];
+
+  @override
   @override
   void initState() {
     super.initState();
     languageService.addListener(_onLanguageChanged);
-    _firebaseService = FirebaseService();
     _searchCtrl.addListener(() {
       setState(() {
         _searchQuery = _searchCtrl.text.toLowerCase();
@@ -44,74 +98,12 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
     super.dispose();
   }
 
-  /// Get alert level from alert type
-  AlertLevel _getAlertLevel(String type) {
-    switch (type.toLowerCase()) {
-      case 'critical':
-        return AlertLevel.critical;
-      case 'warning':
-        return AlertLevel.warning;
-      default:
-        return AlertLevel.info;
-    }
-  }
-
-  /// Convert AlertEntry to Alert for UI
-  Alert _convertToAlert(AlertEntry entry) {
-    final level = _getAlertLevel(entry.type);
-    final unit = _getUnitForParameter(entry.parameter);
-    
-    return Alert(
-      id: entry.id,
-      title: _getTitleForAlert(entry),
-      subtitle: '${entry.parameterDisplay}: ${entry.value.toStringAsFixed(2)} $unit',
-      level: level,
-      parameterName: entry.parameterDisplay,
-      reading: entry.value,
-      unit: unit,
-      timestamp: entry.timestamp,
-    );
-  }
-
-  String _getTitleForAlert(AlertEntry entry) {
-    switch (entry.parameter) {
-      case 'temperature':
-        if (entry.type == 'Critical') {
-          return entry.value > 32 ? 'Water Too Hot' : 'Water Too Cold';
-        }
-        return 'Temperature Warning';
-      case 'ph':
-        return entry.value < 6.5 ? 'Water Too Acidic' : 'Water Too Alkaline';
-      case 'nh3':
-        return 'Ammonia Level High';
-      case 'turbidity':
-        return 'Water Cloudy';
-      default:
-        return '${entry.parameterDisplay} Alert';
-    }
-  }
-
-  String _getUnitForParameter(String parameter) {
-    switch (parameter) {
-      case 'temperature':
-        return '°C';
-      case 'ph':
-        return '';
-      case 'nh3':
-        return 'mg/L';
-      case 'turbidity':
-        return 'NTU';
-      default:
-        return '';
-    }
-  }
-
-  List<Alert> _filterAlerts(List<AlertEntry> entries) {
-    var alerts = entries.map(_convertToAlert).toList();
+  List<Alert> get _filteredAlerts {
+    var filtered = alerts;
 
     // Filter by level
     if (_filter != 'All') {
-      alerts = alerts.where((a) {
+      filtered = filtered.where((a) {
         if (_filter == 'Critical') return a.level == AlertLevel.critical;
         if (_filter == 'Warning') return a.level == AlertLevel.warning;
         if (_filter == 'Info') return a.level == AlertLevel.info;
@@ -121,14 +113,14 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
 
     // Filter by search query
     if (_searchQuery.isNotEmpty) {
-      alerts = alerts.where((a) {
+      filtered = filtered.where((a) {
         return a.title.toLowerCase().contains(_searchQuery) ||
             a.subtitle.toLowerCase().contains(_searchQuery) ||
             (a.parameterName?.toLowerCase().contains(_searchQuery) ?? false);
       }).toList();
     }
 
-    return alerts;
+    return filtered;
   }
 
   Map<String, List<Alert>> _groupAlertsByDate(List<Alert> alerts) {
@@ -149,6 +141,9 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
 
     return groups;
   }
+
+  int countBy(AlertLevel level) =>
+      alerts.where((a) => a.level == level).length;
 
   void _showAlertDetail(BuildContext context, Alert alert) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -358,6 +353,9 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () {
+                            setState(() {
+                              alerts.removeWhere((a) => a.id == alert.id);
+                            });
                             Navigator.pop(ctx);
                           },
                           icon: const Icon(Icons.close_rounded),
@@ -374,6 +372,9 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () {
+                            setState(() {
+                              alerts.removeWhere((a) => a.id == alert.id);
+                            });
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -406,6 +407,8 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final filteredAlerts = _filteredAlerts;
+    final groupedAlerts = _groupAlertsByDate(filteredAlerts);
 
     return Column(
       children: [
@@ -436,32 +439,28 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                 ),
               ),
               const SizedBox(height: 12),
-              StreamBuilder<List<AlertEntry>>(
-                stream: _firebaseService.alertsStream,
-                builder: (context, snapshot) {
-                  final entries = snapshot.data ?? [];
-                  final alerts = entries.map(_convertToAlert).toList();
-                  
-                  int critical = alerts.where((a) => a.level == AlertLevel.critical).length;
-                  int warning = alerts.where((a) => a.level == AlertLevel.warning).length;
-                  int info = alerts.where((a) => a.level == AlertLevel.info).length;
-
-                  return SizedBox(
-                    height: 40,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        _buildFilterChip('All', critical + warning + info, isDark),
-                        const SizedBox(width: 8),
-                        _buildFilterChip('Critical', critical, isDark, color: Colors.red),
-                        const SizedBox(width: 8),
-                        _buildFilterChip('Warning', warning, isDark, color: Colors.orange),
-                        const SizedBox(width: 8),
-                        _buildFilterChip('Info', info, isDark, color: Colors.blue),
-                      ],
-                    ),
-                  );
-                },
+              SizedBox(
+                height: 40,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _buildFilterChip('All', countBy(AlertLevel.critical) +
+                            countBy(AlertLevel.warning) +
+                            countBy(AlertLevel.info),
+                        isDark),
+                    const SizedBox(width: 8),
+                    _buildFilterChip(
+                        'Critical', countBy(AlertLevel.critical), isDark,
+                        color: Colors.red),
+                    const SizedBox(width: 8),
+                    _buildFilterChip(
+                        'Warning', countBy(AlertLevel.warning), isDark,
+                        color: Colors.orange),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Info', countBy(AlertLevel.info), isDark,
+                        color: Colors.blue),
+                  ],
+                ),
               ),
             ],
           ),
@@ -469,68 +468,56 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
         const SizedBox(height: 16),
 
         // Alerts
-        Expanded(
-          child: StreamBuilder<List<AlertEntry>>(
-            stream: _firebaseService.alertsStream,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+        if (filteredAlerts.isEmpty)
+          Expanded(
+            child: EmptyState(
+              icon: Icons.notifications_none,
+              title: 'No Alerts',
+              description: _searchQuery.isNotEmpty
+                  ? 'No alerts match your search'
+                  : 'All systems running smoothly',
+              message: '',
+            ),
+          )
+        else
+          Expanded(
+            child: ListView.builder(
+              itemCount: groupedAlerts.keys.length,
+              itemBuilder: (context, groupIndex) {
+                final groupKey = groupedAlerts.keys.toList()[groupIndex];
+                final groupAlerts = groupedAlerts[groupKey]!;
 
-              final entries = snapshot.data ?? [];
-              final alerts = _filterAlerts(entries);
-              final groupedAlerts = _groupAlertsByDate(alerts);
-
-              if (alerts.isEmpty) {
-                return EmptyState(
-                  icon: Icons.notifications_none,
-                  title: 'No Alerts',
-                  description: _searchQuery.isNotEmpty
-                      ? 'No alerts match your search'
-                      : 'All systems running smoothly',
-                  message: '',
-                );
-              }
-
-              return ListView.builder(
-                itemCount: groupedAlerts.keys.length,
-                itemBuilder: (context, groupIndex) {
-                  final groupKey = groupedAlerts.keys.toList()[groupIndex];
-                  final groupAlerts = groupedAlerts[groupKey]!;
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 8,
-                        ),
-                        child: Text(
-                          groupKey,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : Colors.grey.shade600,
-                          ),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        groupKey,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
                         ),
                       ),
-                      ...groupAlerts.map((alert) {
-                        return _buildAlertItem(
-                          alert,
-                          isDark,
-                          onTap: () => _showAlertDetail(context, alert),
-                        );
-                      }),
-                    ],
-                  );
-                },
-              );
-            },
+                    ),
+                    ...groupAlerts.map((alert) {
+                      return _buildAlertItem(
+                        alert,
+                        isDark,
+                        onTap: () => _showAlertDetail(context, alert),
+                      );
+                    }),
+                  ],
+                );
+              },
+            ),
           ),
-        ),
       ],
     );
   }

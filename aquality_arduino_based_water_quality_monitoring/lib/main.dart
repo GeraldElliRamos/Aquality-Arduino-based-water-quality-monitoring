@@ -24,7 +24,6 @@ import 'services/preferences_service.dart';
 import 'services/language_service.dart';
 import 'services/esp32_weather_service.dart';
 import 'services/connectivity_service.dart';
-import 'services/firebase_service.dart';
 import 'pages/role_selection.dart';
 import 'widgets/chatbot.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -46,9 +45,6 @@ void main() async {
   // Initialize weather service with OpenWeatherMap API key
   final weatherApiKey = dotenv.env['OPENWEATHER_API_KEY'] ?? '';
   await ESP32WeatherService().init(apiKey: weatherApiKey);
-
-  // Initialize Firebase service for real-time database access
-  await FirebaseService().init();
 
   runApp(const AqualityApp());
 }
