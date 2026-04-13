@@ -6,6 +6,7 @@ import '../utils/format_utils.dart';
 import '../services/language_service.dart';
 import '../services/notification_service.dart';
 import '../services/threshold_service.dart';
+import '../services/firebase_service.dart';
 
 class DashboardEnhanced extends StatefulWidget {
   const DashboardEnhanced({super.key});
@@ -15,143 +16,224 @@ class DashboardEnhanced extends StatefulWidget {
 }
 
 class _DashboardEnhancedState extends State<DashboardEnhanced> {
+  // ── State ────────────────────────────────────────────────────────────────
   bool _isRefreshing = false;
   bool _isLoading = true;
+  bool _isConnected = false;
+  bool _hasError = false;
   DateTime _lastRefreshedAt = DateTime.now();
-  Timer? _refreshTimer;
+
+  // Live sensor values — nullable so we know if Firebase has sent real data yet
+  double? _temperature;
+  double? _ph;
+  double? _ammonia;
+  double? _turbidity;
+
+  // ── Subscriptions / timers ───────────────────────────────────────────────
+  StreamSubscription<WaterQualityReading>? _sensorSub;
   Timer? _displayTimer;
+
   final languageService = LanguageService();
-
   String t(String key) => languageService.t(key);
-  
-  // Smart refresh: cache parameter values to skip rebuilds when unchanged
-  final Map<String, double> _lastParameterValues = {
-    'temperature': -1,
-    'pH': -1,
-    'ammonia': -1,
-    'turbidity': -1,
-  };
 
+  // ── Lifecycle ────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
     languageService.addListener(_onLanguageChanged);
-    _loadInitialData();
-    _startTimers();
+    _initFirebase();
+    _displayTimer =
+        Timer.periodic(const Duration(seconds: 30), (_) => _tick());
   }
 
   @override
   void dispose() {
     languageService.removeListener(_onLanguageChanged);
-    _refreshTimer?.cancel();
+    _sensorSub?.cancel();
     _displayTimer?.cancel();
     super.dispose();
   }
 
-  void _onLanguageChanged() => setState(() {});
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
 
-  void _startTimers() {
-    // Auto-refresh sensor data every 30 seconds.
-    _refreshTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => _autoRefresh(),
+  void _tick() {
+    if (mounted) setState(() {});
+  }
+
+  // ── Firebase ─────────────────────────────────────────────────────────────
+  Future<void> _initFirebase() async {
+    try {
+      final initial = await FirebaseService.instance.fetchOnce();
+      if (mounted) _applyReading(initial, connected: true);
+    } catch (e) {
+      debugPrint('[Dashboard] fetchOnce error: $e');
+      // Don't leave the user stuck on shimmer — show disconnected state
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+          _isConnected = false;
+        });
+      }
+    }
+
+    // Subscribe to live updates regardless of whether fetchOnce succeeded
+    _sensorSub = FirebaseService.instance.sensorStream.listen(
+      (reading) {
+        if (mounted) _applyReading(reading, connected: true);
+      },
+      onError: (e) {
+        debugPrint('[Dashboard] stream error: $e');
+        if (mounted) {
+          setState(() {
+            _hasError = true;
+            _isConnected = false;
+            _isLoading = false; // never stay stuck on shimmer
+          });
+        }
+      },
     );
-    // Tick every 30 s so the "Updated X ago" text stays current.
-    _displayTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) setState(() {});
+  }
+
+  void _applyReading(WaterQualityReading r, {required bool connected}) {
+    // Treat 0.0 as a valid sensor value only after the first real read.
+    // placeholder() returns all zeros — detect that and keep showing shimmer
+    // until we get a non-placeholder reading (timestamp is DateTime.now() for
+    // placeholders, so we can't distinguish; instead check if the DB node exists
+    // via the stream null-check in firebase_service.dart).
+    final isPlaceholder = r.temperature == 0.0 &&
+        r.ph == 0.0 &&
+        r.ammonia == 0.0 &&
+        r.turbidity == 0.0;
+
+    final hasChanges = !isPlaceholder &&
+        ((_temperature == null) ||
+            (_temperature! - r.temperature).abs() > 0.001 ||
+            (_ph! - r.ph).abs() > 0.001 ||
+            (_ammonia! - r.ammonia).abs() > 0.0001 ||
+            (_turbidity! - r.turbidity).abs() > 0.001);
+
+    setState(() {
+      if (!isPlaceholder) {
+        _temperature = r.temperature;
+        _ph = r.ph;
+        _ammonia = r.ammonia;
+        _turbidity = r.turbidity;
+        _lastRefreshedAt = r.timestamp;
+      }
+      _isConnected = connected;
+      _isLoading = false;
+      _hasError = false;
     });
+
+    if (hasChanges) unawaited(_checkThresholds());
   }
 
-  Future<void> _loadInitialData() async {
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) {
-      _lastRefreshedAt = DateTime.now();
-      setState(() => _isLoading = false);
-      unawaited(_checkThresholds());
-    }
-  }
-
-  Future<void> _autoRefresh() async {
-    if (_isRefreshing || !mounted) return;
-    
-    // Check if parameters have changed before updating UI
-    final hasChanges = _hasParametersChanged();
-    
-    setState(() => _isRefreshing = true);
-    await Future.delayed(const Duration(milliseconds: 300));
-    _lastRefreshedAt = DateTime.now();
-    if (mounted) {
-      setState(() => _isRefreshing = false);
-      // Only check thresholds if data changed (skip redundant notifications)
-      if (hasChanges) {
-        unawaited(_checkThresholds());
-      }
-    }
-  }
-  
-  /// Compare current param values with cached values to detect changes
-  bool _hasParametersChanged() {
-    final mockValues = <String, double>{
-      'temperature': 29.4,
-      'pH': 6.81,
-      'ammonia': 0.016,
-      'turbidity': 18.4,
-    };
-    
-    for (final entry in mockValues.entries) {
-      final id = entry.key;
-      final value = entry.value;
-      final lastValue = _lastParameterValues[id] ?? -1;
-      // Threshold: 0.01 change triggers update (prevents jitter from sensor noise)
-      if ((value - lastValue).abs() > 0.01) {
-        _lastParameterValues[id] = value;
-        return true;
-      }
-    }
-    return false;
-  }
-
+  // ── Pull-to-refresh ───────────────────────────────────────────────────────
   Future<void> _onRefresh() async {
+    if (!mounted) return;
     setState(() => _isRefreshing = true);
-    await Future.delayed(const Duration(milliseconds: 500));
-    _lastRefreshedAt = DateTime.now();
-    if (mounted) {
-      setState(() => _isRefreshing = false);
-      unawaited(_checkThresholds());
+    try {
+      final reading = await FirebaseService.instance.fetchOnce();
+      if (mounted) _applyReading(reading, connected: true);
+    } catch (e) {
+      debugPrint('[Dashboard] refresh error: $e');
+      if (mounted) setState(() {
+        _hasError = true;
+        _isConnected = false;
+      });
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
     }
   }
 
+  // ── Threshold / notification check ────────────────────────────────────────
   Future<void> _checkThresholds() async {
-    final stored = await ThresholdService.getAllThresholds();
-    final effective = stored.isEmpty
-        ? ThresholdService.getDefaultThresholds()
-        : stored;
+    final temp = _temperature;
+    final ph = _ph;
+    final ammonia = _ammonia;
+    final turbidity = _turbidity;
+    if (temp == null || ph == null || ammonia == null || turbidity == null) {
+      return;
+    }
 
-    // Mock values — swap with real sensor data when Arduino is connected.
-    final mockValues = <String, (double, String)>{
-      'temperature': (29.4, '°C'),
-      'pH': (6.81, ''),
-      'ammonia': (0.016, 'mg/L'),
-      'turbidity': (18.4, 'NTU'),
+    final stored = await ThresholdService.getAllThresholds();
+    final effective =
+        stored.isEmpty ? ThresholdService.getDefaultThresholds() : stored;
+
+    final liveValues = <String, (double, String)>{
+      'temperature': (temp,     '°C'),
+      'pH':          (ph,       ''),
+      'ammonia':     (ammonia,  'mg/L'),
+      'turbidity':   (turbidity,'NTU'),
     };
 
-    for (final t in effective) {
-      final entry = mockValues[t.parameterId];
+    for (final threshold in effective) {
+      final entry = liveValues[threshold.parameterId];
       if (entry == null) continue;
       await NotificationService.instance.checkAndNotify(
-        parameterId: t.parameterId,
-        parameterName: t.parameterName,
-        value: entry.$1,
-        unit: entry.$2,
-        minSafe: t.minSafeValue,
-        maxSafe: t.maxSafeValue,
-        warningMin: t.warningMinValue,
-        warningMax: t.warningMaxValue,
-        enableNotifications: t.enableNotifications,
+        parameterId:         threshold.parameterId,
+        parameterName:       threshold.parameterName,
+        value:               entry.$1,
+        unit:                entry.$2,
+        minSafe:             threshold.minSafeValue,
+        maxSafe:             threshold.maxSafeValue,
+        warningMin:          threshold.warningMinValue,
+        warningMax:          threshold.warningMaxValue,
+        enableNotifications: threshold.enableNotifications,
       );
     }
   }
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  String _statusLabel(String parameterId, double value) {
+    switch (parameterId) {
+      case 'temperature':
+        return (value >= 26 && value <= 29) ? t('optimal_range') : t('warning');
+      case 'pH':
+        return (value >= 7.0 && value <= 8.5) ? t('optimal_range') : t('warning');
+      case 'ammonia':
+        return (value >= 0 && value <= 0.02) ? t('safe_level') : t('warning');
+      case 'turbidity':
+        return (value >= 0 && value <= 30) ? t('safe_level') : t('warning');
+      default:
+        return t('optimal_range');
+    }
+  }
+
+  Color _statusColor(String parameterId, double value) {
+    const ok = Color(0xFF10B981);
+    final warn = Colors.orange;
+    switch (parameterId) {
+      case 'temperature': return (value >= 26 && value <= 29) ? ok : warn;
+      case 'pH':          return (value >= 7.0 && value <= 8.5) ? ok : warn;
+      case 'ammonia':     return (value >= 0 && value <= 0.02) ? ok : warn;
+      case 'turbidity':   return (value >= 0 && value <= 30) ? ok : warn;
+      default:            return ok;
+    }
+  }
+
+  int _countByStatus(String status) {
+    int count = 0;
+    final checks = <(String, double?, double, double)>[
+      ('temperature', _temperature, 26.0, 29.0),
+      ('pH',          _ph,          7.0,  8.5),
+      ('ammonia',     _ammonia,     0.0,  0.02),
+      ('turbidity',   _turbidity,   0.0,  30.0),
+    ];
+    for (final c in checks) {
+      final v = c.$2;
+      if (v == null) continue; // not yet received
+      final inRange = v >= c.$3 && v <= c.$4;
+      if (status == 'optimal' && inRange) count++;
+      if (status == 'warning' && !inRange) count++;
+    }
+    return count;
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -166,67 +248,66 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
     final summary = [
       {
         'label': t('optimal'),
-        'count': 5,
-        'color': Colors.green[700],
-        'bg': isDark ? Colors.green[900]!.withValues(alpha: 0.3) : Colors.green[50],
+        'count': _countByStatus('optimal'),
+        'color': Colors.green[700]!,
+        'bg': isDark
+            ? Colors.green[900]!.withValues(alpha: 0.3)
+            : Colors.green[50]!,
       },
       {
         'label': t('warning'),
-        'count': 0,
-        'color': Colors.orange[800],
-        'bg': isDark ? Colors.orange[900]!.withValues(alpha: 0.3) : Colors.orange[50],
+        'count': _countByStatus('warning'),
+        'color': Colors.orange[800]!,
+        'bg': isDark
+            ? Colors.orange[900]!.withValues(alpha: 0.3)
+            : Colors.orange[50]!,
       },
       {
         'label': t('critical'),
         'count': 0,
-        'color': Colors.red[700],
-        'bg': isDark ? Colors.red[900]!.withValues(alpha: 0.3) : Colors.red[50],
+        'color': Colors.red[700]!,
+        'bg': isDark
+            ? Colors.red[900]!.withValues(alpha: 0.3)
+            : Colors.red[50]!,
       },
     ];
 
+    // Use ?? 0.0 so the gauge renders even before data arrives
     final parameters = [
       {
-        'id': 'temperature',
-        'title': t('temperature'),
-        'rawValue': 29.4,
-        'unit': '°C',
-        'minSafe': 27.0,
-        'maxSafe': 30.0,
-        'status': t('optimal_range'),
-        'statusColor': Color(0xFF10B981),
+        'id':         'temperature',
+        'title':      t('temperature'),
+        'rawValue':   _temperature ?? 0.0,
+        'unit':       '°C',
+        'minSafe':    26.0,
+        'maxSafe':    29.0,
         'gaugeColor': Colors.orange,
       },
       {
-        'id': 'pH',
-        'title': t('ph_level'),
-        'rawValue': 6.81,
-        'unit': '',
-        'minSafe': 6.5,
-        'maxSafe': 9.0,
-        'status': t('optimal_range'),
-        'statusColor': Color(0xFF10B981),
+        'id':         'pH',
+        'title':      t('ph_level'),
+        'rawValue':   _ph ?? 0.0,
+        'unit':       '',
+        'minSafe':    7.0,
+        'maxSafe':    8.5,
         'gaugeColor': Colors.purple,
       },
       {
-        'id': 'ammonia',
-        'title': t('ammonia'),
-        'rawValue': 0.016,
-        'unit': 'mg/L',
-        'minSafe': 0.0,
-        'maxSafe': 0.02,
-        'status': t('safe_level'),
-        'statusColor': Color(0xFF10B981),
+        'id':         'ammonia',
+        'title':      t('ammonia'),
+        'rawValue':   _ammonia ?? 0.0,
+        'unit':       'mg/L',
+        'minSafe':    0.0,
+        'maxSafe':    0.02,
         'gaugeColor': Colors.amber,
       },
       {
-        'id': 'turbidity',
-        'title': t('turbidity'),
-        'rawValue': 18.4,
-        'unit': 'NTU',
-        'minSafe': 0.0,
-        'maxSafe': 30.0,
-        'status': t('safe_level'),
-        'statusColor': Color(0xFF10B981),
+        'id':         'turbidity',
+        'title':      t('turbidity'),
+        'rawValue':   _turbidity ?? 0.0,
+        'unit':       'NTU',
+        'minSafe':    0.0,
+        'maxSafe':    30.0,
         'gaugeColor': Colors.blue,
       },
     ];
@@ -239,6 +320,7 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ── System Status card ──────────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -247,8 +329,8 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: isDark
-                      ? [Color(0xFF1E293B), Color(0xFF0F172A)]
-                      : [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                      ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                      : [const Color(0xFF3B82F6), const Color(0xFF2563EB)],
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
@@ -283,9 +365,8 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                               color: item['bg'] as Color,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: (item['color'] as Color).withValues(
-                                  alpha: 0.3,
-                                ),
+                                color: (item['color'] as Color)
+                                    .withValues(alpha: 0.3),
                               ),
                             ),
                             child: Center(
@@ -329,23 +410,41 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.2),
+                          color: (_hasError
+                                  ? Colors.red
+                                  : _isConnected
+                                      ? Colors.green
+                                      : Colors.orange)
+                              .withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: Colors.green.withValues(alpha: 0.4),
+                            color: (_hasError
+                                    ? Colors.red
+                                    : _isConnected
+                                        ? Colors.green
+                                        : Colors.orange)
+                                .withValues(alpha: 0.4),
                           ),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
                             Icon(
-                              Icons.signal_cellular_alt,
+                              _hasError
+                                  ? Icons.wifi_off
+                                  : Icons.signal_cellular_alt,
                               size: 14,
-                              color: Colors.greenAccent,
+                              color: _hasError
+                                  ? Colors.redAccent
+                                  : Colors.greenAccent,
                             ),
-                            SizedBox(width: 4),
+                            const SizedBox(width: 4),
                             Text(
-                              'Connected',
-                              style: TextStyle(
+                              _hasError
+                                  ? 'Disconnected'
+                                  : _isConnected
+                                      ? 'Live'
+                                      : 'Connecting…',
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
@@ -356,10 +455,70 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                       ),
                     ],
                   ),
+                  if (_hasError) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded,
+                              size: 16, color: Colors.redAccent),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Could not reach Firebase. Pull down to retry.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  // ── No data yet banner (connected but DB path empty) ────
+                  if (!_hasError && _isConnected && _temperature == null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.sensors_off,
+                              size: 16, color: Colors.orangeAccent),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Waiting for sensor data at /sensors/latest …',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
+
             const SizedBox(height: 14),
+
+            if (_isRefreshing)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -375,12 +534,14 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
               ),
             ),
             const SizedBox(height: 12),
+
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: GridView.builder(
                 physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
@@ -389,39 +550,33 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                 itemCount: parameters.length,
                 itemBuilder: (context, index) {
                   final param = parameters[index];
+                  final id  = param['id'] as String;
+                  final raw = param['rawValue'] as double;
+
                   return GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              ParameterDetail(title: param['title'] as String),
-                        ),
-                      );
-                    },
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ParameterDetail(title: param['title'] as String),
+                      ),
+                    ),
                     child: Builder(
                       builder: (context) {
-                        final id = param['id'] as String?;
-                        final raw = (param['rawValue'] as double);
-                        double displayValue = raw;
-                        bool anomalous = false;
-                        if (id != null) {
-                          final sv = NotificationService.instance
-                              .getSmoothedValue(id);
-                          if (sv != null) displayValue = sv;
-                          anomalous = NotificationService.instance.isAnomalous(
-                            id,
-                          );
-                        }
+                        final sv =
+                            NotificationService.instance.getSmoothedValue(id);
+                        final displayValue = sv ?? raw;
+                        final anomalous =
+                            NotificationService.instance.isAnomalous(id);
 
                         return GaugeWidget(
-                          title: param['title'] as String,
-                          value: displayValue,
-                          minSafe: param['minSafe'] as double,
-                          maxSafe: param['maxSafe'] as double,
-                          unit: param['unit'] as String,
-                          status: param['status'] as String,
-                          statusColor: param['statusColor'] as Color,
-                          gaugeColor: param['gaugeColor'] as Color,
+                          title:       param['title'] as String,
+                          value:       displayValue,
+                          minSafe:     param['minSafe'] as double,
+                          maxSafe:     param['maxSafe'] as double,
+                          unit:        param['unit'] as String,
+                          status:      _statusLabel(id, displayValue),
+                          statusColor: _statusColor(id, displayValue),
+                          gaugeColor:  param['gaugeColor'] as Color,
                           isAnomalous: anomalous,
                         );
                       },
@@ -438,6 +593,9 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Placeholder detail page
+// ---------------------------------------------------------------------------
 Widget ParameterDetail({required String title}) {
   return Scaffold(
     appBar: AppBar(title: Text(title)),
