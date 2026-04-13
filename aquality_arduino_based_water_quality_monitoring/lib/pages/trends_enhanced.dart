@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'dart:math';
 import 'dart:async';
 import '../services/language_service.dart';
+import '../services/firebase_service.dart';
 import '../utils/chart_utils.dart';
 import '../utils/format_utils.dart';
 
@@ -17,8 +18,11 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
     with SingleTickerProviderStateMixin {
   String _range = '24h';
   String _selectedParam = 'pH Level';
+  List<WaterQualityReading> _historyData = [];
   List<double> _currentData = [];
   Timer? _updateTimer;
+  StreamSubscription? _sensorSubscription;
+  bool _isLoading = true;
   final languageService = LanguageService();
 
   String t(String key) => languageService.t(key);
@@ -65,62 +69,19 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
     }
   }
 
+  // Fallback sample data when no Firebase history exists
   final Map<String, List<double>> sampleData = {
     'Temperature': [
-      25.2,
-      25.8,
-      26.5,
-      27.1,
-      27.8,
-      28.5,
-      29.1,
-      29.4,
-      28.9,
-      28.2,
-      27.5,
-      26.8
+      25.2, 25.8, 26.5, 27.1, 27.8, 28.5, 29.1, 29.4, 28.9, 28.2, 27.5, 26.8
     ],
     'pH Level': [
-      6.8,
-      6.75,
-      6.82,
-      6.88,
-      6.92,
-      6.98,
-      7.02,
-      7.05,
-      7.08,
-      7.04,
-      7.0,
-      6.98
+      6.8, 6.75, 6.82, 6.88, 6.92, 6.98, 7.02, 7.05, 7.08, 7.04, 7.0, 6.98
     ],
     'Turbidity': [
-      18.0,
-      19.2,
-      17.8,
-      20.1,
-      22.5,
-      24.0,
-      23.2,
-      25.4,
-      24.8,
-      22.9,
-      21.7,
-      20.3
+      18.0, 19.2, 17.8, 20.1, 22.5, 24.0, 23.2, 25.4, 24.8, 22.9, 21.7, 20.3
     ],
     'Ammonia': [
-      0.1,
-      0.12,
-      0.11,
-      0.13,
-      0.15,
-      0.14,
-      0.13,
-      0.12,
-      0.11,
-      0.10,
-      0.09,
-      0.08
+      0.1, 0.12, 0.11, 0.13, 0.15, 0.14, 0.13, 0.12, 0.11, 0.10, 0.09, 0.08
     ],
   };
 
@@ -135,31 +96,102 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
       duration: const Duration(milliseconds: 800),
     );
     _animationController.forward();
-    _currentData = List.from(sampleData[_selectedParam] ?? []);
     
-    // Simulate real-time data updates
-    _updateTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    _loadHistoryData();
+    _subscribeToLiveUpdates();
+  }
+
+  void _onLanguageChanged() => setState(() {});
+
+  /// Load historical data from Firebase
+  Future<void> _loadHistoryData() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final hours = _getHoursFromRange(_range);
+      final readings = await FirebaseService.instance.fetchHistory(hours: hours);
+      
       if (mounted) {
         setState(() {
-          // Add new value and remove oldest
-          final random = (sampleData[_selectedParam]?.last ?? 0);
-          final newValue = random + (Random().nextDouble() - 0.5) * 0.3;
-          _currentData.add(newValue);
-          if (_currentData.length > 12) {
-            _currentData.removeAt(0);
-          }
+          _historyData = readings;
+          _updateCurrentData();
+          _isLoading = false;
         });
+      }
+    } catch (e) {
+      debugPrint('[TrendsView] Error loading history: $e');
+      if (mounted) {
+        setState(() {
+          _historyData = [];
+          _currentData = List.from(sampleData[_selectedParam] ?? []);
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  /// Subscribe to live sensor updates
+  void _subscribeToLiveUpdates() {
+    _sensorSubscription = FirebaseService.instance.sensorStream.listen((reading) {
+      if (mounted && !_isLoading) {
+        // Only add if it's a new reading (not placeholder)
+        if (reading.temperature != 0 || reading.ph != 0) {
+          setState(() {
+            // Add new reading to history
+            _historyData.add(reading);
+            
+            // Keep only relevant time range
+            final cutoff = DateTime.now().subtract(
+              Duration(hours: _getHoursFromRange(_range))
+            );
+            _historyData.removeWhere((r) => r.timestamp.isBefore(cutoff));
+            
+            _updateCurrentData();
+          });
+        }
       }
     });
   }
 
-  void _onLanguageChanged() => setState(() {});
+  /// Extract values for the selected parameter from history
+  void _updateCurrentData() {
+    if (_historyData.isEmpty) {
+      _currentData = List.from(sampleData[_selectedParam] ?? []);
+      return;
+    }
+
+    switch (_selectedParam) {
+      case 'Temperature':
+        _currentData = _historyData.map((r) => r.temperature).toList();
+        break;
+      case 'pH Level':
+        _currentData = _historyData.map((r) => r.ph).toList();
+        break;
+      case 'Turbidity':
+        _currentData = _historyData.map((r) => r.turbidity).toList();
+        break;
+      case 'Ammonia':
+        _currentData = _historyData.map((r) => r.ammonia).toList();
+        break;
+    }
+  }
+
+  int _getHoursFromRange(String range) {
+    switch (range) {
+      case '24h': return 24;
+      case '7d': return 168;
+      case '30d': return 720;
+      case '90d': return 2160;
+      default: return 24;
+    }
+  }
 
   @override
   void dispose() {
     languageService.removeListener(_onLanguageChanged);
     _animationController.dispose();
     _updateTimer?.cancel();
+    _sensorSubscription?.cancel();
     super.dispose();
   }
 
@@ -169,305 +201,372 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
     final stats = ChartUtils.calculateStats(_currentData);
     final trendPercent = ChartUtils.calculateTrendPercentage(_currentData);
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                t('parameter_trends'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey.shade800 : Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.blue.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Text(
-                  _range,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blue,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Time Range Selector
-          SizedBox(
-            height: 44,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: ['24h', '7d', '30d', '90d'].map((range) {
-                final isSelected = range == _range;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(range),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() => _range = range);
-                      _animationController
-                        ..reset()
-                        ..forward();
-                    },
-                    backgroundColor:
-                        isDark ? Colors.grey.shade700 : Colors.grey.shade200,
-                    selectedColor: Colors.blue.withValues(alpha: 0.2),
-                    side: BorderSide(
-                      color: isSelected
-                          ? Colors.blue
-                          : (isDark
-                              ? Colors.grey.shade600
-                              : Colors.grey.shade400),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Parameter Selector
-          Text(
-            t('select_parameter'),
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 44,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children:
-                  sampleData.keys.map((paramName) {
-                final isSelected = paramName == _selectedParam;
-                final paramColor = getParameterColors(paramName)['primary'] ?? Colors.purple;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(getTranslatedParamName(paramName)),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedParam = paramName;
-                        _currentData = sampleData[paramName] ?? [];
-                      });
-                      _animationController
-                        ..reset()
-                        ..forward();
-                    },
-                    backgroundColor:
-                        isDark ? Colors.grey.shade700 : Colors.grey.shade200,
-                    selectedColor: paramColor.withValues(alpha: 0.2),
-                    side: BorderSide(
-                      color: isSelected
-                          ? paramColor
-                          : (isDark
-                              ? Colors.grey.shade600
-                              : Colors.grey.shade400),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Statistics Cards
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  label: t('min'),
-                  value: FormatUtils.formatParamValue(stats['min'] ?? 0),
-                  color: getParameterColors(_selectedParam)['primary']!,
-                  isDark: isDark,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildStatCard(
-                  label: t('max'),
-                  value: FormatUtils.formatParamValue(stats['max'] ?? 0),
-                  color: getParameterColors(_selectedParam)['primary']!.withOpacity(0.7),
-                  isDark: isDark,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildStatCard(
-                  label: t('avg'),
-                  value: FormatUtils.formatParamValue(stats['avg'] ?? 0),
-                  color: getParameterColors(_selectedParam)['primary']!.withOpacity(0.4),
-                  isDark: isDark,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Trend Indicator
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-              ),
-            ),
-            child: Row(
+    return RefreshIndicator(
+      onRefresh: _loadHistoryData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  t('trend_24h'),
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  t('parameter_trends'),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 Row(
                   children: [
-                    Icon(
-                      trendPercent > 0
-                          ? Icons.trending_up
-                          : (trendPercent < 0
-                              ? Icons.trending_down
-                              : Icons.trending_flat),
-                      color: ChartUtils.getTrendColor(trendPercent, isDark),
-                      size: 18,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${trendPercent.abs().toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: ChartUtils.getTrendColor(trendPercent, isDark),
+                    // Loading indicator
+                    if (_isLoading)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.grey.shade800 : Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.blue.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _historyData.isEmpty 
+                              ? Icons.cloud_off 
+                              : Icons.cloud_done,
+                            size: 14,
+                            color: _historyData.isEmpty ? Colors.grey : Colors.blue,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _range,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-          // Chart
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            // Firebase data indicator
+            if (_historyData.isEmpty && !_isLoading)
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'No history data yet. Showing sample data. Your Arduino should write to /Aquality_history.',
+                        style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Time Range Selector
+            SizedBox(
+              height: 44,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: ['24h', '7d', '30d', '90d'].map((range) {
+                  final isSelected = range == _range;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(range),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() => _range = range);
+                        _animationController
+                          ..reset()
+                          ..forward();
+                        _loadHistoryData();
+                      },
+                      backgroundColor:
+                          isDark ? Colors.grey.shade700 : Colors.grey.shade200,
+                      selectedColor: Colors.blue.withValues(alpha: 0.2),
+                      side: BorderSide(
+                        color: isSelected
+                            ? Colors.blue
+                            : (isDark
+                                ? Colors.grey.shade600
+                                : Colors.grey.shade400),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 20),
+
+            // Parameter Selector
+            Text(
+              t('select_parameter'),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 44,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: ['Temperature', 'pH Level', 'Turbidity', 'Ammonia'].map((param) {
+                  final isSelected = param == _selectedParam;
+                  final paramColor = getParameterColors(param)['primary']!;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(getTranslatedParamName(param)),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          _selectedParam = param;
+                          _updateCurrentData();
+                        });
+                        _animationController
+                          ..reset()
+                          ..forward();
+                      },
+                      backgroundColor:
+                          isDark ? Colors.grey.shade700 : Colors.grey.shade200,
+                      selectedColor: paramColor.withValues(alpha: 0.2),
+                      side: BorderSide(
+                        color: isSelected
+                            ? paramColor
+                            : (isDark
+                                ? Colors.grey.shade600
+                                : Colors.grey.shade400),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Statistics Cards
+            Row(
               children: [
-                Text(
-                  _selectedParam,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: _buildStatCard(
+                    label: t('min'),
+                    value: FormatUtils.formatParamValue(stats['min'] ?? 0),
+                    color: getParameterColors(_selectedParam)['primary']!,
+                    isDark: isDark,
                   ),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 250,
-                  child: LineChart(
-                    ChartUtils.buildLineChartData(
-                      _currentData,
-                      lineColor: getParameterColors(_selectedParam)['primary']!,
-                      gradientStartColor: getParameterColors(_selectedParam)['primary']!,
-                      gradientEndColor: getParameterColors(_selectedParam)['light']!,
-                    ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildStatCard(
+                    label: t('max'),
+                    value: FormatUtils.formatParamValue(stats['max'] ?? 0),
+                    color: getParameterColors(_selectedParam)['primary']!.withValues(alpha: 0.7),
+                    isDark: isDark,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildStatCard(
+                    label: t('avg'),
+                    value: FormatUtils.formatParamValue(stats['avg'] ?? 0),
+                    color: getParameterColors(_selectedParam)['primary']!.withValues(alpha: 0.4),
+                    isDark: isDark,
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-          // Data Table
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-              ),
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: [
-                  DataColumn(label: Text(t('time'))),
-                  DataColumn(label: Text(t('value'))),
-                  DataColumn(label: Text(t('change'))),
-                ],
-                rows: List.generate(
-                  min(5, _currentData.length),
-                  (index) {
-                    final value = _currentData[index];
-                    final prevValue = index > 0 ? _currentData[index - 1] : value;
-                    final change = value - prevValue;
-
-                    return DataRow(
-                      cells: [
-                        DataCell(
-                          Text('${index * 2} ${t('hours_ago')}'),
-                        ),
-                        DataCell(
-                          Text(FormatUtils.formatParamValue(value)),
-                        ),
-                        DataCell(
-                          Row(
-                            children: [
-                              Icon(
-                                change > 0
-                                    ? Icons.arrow_upward
-                                    : (change < 0
-                                        ? Icons.arrow_downward
-                                        : Icons.remove),
-                                size: 14,
-                                color: change > 0
-                                    ? Colors.red
-                                    : (change < 0
-                                        ? Colors.green
-                                        : Colors.grey),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                FormatUtils.formatParamValue(change.abs()),
-                                style: TextStyle(
-                                  color: change > 0
-                                      ? Colors.red
-                                      : (change < 0
-                                          ? Colors.green
-                                          : Colors.grey),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+            // Trend Indicator
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                 ),
               ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${t('trend_24h')} (${_historyData.length} readings)',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  Row(
+                    children: [
+                      Icon(
+                        trendPercent > 0
+                            ? Icons.trending_up
+                            : (trendPercent < 0
+                                ? Icons.trending_down
+                                : Icons.trending_flat),
+                        color: ChartUtils.getTrendColor(trendPercent, isDark),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${trendPercent.abs().toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: ChartUtils.getTrendColor(trendPercent, isDark),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-        ],
+            const SizedBox(height: 20),
+
+            // Chart
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _selectedParam,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 250,
+                    child: _currentData.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No data available',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          )
+                        : LineChart(
+                            ChartUtils.buildLineChartData(
+                              _currentData,
+                              lineColor: getParameterColors(_selectedParam)['primary']!,
+                              gradientStartColor: getParameterColors(_selectedParam)['primary']!,
+                              gradientEndColor: getParameterColors(_selectedParam)['light']!,
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Data Table
+            if (_currentData.isNotEmpty)
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columns: [
+                      DataColumn(label: Text(t('time'))),
+                      DataColumn(label: Text(t('value'))),
+                      DataColumn(label: Text(t('change'))),
+                    ],
+                    rows: List.generate(
+                      min(5, _currentData.length),
+                      (index) {
+                        final value = _currentData[index];
+                        final prevValue = index > 0 ? _currentData[index - 1] : value;
+                        final change = value - prevValue;
+
+                        // Calculate time ago if we have history data
+                        String timeLabel;
+                        if (_historyData.isNotEmpty && index < _historyData.length) {
+                          final timestamp = _historyData[index].timestamp;
+                          timeLabel = FormatUtils.formatTimeAgo(timestamp);
+                        } else {
+                          timeLabel = '${index * 2} ${t('hours_ago')}';
+                        }
+
+                        return DataRow(
+                          cells: [
+                            DataCell(Text(timeLabel)),
+                            DataCell(
+                              Text(FormatUtils.formatParamValue(value)),
+                            ),
+                            DataCell(
+                              Row(
+                                children: [
+                                  Icon(
+                                    change > 0
+                                        ? Icons.arrow_upward
+                                        : (change < 0
+                                            ? Icons.arrow_downward
+                                            : Icons.remove),
+                                    size: 14,
+                                    color: change > 0
+                                        ? Colors.red
+                                        : (change < 0
+                                            ? Colors.green
+                                            : Colors.grey),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    FormatUtils.formatParamValue(change.abs()),
+                                    style: TextStyle(
+                                      color: change > 0
+                                          ? Colors.red
+                                          : (change < 0
+                                              ? Colors.green
+                                              : Colors.grey),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
@@ -512,4 +611,3 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
     );
   }
 }
-

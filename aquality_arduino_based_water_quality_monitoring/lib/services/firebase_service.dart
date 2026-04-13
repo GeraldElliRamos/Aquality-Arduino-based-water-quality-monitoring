@@ -41,6 +41,23 @@ class WaterQualityReading {
     );
   }
 
+  /// Parses a history entry with explicit timestamp key
+  factory WaterQualityReading.fromHistoryEntry(String timestampKey, Map<dynamic, dynamic> data) {
+    double parseValue(dynamic v, double fallback) {
+      if (v == null) return fallback;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString()) ?? fallback;
+    }
+
+    return WaterQualityReading(
+      temperature: parseValue(data['temperature'], 0.0),
+      ph:          parseValue(data['ph'], 0.0),
+      ammonia:     parseValue(data['nh3'], 0.0),
+      turbidity:   parseValue(data['turbidity'], 0.0),
+      timestamp: DateTime.fromMillisecondsSinceEpoch(int.parse(timestampKey)),
+    );
+  }
+
   /// Fallback reading used while waiting for the first Firebase event.
   static WaterQualityReading get placeholder => WaterQualityReading(
         temperature: 0,
@@ -49,6 +66,16 @@ class WaterQualityReading {
         turbidity: 0,
         timestamp: DateTime.now(),
       );
+
+  /// Converts to JSON for storing in history
+  Map<String, dynamic> toJson() {
+    return {
+      'temperature': temperature,
+      'ph': ph,
+      'nh3': ammonia,
+      'turbidity': turbidity,
+    };
+  }
 }
 
 /// Service that streams live sensor data from Firebase Realtime Database.
@@ -61,6 +88,16 @@ class WaterQualityReading {
 ///   nh3         : 0.1
 ///   turbidity   : 23
 ///   timestamp   : 1713000000000   ← epoch ms (optional)
+///
+/// /Aquality_history
+///   1713000000000:
+///     temperature : 27.7
+///     ph          : 7
+///     nh3         : 0.1
+///     turbidity   : 23
+///   1713003600000:
+///     temperature : 27.8
+///     ...
 /// ```
 class FirebaseService {
   FirebaseService._();
@@ -72,7 +109,11 @@ class FirebaseService {
 
   late final DatabaseReference _sensorsRef = FirebaseDatabase
       .instanceFor(app: FirebaseDatabase.instance.app, databaseURL: _dbUrl)
-      .ref('Aquality');  // 🔥 Changed from 'sensors/latest' to 'Aquality'
+      .ref('Aquality');
+
+  late final DatabaseReference _historyRef = FirebaseDatabase
+      .instanceFor(app: FirebaseDatabase.instance.app, databaseURL: _dbUrl)
+      .ref('Aquality_history');
 
   // ── Public stream ────────────────────────────────────────────────────────
   /// Broadcast stream of the latest sensor reading.
@@ -104,5 +145,82 @@ class FirebaseService {
       debugPrint('[FirebaseService] fetchOnce error: $e');
       return WaterQualityReading.placeholder;
     }
+  }
+
+  // ── History methods ──────────────────────────────────────────────────────
+  
+  /// Fetches historical readings for a given time range.
+  /// 
+  /// [hours] - Number of hours to look back (e.g., 24, 168 for 7 days, 720 for 30 days)
+  /// Returns list of readings sorted by timestamp (oldest to newest)
+  Future<List<WaterQualityReading>> fetchHistory({required int hours}) async {
+    try {
+      final endTime = DateTime.now().millisecondsSinceEpoch;
+      final startTime = endTime - (hours * 60 * 60 * 1000);
+
+      final snapshot = await _historyRef
+          .orderByKey()
+          .startAt(startTime.toString())
+          .endAt(endTime.toString())
+          .get();
+
+      if (snapshot.value == null) {
+        debugPrint('[FirebaseService] No history data found');
+        return [];
+      }
+
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
+      final readings = <WaterQualityReading>[];
+
+      data.forEach((timestampKey, value) {
+        try {
+          if (value is Map) {
+            final reading = WaterQualityReading.fromHistoryEntry(
+              timestampKey,
+              Map<dynamic, dynamic>.from(value),
+            );
+            readings.add(reading);
+          }
+        } catch (e) {
+          debugPrint('[FirebaseService] Error parsing history entry: $e');
+        }
+      });
+
+      // Sort by timestamp
+      readings.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      
+      debugPrint('[FirebaseService] Fetched ${readings.length} history readings');
+      return readings;
+    } catch (e) {
+      debugPrint('[FirebaseService] fetchHistory error: $e');
+      return [];
+    }
+  }
+
+  /// Saves the current reading to history.
+  /// Call this periodically (e.g., every 5 minutes) from your Arduino or app.
+  Future<void> saveToHistory(WaterQualityReading reading) async {
+    try {
+      final timestamp = reading.timestamp.millisecondsSinceEpoch;
+      await _historyRef.child(timestamp.toString()).set(reading.toJson());
+      debugPrint('[FirebaseService] Saved reading to history at $timestamp');
+    } catch (e) {
+      debugPrint('[FirebaseService] saveToHistory error: $e');
+    }
+  }
+
+  /// Automatically saves current reading to history every [intervalMinutes].
+  /// Returns a StreamSubscription that can be cancelled.
+  StreamSubscription<void> startAutoSaveHistory({int intervalMinutes = 5}) {
+    return Stream.periodic(Duration(minutes: intervalMinutes)).listen((_) async {
+      try {
+        final reading = await fetchOnce();
+        if (reading.temperature != 0 || reading.ph != 0) {
+          await saveToHistory(reading);
+        }
+      } catch (e) {
+        debugPrint('[FirebaseService] Auto-save error: $e');
+      }
+    });
   }
 }
