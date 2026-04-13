@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'dart:math';
+import '../services/firebase_service.dart';
 import '../widgets/info_tooltip.dart';
 
 class ParameterDetailView extends StatelessWidget {
@@ -21,19 +21,63 @@ class ParameterDetailView extends StatelessWidget {
     required this.color,
   });
 
+  String get _parameterKey {
+    final normalized = title.toLowerCase();
+    if (normalized.contains('temp')) return 'temperature';
+    if (normalized.contains('ph')) return 'ph';
+    if (normalized.contains('ammonia')) return 'ammonia';
+    if (normalized.contains('turbidity')) return 'turbidity';
+    return 'temperature';
+  }
+
+  int get _decimals {
+    switch (_parameterKey) {
+      case 'ammonia':
+        return 3;
+      case 'turbidity':
+        return 1;
+      default:
+        return 2;
+    }
+  }
+
+  double _extractValue(WaterQualityReading reading) {
+    switch (_parameterKey) {
+      case 'temperature':
+        return reading.temperature;
+      case 'ph':
+        return reading.ph;
+      case 'ammonia':
+        return reading.ammonia;
+      case 'turbidity':
+        return reading.turbidity;
+      default:
+        return reading.temperature;
+    }
+  }
+
+  Future<List<_TimedReading>> _loadReadings() async {
+    final history = await FirebaseService.instance.fetchHistory(hours: 24);
+    final rows = history
+        .map((r) => _TimedReading(timestamp: r.timestamp, value: _extractValue(r)))
+        .where((r) => r.value.isFinite)
+        .toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return rows;
+  }
+
+  bool _isInNormalRange(double current) {
+    final matches = RegExp(r'-?\d+(?:\.\d+)?').allMatches(range).toList();
+    if (matches.length < 2) return true;
+    final min = double.tryParse(matches[0].group(0) ?? '');
+    final max = double.tryParse(matches[1].group(0) ?? '');
+    if (min == null || max == null) return true;
+    return current >= min && current <= max;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Generate mock historical data
-    final random = Random();
-    final baseValue = double.parse(value);
-    final historicalData = List.generate(
-      20,
-      (i) => baseValue + (random.nextDouble() - 0.5) * (baseValue * 0.1),
-    );
-
-    final minValue = historicalData.reduce((a, b) => a < b ? a : b);
-    final maxValue = historicalData.reduce((a, b) => a > b ? a : b);
-    final avgValue = historicalData.reduce((a, b) => a + b) / historicalData.length;
+    final baseValue = double.tryParse(value) ?? 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -50,243 +94,313 @@ class ParameterDetailView extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header card with current value
-            Hero(
-              tag: 'parameter_$title',
-              child: Material(
-                type: MaterialType.transparency,
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [color, color.withValues(alpha: 0.7)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+      body: FutureBuilder<List<_TimedReading>>(
+        future: _loadReadings(),
+        builder: (context, snapshot) {
+          final liveReadings = snapshot.data ?? const <_TimedReading>[];
+          final hasLiveData = liveReadings.isNotEmpty;
+          final data = hasLiveData
+              ? liveReadings
+              : <_TimedReading>[
+                  _TimedReading(timestamp: DateTime.now(), value: baseValue),
+                ];
+
+          final values = data.map((e) => e.value).toList();
+          final currentValue = values.last;
+          final minValue = values.reduce((a, b) => a < b ? a : b);
+          final maxValue = values.reduce((a, b) => a > b ? a : b);
+          final avgValue = values.reduce((a, b) => a + b) / values.length;
+          final recent = data.reversed.take(10).toList();
+
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Hero(
+                  tag: 'parameter_$title',
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [color, color.withValues(alpha: 0.7)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(icon, size: 64, color: Colors.white),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                currentValue.toStringAsFixed(_decimals),
+                                style: const TextStyle(
+                                  fontSize: 56,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12.0),
+                                child: Text(
+                                  unit,
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Normal Range: $range',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                InfoTooltip(
+                                  message: _getRangeExplanation(title),
+                                  icon: Icons.help_outline,
+                                  iconColor: Colors.white70,
+                                  iconSize: 16,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: (_isInNormalRange(currentValue)
+                                      ? Colors.green
+                                      : Colors.orange)
+                                  .withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _isInNormalRange(currentValue)
+                                      ? Icons.check_circle
+                                      : Icons.warning_amber_rounded,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _isInNormalRange(currentValue)
+                                      ? 'Optimal'
+                                      : 'Warning',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  child: Column(
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
                     children: [
-                      Icon(icon, size: 64, color: Colors.white),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            value,
-                            style: const TextStyle(
-                              fontSize: 56,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                      _buildStatCard(
+                        'Current',
+                        currentValue.toStringAsFixed(_decimals),
+                        unit,
+                        Colors.blue,
                       ),
-                      const SizedBox(width: 8),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
-                        child: Text(
-                          unit,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            color: Colors.white70,
-                          ),
-                        ),
+                      const SizedBox(width: 12),
+                      _buildStatCard(
+                        'Average',
+                        avgValue.toStringAsFixed(_decimals),
+                        unit,
+                        Colors.grey,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Normal Range: $range',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        InfoTooltip(
-                          message: _getRangeExplanation(title),
-                          icon: Icons.help_outline,
-                          iconColor: Colors.white70,
-                          iconSize: 16,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.check_circle, color: Colors.white, size: 16),
-                        SizedBox(width: 4),
-                        Text(
-                          'Optimal',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ),
-          ),
-
-            // Statistics section
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  _buildStatCard('Current', value, unit, Colors.blue),
-                  const SizedBox(width: 12),
-                  _buildStatCard('Average', avgValue.toStringAsFixed(2), unit, Colors.grey),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  _buildStatCard('Minimum', minValue.toStringAsFixed(2), unit, Colors.cyan),
-                  const SizedBox(width: 12),
-                  _buildStatCard('Maximum', maxValue.toStringAsFixed(2), unit, Colors.orange),
-                ],
-              ),
-            ),
-
-            // Chart section
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Last 24 Hours',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          '${historicalData.length} readings',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 200,
-                      child: LineChart(
-                        _buildChartData(historicalData, color),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    children: [
+                      _buildStatCard(
+                        'Minimum',
+                        minValue.toStringAsFixed(_decimals),
+                        unit,
+                        Colors.cyan,
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Recent readings list
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text(
-                        'Recent Readings',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      const SizedBox(width: 12),
+                      _buildStatCard(
+                        'Maximum',
+                        maxValue.toStringAsFixed(_decimals),
+                        unit,
+                        Colors.orange,
                       ),
+                    ],
+                  ),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    const Divider(height: 1),
-                    ...List.generate(
-                      10,
-                      (index) {
-                        final time = DateTime.now().subtract(Duration(hours: index));
-                        final timeStr = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-                        final readingValue = historicalData[index % historicalData.length];
-                        return ListTile(
-                          leading: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Last 24 Hours',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                            child: Icon(icon, color: color, size: 20),
+                            Text(
+                              '${values.length} readings',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          height: 200,
+                          child: LineChart(
+                            _buildChartData(values, color),
                           ),
-                          title: Text(
-                            '${readingValue.toStringAsFixed(2)} $unit',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        if (!hasLiveData)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              'No 24h history found yet. Showing current value only.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.orange.shade700,
+                              ),
+                            ),
                           ),
-                          subtitle: Text(timeStr),
-                          trailing: const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                        );
-                      },
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 16),
-          ],
-        ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            'Recent Readings',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        ...List.generate(
+                          recent.length,
+                          (index) {
+                            final row = recent[index];
+                            final time = row.timestamp;
+                            final timeStr =
+                                '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+                            final readingValue = row.value;
+                            return ListTile(
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(icon, color: color, size: 20),
+                              ),
+                              title: Text(
+                                '${readingValue.toStringAsFixed(_decimals)} $unit',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              subtitle: Text(timeStr),
+                              trailing: const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 20,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -384,7 +498,7 @@ class ParameterDetailView extends StatelessWidget {
             reservedSize: 40,
             getTitlesWidget: (value, meta) {
               return Text(
-                value.toStringAsFixed(1),
+                value.toStringAsFixed(_decimals),
                 style: TextStyle(
                   color: Colors.grey.shade600,
                   fontSize: 10,
@@ -447,5 +561,12 @@ class ParameterDetailView extends StatelessWidget {
         return 'This parameter should be kept within the normal range for optimal fish health and water quality.';
     }
   }
+}
+
+class _TimedReading {
+  final DateTime timestamp;
+  final double value;
+
+  const _TimedReading({required this.timestamp, required this.value});
 }
 

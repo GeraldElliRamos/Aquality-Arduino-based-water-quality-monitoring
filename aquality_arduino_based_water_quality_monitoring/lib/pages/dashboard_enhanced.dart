@@ -7,6 +7,7 @@ import '../services/language_service.dart';
 import '../services/notification_service.dart';
 import '../services/threshold_service.dart';
 import '../services/firebase_service.dart';
+import 'parameter_detail.dart';
 
 class DashboardEnhanced extends StatefulWidget {
   const DashboardEnhanced({super.key});
@@ -55,11 +56,15 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
   }
 
   void _onLanguageChanged() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _tick() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   // ── Firebase ─────────────────────────────────────────────────────────────
@@ -128,7 +133,9 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
       _hasError = false;
     });
 
-    if (hasChanges) unawaited(_checkThresholds());
+    if (hasChanges) {
+      unawaited(_checkThresholds());
+    }
   }
 
   // ── Pull-to-refresh ───────────────────────────────────────────────────────
@@ -140,12 +147,16 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
       if (mounted) _applyReading(reading, connected: true);
     } catch (e) {
       debugPrint('[Dashboard] refresh error: $e');
-      if (mounted) setState(() {
-        _hasError = true;
-        _isConnected = false;
-      });
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _isConnected = false;
+        });
+      }
     } finally {
-      if (mounted) setState(() => _isRefreshing = false);
+      if (mounted) {
+        setState(() => _isRefreshing = false);
+      }
     }
   }
 
@@ -212,6 +223,47 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
       case 'ammonia':     return (value >= 0 && value <= 0.02) ? ok : warn;
       case 'turbidity':   return (value >= 0 && value <= 30) ? ok : warn;
       default:            return ok;
+    }
+  }
+
+  IconData _parameterIcon(String parameterId) {
+    switch (parameterId) {
+      case 'temperature':
+        return Icons.thermostat;
+      case 'pH':
+        return Icons.water_drop;
+      case 'ammonia':
+        return Icons.waves;
+      case 'turbidity':
+        return Icons.blur_on;
+      default:
+        return Icons.show_chart;
+    }
+  }
+
+  String _parameterRangeLabel(String parameterId) {
+    switch (parameterId) {
+      case 'temperature':
+        return '26.0-29.0';
+      case 'pH':
+        return '7.0-8.5';
+      case 'ammonia':
+        return '0.0-0.02';
+      case 'turbidity':
+        return '0.0-30.0';
+      default:
+        return '-';
+    }
+  }
+
+  int _valueDecimals(String parameterId) {
+    switch (parameterId) {
+      case 'ammonia':
+        return 3;
+      case 'turbidity':
+        return 1;
+      default:
+        return 2;
     }
   }
 
@@ -552,19 +604,24 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
                   final param = parameters[index];
                   final id  = param['id'] as String;
                   final raw = param['rawValue'] as double;
+                  final sv = NotificationService.instance.getSmoothedValue(id);
+                  final displayValue = sv ?? raw;
 
                   return GestureDetector(
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) =>
-                            ParameterDetail(title: param['title'] as String),
+                        builder: (_) => ParameterDetailView(
+                          title: param['title'] as String,
+                          value: displayValue.toStringAsFixed(_valueDecimals(id)),
+                          unit: param['unit'] as String,
+                          range: _parameterRangeLabel(id),
+                          icon: _parameterIcon(id),
+                          color: param['gaugeColor'] as Color,
+                        ),
                       ),
                     ),
                     child: Builder(
                       builder: (context) {
-                        final sv =
-                            NotificationService.instance.getSmoothedValue(id);
-                        final displayValue = sv ?? raw;
                         final anomalous =
                             NotificationService.instance.isAnomalous(id);
 
@@ -591,14 +648,4 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
       ),
     );
   }
-}
-
-// ---------------------------------------------------------------------------
-// Placeholder detail page
-// ---------------------------------------------------------------------------
-Widget ParameterDetail({required String title}) {
-  return Scaffold(
-    appBar: AppBar(title: Text(title)),
-    body: const Center(child: Text('Parameter details coming soon')),
-  );
 }

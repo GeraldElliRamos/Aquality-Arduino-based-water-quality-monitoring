@@ -19,7 +19,7 @@ class _AdminLoginViewState extends State<AdminLoginView> {
     if (txt == _devPassword) {
       AuthService.setAdmin(true);
       AuthService.setLoggedIn(true);
-      Navigator.of(context).pushReplacementNamed('/admin-user');
+      Navigator.of(context).pushReplacementNamed('/admin');
     } else {
       setState(() => _error = 'Invalid password');
     }
@@ -119,7 +119,7 @@ class _AdminLoginViewState extends State<AdminLoginView> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.1),
+                    color: Colors.amber.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.amber, width: 1),
                   ),

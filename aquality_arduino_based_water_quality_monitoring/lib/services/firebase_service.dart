@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
+import '../models/alert.dart';
 
 /// Holds the latest water quality readings from Firebase Realtime Database.
 class WaterQualityReading {
@@ -115,6 +116,10 @@ class FirebaseService {
       .instanceFor(app: FirebaseDatabase.instance.app, databaseURL: _dbUrl)
       .ref('Aquality_history');
 
+    late final DatabaseReference _alertsRef = FirebaseDatabase
+      .instanceFor(app: FirebaseDatabase.instance.app, databaseURL: _dbUrl)
+      .ref('Aquality_alerts');
+
   // ── Public stream ────────────────────────────────────────────────────────
   /// Broadcast stream of the latest sensor reading.
   /// Emits immediately on first listen, then on every database change.
@@ -197,6 +202,53 @@ class FirebaseService {
     }
   }
 
+  /// Fetches historical readings between [start] and [end] timestamps.
+  /// Returns readings sorted by timestamp (oldest to newest).
+  Future<List<WaterQualityReading>> fetchHistoryRange({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    try {
+      final startMs = start.millisecondsSinceEpoch;
+      final endMs = end.millisecondsSinceEpoch;
+
+      final snapshot = await _historyRef
+          .orderByKey()
+          .startAt(startMs.toString())
+          .endAt(endMs.toString())
+          .get();
+
+      if (snapshot.value == null) {
+        debugPrint('[FirebaseService] No history data found in selected range');
+        return [];
+      }
+
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
+      final readings = <WaterQualityReading>[];
+
+      data.forEach((timestampKey, value) {
+        try {
+          if (value is Map) {
+            readings.add(
+              WaterQualityReading.fromHistoryEntry(
+                timestampKey,
+                Map<dynamic, dynamic>.from(value),
+              ),
+            );
+          }
+        } catch (e) {
+          debugPrint('[FirebaseService] Error parsing ranged history entry: $e');
+        }
+      });
+
+      readings.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      return readings;
+    } catch (e) {
+      debugPrint('[FirebaseService] fetchHistoryRange error: $e');
+      return [];
+    }
+  }
+
   /// Saves the current reading to history.
   /// Call this periodically (e.g., every 5 minutes) from your Arduino or app.
   Future<void> saveToHistory(WaterQualityReading reading) async {
@@ -222,5 +274,53 @@ class FirebaseService {
         debugPrint('[FirebaseService] Auto-save error: $e');
       }
     });
+  }
+
+  /// Streams alerts from Firebase, newest first.
+  Stream<List<Alert>> get alertsStream => _alertsRef
+      .orderByChild('timestampMs')
+      .limitToLast(200)
+      .onValue
+      .map((event) {
+        if (event.snapshot.value == null) return <Alert>[];
+
+        try {
+          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+          final items = <Alert>[];
+
+          data.forEach((key, raw) {
+            if (raw is Map) {
+              final json = Map<String, dynamic>.from(raw);
+              json['id'] = json['id'] ?? key;
+              items.add(Alert.fromJson(json));
+            }
+          });
+
+          items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          return items;
+        } catch (e) {
+          debugPrint('[FirebaseService] alertsStream parse error: $e');
+          return <Alert>[];
+        }
+      });
+
+  /// Saves an alert to Firebase Realtime Database.
+  Future<void> saveAlert(Alert alert) async {
+    try {
+      final data = alert.toJson();
+      data['timestampMs'] = alert.timestamp.millisecondsSinceEpoch;
+      await _alertsRef.child(alert.id).set(data);
+    } catch (e) {
+      debugPrint('[FirebaseService] saveAlert error: $e');
+    }
+  }
+
+  /// Deletes a specific alert from Firebase Realtime Database.
+  Future<void> deleteAlert(String alertId) async {
+    try {
+      await _alertsRef.child(alertId).remove();
+    } catch (e) {
+      debugPrint('[FirebaseService] deleteAlert error: $e');
+    }
   }
 }

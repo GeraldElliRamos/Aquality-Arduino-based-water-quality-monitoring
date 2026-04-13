@@ -31,6 +31,7 @@ class AuthService {
   static final ValueNotifier<bool> isLoggedIn = ValueNotifier<bool>(false);
   static final ValueNotifier<String> userRole = ValueNotifier<String>('');
   static final ValueNotifier<bool> isLGU = ValueNotifier<bool>(false);
+  static bool _localAdminOverride = false;
 
   static void init() {
     if (kIsWeb) {}
@@ -45,7 +46,8 @@ class AuthService {
         } else {
           isLoggedIn.value = true;
           final doc = await _db.collection('users').doc(user.uid).get();
-          isAdmin.value = doc.data()?['isAdmin'] == true;
+          final cloudAdmin = doc.data()?['isAdmin'] == true;
+          isAdmin.value = _localAdminOverride || cloudAdmin;
           userRole.value = doc.data()?['userType'] ?? '';
           isLGU.value = userRole.value == 'lgu';
         }
@@ -377,11 +379,15 @@ class AuthService {
   static Future<void> logout() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
+    _localAdminOverride = false;
     isAdmin.value = false;
     isLoggedIn.value = false;
     userRole.value = '';
   }
 
-  static void setAdmin(bool v) => isAdmin.value = v;
+  static void setAdmin(bool v) {
+    _localAdminOverride = v;
+    isAdmin.value = v;
+  }
   static void setLoggedIn(bool v) => isLoggedIn.value = v;
 }

@@ -45,6 +45,22 @@ class _WeatherViewState extends State<WeatherView> {
   }
 
   // ── Derive water temperature status from live Firebase reading ───────────
+  bool get _hasLiveFirebaseReading {
+    final r = _latestReading;
+    if (r == null) return false;
+    // Treat all-zero payload as placeholder/no sensor data.
+    return !(r.temperature == 0 && r.ph == 0 && r.ammonia == 0 && r.turbidity == 0);
+  }
+
+  String _effectiveRecommendation(WeatherData weatherData) {
+    final recommendation = weatherData.getRecommendation();
+    if (_hasLiveFirebaseReading &&
+        recommendation.toLowerCase().contains('not connected')) {
+      return 'Live Firebase sensor readings are active. Continue monitoring parameter trends and keep values within safe ranges.';
+    }
+    return recommendation;
+  }
+
   String _getTemperatureStatus(double temp, double minSafe, double maxSafe) {
     if (_latestReading == null) return 'not_connected';
     if (temp >= minSafe && temp <= maxSafe) return 'optimal';
@@ -367,7 +383,7 @@ class _WeatherViewState extends State<WeatherView> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _latestReading != null
+                  color: _hasLiveFirebaseReading
                       ? const Color(0xFF10B981).withValues(alpha: 0.12)
                       : Colors.grey.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
@@ -376,21 +392,21 @@ class _WeatherViewState extends State<WeatherView> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _latestReading != null
+                      _hasLiveFirebaseReading
                           ? Icons.circle
                           : Icons.circle_outlined,
                       size: 8,
-                      color: _latestReading != null
+                      color: _hasLiveFirebaseReading
                           ? const Color(0xFF10B981)
                           : Colors.grey,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      _latestReading != null ? 'LIVE' : 'WAITING',
+                      _hasLiveFirebaseReading ? 'LIVE' : 'WAITING',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: _latestReading != null
+                        color: _hasLiveFirebaseReading
                             ? const Color(0xFF10B981)
                             : Colors.grey,
                       ),
@@ -844,7 +860,7 @@ class _WeatherViewState extends State<WeatherView> {
           ),
           const SizedBox(height: 12),
           Text(
-            '• ${weatherData.getRecommendation()}',
+            '• ${_effectiveRecommendation(weatherData)}',
             style: const TextStyle(fontSize: 13, height: 1.6),
           ),
         ],
@@ -879,11 +895,13 @@ class _WeatherViewState extends State<WeatherView> {
           _buildInfoRow('Sensor ID', weatherData.sensorId),
           _buildInfoRow(
             'Sensor Status',
-            weatherData.hasSensorReadings ? 'Connected' : 'Not connected',
+            (weatherData.hasSensorReadings || _hasLiveFirebaseReading)
+                ? 'Connected'
+                : 'Not connected',
           ),
           _buildInfoRow(
             'Last Updated',
-            '${weatherData.lastUpdated.hour.toString().padLeft(2, '0')}:${weatherData.lastUpdated.minute.toString().padLeft(2, '0')}',
+            '${(_hasLiveFirebaseReading ? _latestReading!.timestamp : weatherData.lastUpdated).hour.toString().padLeft(2, '0')}:${(_hasLiveFirebaseReading ? _latestReading!.timestamp : weatherData.lastUpdated).minute.toString().padLeft(2, '0')}',
           ),
           _buildInfoRow(
             t('temp_range'),

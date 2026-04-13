@@ -4,6 +4,7 @@ import 'parameter_detail.dart';
 import '../services/auth_service.dart';
 import '../services/preferences_service.dart';
 import '../services/language_service.dart';
+import '../services/firebase_service.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/shimmer_loading.dart';
 
@@ -14,10 +15,11 @@ class HistoryView extends StatefulWidget {
 }
 
 class _HistoryViewState extends State<HistoryView> {
-  String _range = '7d';
+  String _range = 'week';
   DateTimeRange? _customDateRange;
   bool _isLoading = true;
   final languageService = LanguageService();
+  List<Map<String, dynamic>> _records = [];
 
   String t(String key) => languageService.t(key);
 
@@ -39,8 +41,85 @@ class _HistoryViewState extends State<HistoryView> {
   }
 
   Future<void> _loadHistoryData() async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (mounted) setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
+
+    try {
+      final dateRange = _effectiveDateRange();
+      final readings = await FirebaseService.instance.fetchHistoryRange(
+        start: dateRange.start,
+        end: dateRange.end,
+      );
+
+      final formatter = DateFormat('MMM d, hh:mm a');
+      final mapped = readings.reversed.map((reading) {
+        final ts = reading.timestamp.millisecondsSinceEpoch.toString();
+        return <String, dynamic>{
+          'id': ts,
+          'date': formatter.format(reading.timestamp),
+          'temp': reading.temperature,
+          'ph': reading.ph,
+          'turbidity': reading.turbidity,
+          'nh3': reading.ammonia,
+          'timestamp': reading.timestamp,
+        };
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _records = mapped;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _records = [];
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  DateTimeRange _effectiveDateRange() {
+    final now = DateTime.now();
+
+    if (_range == 'custom' && _customDateRange != null) {
+      return _customDateRange!;
+    }
+
+    switch (_range) {
+      case 'today':
+        return DateTimeRange(
+          start: DateTime(now.year, now.month, now.day),
+          end: now,
+        );
+      case 'yesterday':
+        final y = now.subtract(const Duration(days: 1));
+        return DateTimeRange(
+          start: DateTime(y.year, y.month, y.day),
+          end: DateTime(y.year, y.month, y.day, 23, 59, 59),
+        );
+      case 'month':
+      case '30d':
+        return DateTimeRange(
+          start: now.subtract(const Duration(days: 30)),
+          end: now,
+        );
+      case '24h':
+        return DateTimeRange(
+          start: now.subtract(const Duration(hours: 24)),
+          end: now,
+        );
+      case '7d':
+      case 'week':
+      default:
+        return DateTimeRange(
+          start: now.subtract(const Duration(days: 7)),
+          end: now,
+        );
+    }
   }
 
   DateTimeRange? _loadSavedDateRange() {
@@ -87,6 +166,7 @@ class _HistoryViewState extends State<HistoryView> {
         _saveTimeRange('custom');
         _saveDateRange(picked);
       });
+      _loadHistoryData();
     }
   }
 
@@ -137,6 +217,7 @@ class _HistoryViewState extends State<HistoryView> {
       _saveTimeRange(filter);
       _saveDateRange(range);
     });
+    _loadHistoryData();
   }
 
   String _getDateRangeText() {
@@ -146,33 +227,6 @@ class _HistoryViewState extends State<HistoryView> {
     }
     return _range;
   }
-
-  final List<Map<String, dynamic>> _records = [
-    {
-      'id': '1',
-      'date': 'Feb 1',
-      'temp': 28.1,
-      'ph': 8.0,
-      'turbidity': 18.6,
-      'nh3': 0.10,
-    },
-    {
-      'id': '2',
-      'date': 'Feb 1',
-      'temp': 29.8,
-      'ph': 6.8,
-      'turbidity': 26.4,
-      'nh3': 0.15,
-    },
-    {
-      'id': '3',
-      'date': 'Jan 30',
-      'temp': 27.2,
-      'ph': 8.2,
-      'turbidity': 33.1,
-      'nh3': 0.22,
-    },
-  ];
 
   // Tracks how many times each record has been re-inserted after undo,
   // so re-inserted Dismissible widgets always get a fresh key.
@@ -414,7 +468,7 @@ class _HistoryViewState extends State<HistoryView> {
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
             decoration: BoxDecoration(
               color: isDark
-                  ? Colors.grey.shade800.withOpacity(0.5)
+                  ? Colors.grey.shade800.withValues(alpha: 0.5)
                   : Colors.blue.shade50,
               borderRadius: BorderRadius.circular(8),
             ),
@@ -440,10 +494,11 @@ class _HistoryViewState extends State<HistoryView> {
                   onTap: () {
                     setState(() {
                       _customDateRange = null;
-                      _range = '7d';
-                      _saveTimeRange('7d');
+                      _range = 'week';
+                      _saveTimeRange('week');
                       _saveDateRange(null);
                     });
+                    _loadHistoryData();
                   },
                   child: Icon(
                     Icons.close,
@@ -488,7 +543,16 @@ class _HistoryViewState extends State<HistoryView> {
         Expanded(
           child: _isLoading
               ? const ShimmerHistory()
-              : ListView.separated(
+              : _records.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No history data found for this range.',
+                        style: TextStyle(
+                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
                   itemCount: _records.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (context, i) {
@@ -503,7 +567,7 @@ class _HistoryViewState extends State<HistoryView> {
                         padding: const EdgeInsets.only(right: 16),
                         alignment: Alignment.centerRight,
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.08),
+                          color: Colors.red.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(

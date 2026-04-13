@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/alert.dart';
+import '../models/threshold.dart' as aq;
+import '../services/firebase_service.dart';
 import '../services/language_service.dart';
+import '../services/threshold_service.dart';
 import '../utils/color_utils.dart';
 import '../utils/format_utils.dart';
 import '../widgets/empty_state.dart';
@@ -17,71 +21,20 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
   final languageService = LanguageService();
+  final List<Alert> _alerts = [];
+
+  StreamSubscription<WaterQualityReading>? _sensorSub;
+  StreamSubscription<List<Alert>>? _alertsSub;
+  final Map<String, DateTime> _lastAlertAt = {};
+  static const Duration _alertCooldown = Duration(minutes: 10);
 
   String t(String key) => languageService.t(key);
 
-  /// Generate alerts list dynamically so translations update when language changes
-  List<Alert> get alerts => [
-    Alert(
-      id: '1',
-      title: t('water_cloudy'),
-      subtitle: 'Turbidity: 58.2 NTU',
-      level: AlertLevel.critical,
-      parameterName: 'Turbidity',
-      reading: 58.2,
-      unit: 'NTU',
-      timestamp: DateTime.now().subtract(const Duration(minutes: 30)),
-    ),
-    Alert(
-      id: '2',
-      title: t('water_acidic'),
-      subtitle: 'pH: 6.01',
-      level: AlertLevel.warning,
-      parameterName: 'pH Level',
-      reading: 6.01,
-      timestamp: DateTime.now().subtract(const Duration(minutes: 40)),
-    ),
-    Alert(
-      id: '3',
-      title: t('water_cloudy'),
-      subtitle: 'Turbidity: 52.4 NTU',
-      level: AlertLevel.critical,
-      parameterName: 'Turbidity',
-      reading: 52.4,
-      unit: 'NTU',
-      timestamp: DateTime.now().subtract(const Duration(hours: 4)),
-    ),
-    Alert(
-      id: '4',
-      title: t('check_sensors'),
-      subtitle: 'System: 0',
-      level: AlertLevel.info,
-      timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-    ),
-    Alert(
-      id: '5',
-      title: t('backup_done'),
-      subtitle: 'System: 0',
-      level: AlertLevel.info,
-      timestamp: DateTime.now().subtract(const Duration(hours: 7)),
-    ),
-    Alert(
-      id: '6',
-      title: t('water_too_hot'),
-      subtitle: 'Temperature: 34.16 °C',
-      level: AlertLevel.critical,
-      parameterName: 'Temperature',
-      reading: 34.16,
-      unit: '°C',
-      timestamp: DateTime.now().subtract(const Duration(hours: 12)),
-    ),
-  ];
-
-  @override
   @override
   void initState() {
     super.initState();
     languageService.addListener(_onLanguageChanged);
+    _initLiveAlerts();
     _searchCtrl.addListener(() {
       setState(() {
         _searchQuery = _searchCtrl.text.toLowerCase();
@@ -94,12 +47,153 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
   @override
   void dispose() {
     languageService.removeListener(_onLanguageChanged);
+    _sensorSub?.cancel();
+    _alertsSub?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
 
+  Future<void> _initLiveAlerts() async {
+    _alertsSub = FirebaseService.instance.alertsStream.listen((items) {
+      if (!mounted) return;
+      setState(() {
+        _alerts
+          ..clear()
+          ..addAll(items);
+      });
+    });
+
+    try {
+      final initial = await FirebaseService.instance.fetchOnce();
+      await _processReading(initial);
+    } catch (_) {
+      // Live stream below will still try to recover.
+    }
+
+    _sensorSub = FirebaseService.instance.sensorStream.listen((reading) {
+      unawaited(_processReading(reading));
+    });
+  }
+
+  Future<void> _processReading(WaterQualityReading reading) async {
+    final isPlaceholder = reading.temperature == 0.0 &&
+        reading.ph == 0.0 &&
+        reading.ammonia == 0.0 &&
+        reading.turbidity == 0.0;
+    if (isPlaceholder) return;
+
+    final stored = await ThresholdService.getAllThresholds();
+    final thresholds =
+        stored.isEmpty ? ThresholdService.getDefaultThresholds() : stored;
+
+    for (final threshold in thresholds) {
+      if (!threshold.enableAlerts) continue;
+
+      final value = _valueForParameter(reading, threshold.parameterId);
+      if (value == null) continue;
+
+      final level = _computeLevel(threshold, value);
+      if (level == null) continue;
+
+      final cooldownKey = '${threshold.parameterId}:${level.name}';
+      final last = _lastAlertAt[cooldownKey];
+      if (last != null && DateTime.now().difference(last) < _alertCooldown) {
+        continue;
+      }
+      _lastAlertAt[cooldownKey] = DateTime.now();
+
+      final unit = _unitForParameter(threshold.parameterId);
+      final decimals = _decimalsForParameter(threshold.parameterId);
+      final formatted = FormatUtils.formatWithUnit(
+        value,
+        unit,
+        decimals: decimals,
+      );
+      final newAlert = Alert(
+        id: '${threshold.parameterId}_${DateTime.now().millisecondsSinceEpoch}',
+        title: _titleForAlert(threshold.parameterName, level),
+        subtitle: '${threshold.parameterName}: $formatted',
+        level: level,
+        parameterName: threshold.parameterName,
+        reading: value,
+        unit: unit,
+        timestamp: DateTime.now(),
+      );
+
+      await FirebaseService.instance.saveAlert(newAlert);
+    }
+  }
+
+  double? _valueForParameter(WaterQualityReading reading, String parameterId) {
+    switch (parameterId.toLowerCase()) {
+      case 'temperature':
+        return reading.temperature;
+      case 'ph':
+      case 'ph level':
+        return reading.ph;
+      case 'ammonia':
+      case 'nh3':
+        return reading.ammonia;
+      case 'turbidity':
+        return reading.turbidity;
+      default:
+        return null;
+    }
+  }
+
+  AlertLevel? _computeLevel(aq.Threshold threshold, double value) {
+    if (value >= threshold.minSafeValue && value <= threshold.maxSafeValue) {
+      return null;
+    }
+
+    final isCritical = (threshold.warningMinValue != null &&
+            value < threshold.warningMinValue!) ||
+        (threshold.warningMaxValue != null && value > threshold.warningMaxValue!);
+
+    return isCritical ? AlertLevel.critical : AlertLevel.warning;
+  }
+
+  String _unitForParameter(String parameterId) {
+    switch (parameterId.toLowerCase()) {
+      case 'temperature':
+        return '°C';
+      case 'ammonia':
+      case 'nh3':
+        return 'mg/L';
+      case 'turbidity':
+        return 'NTU';
+      case 'ph':
+      case 'ph level':
+      default:
+        return '';
+    }
+  }
+
+  int _decimalsForParameter(String parameterId) {
+    switch (parameterId.toLowerCase()) {
+      case 'temperature':
+      case 'ph':
+      case 'ph level':
+        return 2;
+      case 'ammonia':
+      case 'nh3':
+        return 3;
+      case 'turbidity':
+        return 1;
+      default:
+        return 2;
+    }
+  }
+
+  String _titleForAlert(String parameterName, AlertLevel level) {
+    if (level == AlertLevel.critical) {
+      return 'Critical $parameterName level';
+    }
+    return 'Warning $parameterName level';
+  }
+
   List<Alert> get _filteredAlerts {
-    var filtered = alerts;
+    var filtered = List<Alert>.from(_alerts);
 
     // Filter by level
     if (_filter != 'All') {
@@ -143,7 +237,7 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
   }
 
   int countBy(AlertLevel level) =>
-      alerts.where((a) => a.level == level).length;
+      _alerts.where((a) => a.level == level).length;
 
   void _showAlertDetail(BuildContext context, Alert alert) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -352,10 +446,8 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              alerts.removeWhere((a) => a.id == alert.id);
-                            });
+                          onPressed: () async {
+                            await FirebaseService.instance.deleteAlert(alert.id);
                             Navigator.pop(ctx);
                           },
                           icon: const Icon(Icons.close_rounded),
@@ -371,11 +463,10 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              alerts.removeWhere((a) => a.id == alert.id);
-                            });
+                          onPressed: () async {
+                            await FirebaseService.instance.deleteAlert(alert.id);
                             Navigator.pop(ctx);
+                            if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(t('alert_acknowledged')),

@@ -26,6 +26,7 @@ import 'services/esp32_weather_service.dart';
 import 'services/connectivity_service.dart';
 import 'pages/role_selection.dart';
 import 'widgets/chatbot.dart';
+import 'services/firebase_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'firebase_options.dart';
 
@@ -260,11 +261,38 @@ class _AppScreenState extends State<AppScreen> {
                                     Icons.person,
                                     color: Color(0xFF2563EB),
                                   ),
-                                  onPressed: () {
+                                  onPressed: () async {
                                     if (AuthService.isAdmin.value) {
-                                      Navigator.of(
-                                        context,
-                                      ).pushNamed('/admin-user');
+                                      Navigator.of(context).pushNamed('/admin-user');
+                                      return;
+                                    }
+
+                                    final selected = await showModalBottomSheet<String>(
+                                      context: context,
+                                      builder: (ctx) {
+                                        return SafeArea(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              ListTile(
+                                                leading: const Icon(Icons.person_outline),
+                                                title: const Text('User Profile'),
+                                                onTap: () => Navigator.of(ctx).pop('user'),
+                                              ),
+                                              ListTile(
+                                                leading: const Icon(Icons.admin_panel_settings_outlined),
+                                                title: const Text('Admin Login'),
+                                                onTap: () => Navigator.of(ctx).pop('admin'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    );
+
+                                    if (!context.mounted) return;
+                                    if (selected == 'admin') {
+                                      Navigator.of(context).pushNamed('/admin-login');
                                     } else {
                                       Navigator.of(context).pushNamed('/user');
                                     }
@@ -294,46 +322,59 @@ class _AppScreenState extends State<AppScreen> {
           bottomNavigationBar: ValueListenableBuilder<bool>(
             valueListenable: AuthService.isAdmin,
             builder: (context, isAdmin, _) {
-              return BottomNavigationBar(
-                type: BottomNavigationBarType.fixed,
-                currentIndex: _selectedIndex,
-                selectedItemColor: const Color(0xFF2563EB),
-                unselectedItemColor: Colors.grey[600],
-                onTap: (index) {
-                  // Prevent navigation to admin panel if not admin
-                  if (index == 5 && !isAdmin) return;
-                  _onItemTapped(index);
+              return StreamBuilder(
+                stream: FirebaseService.instance.alertsStream,
+                initialData: const [],
+                builder: (context, snapshot) {
+                  final alertCount = snapshot.data?.length ?? 0;
+
+                  return BottomNavigationBar(
+                    type: BottomNavigationBarType.fixed,
+                    currentIndex: _selectedIndex,
+                    selectedItemColor: const Color(0xFF2563EB),
+                    unselectedItemColor: Colors.grey[600],
+                    onTap: (index) {
+                      // Prevent navigation to admin panel if not admin
+                      if (index == 5 && !isAdmin) return;
+                      _onItemTapped(index);
+                    },
+                    items: [
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.dashboard),
+                        label: 'Dashboard',
+                      ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.show_chart),
+                        label: 'Trends',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: alertCount > 0
+                            ? Badge(
+                                label: Text(
+                                  '$alertCount',
+                                  style: const TextStyle(fontSize: 10),
+                                ),
+                                child: const Icon(Icons.notifications),
+                              )
+                            : const Icon(Icons.notifications),
+                        label: 'Alerts',
+                      ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.cloud),
+                        label: 'Weather',
+                      ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.history),
+                        label: 'History',
+                      ),
+                      if (isAdmin)
+                        const BottomNavigationBarItem(
+                          icon: Icon(Icons.admin_panel_settings),
+                          label: 'Admin',
+                        ),
+                    ],
+                  );
                 },
-                items: [
-                  const BottomNavigationBarItem(
-                    icon: Icon(Icons.dashboard),
-                    label: 'Dashboard',
-                  ),
-                  const BottomNavigationBarItem(
-                    icon: Icon(Icons.show_chart),
-                    label: 'Trends',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Badge(
-                      label: const Text('3', style: TextStyle(fontSize: 10)),
-                      child: const Icon(Icons.notifications),
-                    ),
-                    label: 'Alerts',
-                  ),
-                  const BottomNavigationBarItem(
-                    icon: Icon(Icons.cloud),
-                    label: 'Weather',
-                  ),
-                  const BottomNavigationBarItem(
-                    icon: Icon(Icons.history),
-                    label: 'History',
-                  ),
-                  if (isAdmin)
-                    const BottomNavigationBarItem(
-                      icon: Icon(Icons.admin_panel_settings),
-                      label: 'Admin',
-                    ),
-                ],
               );
             },
           ),

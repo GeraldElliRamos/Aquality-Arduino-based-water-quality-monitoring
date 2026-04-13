@@ -19,11 +19,14 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
   String _range = '24h';
   String _selectedParam = 'pH Level';
   List<WaterQualityReading> _historyData = [];
+  List<WaterQualityReading> _displayReadings = [];
+  List<double> _rawCurrentData = [];
   List<double> _currentData = [];
   Timer? _updateTimer;
   StreamSubscription? _sensorSubscription;
   bool _isLoading = true;
   final languageService = LanguageService();
+  static const List<String> _ranges = ['6h', '24h', '7d', '30d', '90d'];
 
   String t(String key) => languageService.t(key);
 
@@ -156,34 +159,121 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
   /// Extract values for the selected parameter from history
   void _updateCurrentData() {
     if (_historyData.isEmpty) {
+      _displayReadings = [];
+      _rawCurrentData = List.from(sampleData[_selectedParam] ?? []);
       _currentData = List.from(sampleData[_selectedParam] ?? []);
       return;
     }
 
+    _displayReadings = _aggregateReadings(
+      _historyData,
+      _bucketDurationForRange(_range),
+    );
+
+    final rawSource = _historyData;
+    final source = _displayReadings;
+
     switch (_selectedParam) {
       case 'Temperature':
-        _currentData = _historyData.map((r) => r.temperature).toList();
+        _rawCurrentData = rawSource.map((r) => r.temperature).toList();
+        _currentData = source.map((r) => r.temperature).toList();
         break;
       case 'pH Level':
-        _currentData = _historyData.map((r) => r.ph).toList();
+        _rawCurrentData = rawSource.map((r) => r.ph).toList();
+        _currentData = source.map((r) => r.ph).toList();
         break;
       case 'Turbidity':
-        _currentData = _historyData.map((r) => r.turbidity).toList();
+        _rawCurrentData = rawSource.map((r) => r.turbidity).toList();
+        _currentData = source.map((r) => r.turbidity).toList();
         break;
       case 'Ammonia':
-        _currentData = _historyData.map((r) => r.ammonia).toList();
+        _rawCurrentData = rawSource.map((r) => r.ammonia).toList();
+        _currentData = source.map((r) => r.ammonia).toList();
         break;
     }
   }
 
   int _getHoursFromRange(String range) {
     switch (range) {
+      case '6h': return 6;
       case '24h': return 24;
       case '7d': return 168;
       case '30d': return 720;
       case '90d': return 2160;
       default: return 24;
     }
+  }
+
+  Duration _bucketDurationForRange(String range) {
+    switch (range) {
+      case '6h':
+        return const Duration(minutes: 5);
+      case '24h':
+        return const Duration(minutes: 15);
+      case '7d':
+        return const Duration(hours: 2);
+      case '30d':
+        return const Duration(hours: 6);
+      case '90d':
+        return const Duration(hours: 24);
+      default:
+        return const Duration(minutes: 15);
+    }
+  }
+
+  String _intervalLabel() {
+    final bucket = _bucketDurationForRange(_range);
+    if (bucket.inMinutes < 60) {
+      return '${bucket.inMinutes}m interval';
+    }
+    if (bucket.inHours < 24) {
+      return '${bucket.inHours}h interval';
+    }
+    return '${bucket.inDays}d interval';
+  }
+
+  List<WaterQualityReading> _aggregateReadings(
+    List<WaterQualityReading> source,
+    Duration bucket,
+  ) {
+    if (source.isEmpty) return const [];
+
+    final bucketMs = bucket.inMilliseconds;
+    final grouped = <int, List<WaterQualityReading>>{};
+
+    for (final reading in source) {
+      final ts = reading.timestamp.millisecondsSinceEpoch;
+      final key = (ts ~/ bucketMs) * bucketMs;
+      grouped.putIfAbsent(key, () => []).add(reading);
+    }
+
+    final keys = grouped.keys.toList()..sort();
+    final aggregated = <WaterQualityReading>[];
+
+    for (final key in keys) {
+      final items = grouped[key]!;
+      final count = items.length;
+
+      double avg(double Function(WaterQualityReading) pick) {
+        var sum = 0.0;
+        for (final item in items) {
+          sum += pick(item);
+        }
+        return sum / count;
+      }
+
+      aggregated.add(
+        WaterQualityReading(
+          temperature: avg((r) => r.temperature),
+          ph: avg((r) => r.ph),
+          ammonia: avg((r) => r.ammonia),
+          turbidity: avg((r) => r.turbidity),
+          timestamp: DateTime.fromMillisecondsSinceEpoch(key),
+        ),
+      );
+    }
+
+    return aggregated;
   }
 
   @override
@@ -198,8 +288,9 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final stats = ChartUtils.calculateStats(_currentData);
-    final trendPercent = ChartUtils.calculateTrendPercentage(_currentData);
+    final statsData = _rawCurrentData.isEmpty ? _currentData : _rawCurrentData;
+    final stats = ChartUtils.calculateStats(statsData);
+    final trendPercent = ChartUtils.calculateTrendPercentage(statsData);
 
     return RefreshIndicator(
       onRefresh: _loadHistoryData,
@@ -291,7 +382,7 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
               height: 44,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                children: ['24h', '7d', '30d', '90d'].map((range) {
+                children: _ranges.map((range) {
                   final isSelected = range == _range;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
@@ -413,7 +504,7 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${t('trend_24h')} (${_historyData.length} readings)',
+                    '${t('trend_24h')} (${statsData.length} readings, ${_currentData.length} points, ${_intervalLabel()})',
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                   Row(
@@ -457,7 +548,7 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _selectedParam,
+                    '$_selectedParam (${_intervalLabel()})',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -507,14 +598,15 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                     rows: List.generate(
                       min(5, _currentData.length),
                       (index) {
-                        final value = _currentData[index];
-                        final prevValue = index > 0 ? _currentData[index - 1] : value;
+                        final dataIndex = _currentData.length - 1 - index;
+                        final value = _currentData[dataIndex];
+                        final prevValue = dataIndex > 0 ? _currentData[dataIndex - 1] : value;
                         final change = value - prevValue;
 
                         // Calculate time ago if we have history data
                         String timeLabel;
-                        if (_historyData.isNotEmpty && index < _historyData.length) {
-                          final timestamp = _historyData[index].timestamp;
+                        if (_displayReadings.isNotEmpty && dataIndex < _displayReadings.length) {
+                          final timestamp = _displayReadings[dataIndex].timestamp;
                           timeLabel = FormatUtils.formatTimeAgo(timestamp);
                         } else {
                           timeLabel = '${index * 2} ${t('hours_ago')}';
