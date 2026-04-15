@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -138,6 +139,7 @@ class AppScreen extends StatefulWidget {
 
 class _AppScreenState extends State<AppScreen> {
   int _selectedIndex = 0;
+  StreamSubscription<void>? _historySaveSub;
 
   static const List<Widget> _views = <Widget>[
     DashboardEnhanced(),
@@ -164,6 +166,33 @@ class _AppScreenState extends State<AppScreen> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _startHistoryCapture();
+  }
+
+  @override
+  void dispose() {
+    _historySaveSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _startHistoryCapture() async {
+    // Save one immediate sample so History is not empty while waiting for interval.
+    try {
+      final reading = await FirebaseService.instance.fetchOnce();
+      if (reading.temperature != 0 || reading.ph != 0) {
+        await FirebaseService.instance.saveToHistory(reading);
+      }
+    } catch (_) {}
+
+    // Keep writing periodic snapshots while app is open.
+    _historySaveSub = FirebaseService.instance.startAutoSaveHistory(
+      intervalMinutes: 5,
+    );
   }
 
   @override
@@ -263,36 +292,54 @@ class _AppScreenState extends State<AppScreen> {
                                   ),
                                   onPressed: () async {
                                     if (AuthService.isAdmin.value) {
-                                      Navigator.of(context).pushNamed('/admin-user');
+                                      Navigator.of(
+                                        context,
+                                      ).pushNamed('/admin-user');
                                       return;
                                     }
 
-                                    final selected = await showModalBottomSheet<String>(
-                                      context: context,
-                                      builder: (ctx) {
-                                        return SafeArea(
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              ListTile(
-                                                leading: const Icon(Icons.person_outline),
-                                                title: const Text('User Profile'),
-                                                onTap: () => Navigator.of(ctx).pop('user'),
+                                    final selected =
+                                        await showModalBottomSheet<String>(
+                                          context: context,
+                                          builder: (ctx) {
+                                            return SafeArea(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  ListTile(
+                                                    leading: const Icon(
+                                                      Icons.person_outline,
+                                                    ),
+                                                    title: const Text(
+                                                      'User Profile',
+                                                    ),
+                                                    onTap: () => Navigator.of(
+                                                      ctx,
+                                                    ).pop('user'),
+                                                  ),
+                                                  ListTile(
+                                                    leading: const Icon(
+                                                      Icons
+                                                          .admin_panel_settings_outlined,
+                                                    ),
+                                                    title: const Text(
+                                                      'Admin Login',
+                                                    ),
+                                                    onTap: () => Navigator.of(
+                                                      ctx,
+                                                    ).pop('admin'),
+                                                  ),
+                                                ],
                                               ),
-                                              ListTile(
-                                                leading: const Icon(Icons.admin_panel_settings_outlined),
-                                                title: const Text('Admin Login'),
-                                                onTap: () => Navigator.of(ctx).pop('admin'),
-                                              ),
-                                            ],
-                                          ),
+                                            );
+                                          },
                                         );
-                                      },
-                                    );
 
                                     if (!context.mounted) return;
                                     if (selected == 'admin') {
-                                      Navigator.of(context).pushNamed('/admin-login');
+                                      Navigator.of(
+                                        context,
+                                      ).pushNamed('/admin-login');
                                     } else {
                                       Navigator.of(context).pushNamed('/user');
                                     }
