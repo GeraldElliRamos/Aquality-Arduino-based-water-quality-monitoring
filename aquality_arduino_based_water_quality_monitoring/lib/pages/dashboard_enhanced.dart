@@ -69,6 +69,26 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
 
   // ── Firebase ─────────────────────────────────────────────────────────────
   Future<void> _initFirebase() async {
+    // Attach the live Firestore stream first so realtime updates are not
+    // delayed by the one-shot initial fetch.
+    debugPrint('[Dashboard] Starting Firestore sensor stream listener');
+    _sensorSub = FirebaseService.instance.sensorStream.listen(
+      (reading) {
+        debugPrint('[Dashboard] Received sensor reading: temp=${reading.temperature}, ph=${reading.ph}, ammonia=${reading.ammonia}, turbidity=${reading.turbidity}');
+        if (mounted) _applyReading(reading, connected: true);
+      },
+      onError: (e) {
+        debugPrint('[Dashboard] stream error: $e');
+        if (mounted) {
+          setState(() {
+            _hasError = true;
+            _isConnected = false;
+            _isLoading = false; // never stay stuck on shimmer
+          });
+        }
+      },
+    );
+
     try {
       final initial = await FirebaseService.instance.fetchOnce();
       if (mounted) _applyReading(initial, connected: true);
@@ -83,23 +103,6 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
         });
       }
     }
-
-    // Subscribe to live updates regardless of whether fetchOnce succeeded
-    _sensorSub = FirebaseService.instance.sensorStream.listen(
-      (reading) {
-        if (mounted) _applyReading(reading, connected: true);
-      },
-      onError: (e) {
-        debugPrint('[Dashboard] stream error: $e');
-        if (mounted) {
-          setState(() {
-            _hasError = true;
-            _isConnected = false;
-            _isLoading = false; // never stay stuck on shimmer
-          });
-        }
-      },
-    );
   }
 
   void _applyReading(WaterQualityReading r, {required bool connected}) {
@@ -113,12 +116,16 @@ class _DashboardEnhancedState extends State<DashboardEnhanced> {
         r.ammonia == 0.0 &&
         r.turbidity == 0.0;
 
+    debugPrint('[Dashboard] _applyReading - isPlaceholder=$isPlaceholder, temp=${r.temperature}, ph=${r.ph}, ammonia=${r.ammonia}, turbidity=${r.turbidity}');
+
     final hasChanges = !isPlaceholder &&
         ((_temperature == null) ||
             (_temperature! - r.temperature).abs() > 0.001 ||
             (_ph! - r.ph).abs() > 0.001 ||
             (_ammonia! - r.ammonia).abs() > 0.0001 ||
             (_turbidity! - r.turbidity).abs() > 0.001);
+
+    debugPrint('[Dashboard] hasChanges=$hasChanges');
 
     setState(() {
       if (!isPlaceholder) {

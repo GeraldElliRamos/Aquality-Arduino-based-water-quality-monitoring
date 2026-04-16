@@ -1,9 +1,10 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import '../models/alert.dart';
 
-/// Holds the latest water quality readings from Firebase Realtime Database.
+/// Holds the latest water quality readings from Firebase.
 class WaterQualityReading {
   final double temperature;
   final double ph;
@@ -32,18 +33,84 @@ class WaterQualityReading {
 
     return WaterQualityReading(
       temperature: parseValue(data['temperature'], 0.0),
-      ph:          parseValue(data['ph'], 0.0),
-      ammonia:     parseValue(data['nh3'], 0.0),  // 🔥 Changed from 'ammonia' to 'nh3'
-      turbidity:   parseValue(data['turbidity'], 0.0),
+      ph: parseValue(data['ph'], 0.0),
+      ammonia: parseValue(
+        data['nh3'],
+        0.0,
+      ), // 🔥 Changed from 'ammonia' to 'nh3'
+      turbidity: parseValue(data['turbidity'], 0.0),
       timestamp: data['timestamp'] != null
           ? DateTime.fromMillisecondsSinceEpoch(
-              (data['timestamp'] as num).toInt())
+              (data['timestamp'] as num).toInt(),
+            )
           : DateTime.now(),
     );
   }
 
+  /// Parses the Firestore document that stores the current ESP32 reading.
+  /// The document may store sensor values directly or under a `readings` map.
+  factory WaterQualityReading.fromFirestoreDocument(
+    DocumentSnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    final data = snapshot.data();
+    if (data == null) {
+      debugPrint('[WaterQualityReading] Firestore snapshot data is null');
+      return WaterQualityReading.placeholder;
+    }
+
+    debugPrint('[WaterQualityReading] Raw Firestore data: $data');
+
+    final readings = data['readings'];
+    final readingData = readings is Map
+        ? Map<String, dynamic>.from(readings)
+        : data;
+
+    debugPrint('[WaterQualityReading] Using readingData: $readingData');
+
+    double parseValue(dynamic v, double fallback) {
+      if (v == null) return fallback;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString()) ?? fallback;
+    }
+
+    final timestampValue =
+        readingData['timestamp'] ??
+        readingData['timestampMs'] ??
+        data['timestamp'] ??
+        data['timestampMs'];
+
+    final timestamp = timestampValue is num
+        ? DateTime.fromMillisecondsSinceEpoch(timestampValue.toInt())
+      : timestampValue is Timestamp
+      ? timestampValue.toDate()
+        : timestampValue is String
+        ? DateTime.tryParse(timestampValue) ?? DateTime.now()
+        : DateTime.now();
+
+    final temp = parseValue(
+      readingData['temperature'] ?? readingData['temp'],
+      0.0,
+    );
+    final phVal = parseValue(readingData['ph'], 0.0);
+    final ammVal = parseValue(readingData['ammonia'] ?? readingData['nh3'], 0.0);
+    final turbVal = parseValue(readingData['turbidity'], 0.0);
+
+    debugPrint('[WaterQualityReading] Parsed values - temp: $temp, ph: $phVal, ammonia: $ammVal, turbidity: $turbVal, timestamp: $timestamp');
+
+    return WaterQualityReading(
+      temperature: temp,
+      ph: phVal,
+      ammonia: ammVal,
+      turbidity: turbVal,
+      timestamp: timestamp,
+    );
+  }
+
   /// Parses a history entry with explicit timestamp key
-  factory WaterQualityReading.fromHistoryEntry(String timestampKey, Map<dynamic, dynamic> data) {
+  factory WaterQualityReading.fromHistoryEntry(
+    String timestampKey,
+    Map<dynamic, dynamic> data,
+  ) {
     double parseValue(dynamic v, double fallback) {
       if (v == null) return fallback;
       if (v is num) return v.toDouble();
@@ -52,21 +119,21 @@ class WaterQualityReading {
 
     return WaterQualityReading(
       temperature: parseValue(data['temperature'], 0.0),
-      ph:          parseValue(data['ph'], 0.0),
-      ammonia:     parseValue(data['nh3'], 0.0),
-      turbidity:   parseValue(data['turbidity'], 0.0),
+      ph: parseValue(data['ph'], 0.0),
+      ammonia: parseValue(data['nh3'], 0.0),
+      turbidity: parseValue(data['turbidity'], 0.0),
       timestamp: DateTime.fromMillisecondsSinceEpoch(int.parse(timestampKey)),
     );
   }
 
   /// Fallback reading used while waiting for the first Firebase event.
   static WaterQualityReading get placeholder => WaterQualityReading(
-        temperature: 0,
-        ph: 0,
-        ammonia: 0,
-        turbidity: 0,
-        timestamp: DateTime.now(),
-      );
+    temperature: 0,
+    ph: 0,
+    ammonia: 0,
+    turbidity: 0,
+    timestamp: DateTime.now(),
+  );
 
   /// Converts to JSON for storing in history
   Map<String, dynamic> toJson() {
@@ -79,16 +146,19 @@ class WaterQualityReading {
   }
 }
 
-/// Service that streams live sensor data from Firebase Realtime Database.
+/// Service that streams live sensor data from Firestore and keeps the
+/// history/alert features on Realtime Database.
 ///
 /// Expected database structure (written by the Arduino / ESP32):
 /// ```
-/// /Aquality
-///   temperature : 27.7
-///   ph          : 7
-///   nh3         : 0.1
-///   turbidity   : 23
-///   timestamp   : 1713000000000   ← epoch ms (optional)
+/// /sensor_readings/esp32_001
+///   readings:
+///     temperature : 27.7
+///     ph          : 7
+///     ammonia     : 0.1
+///     turbidity   : 23
+///     timestamp   : 1713000000000   ← epoch ms (optional)
+///   device_id: esp32_001
 ///
 /// /Aquality_history
 ///   1713000000000:
@@ -104,48 +174,124 @@ class FirebaseService {
   FirebaseService._();
   static final FirebaseService instance = FirebaseService._();
 
+  static const String _sensorCollection = 'sensor_readings';
+  static const String _sensorDocumentId = 'esp32_001';
+
   // ── Database reference ──────────────────────────────────────────────────
   static const String _dbUrl =
       'https://aquality-80539-default-rtdb.asia-southeast1.firebasedatabase.app';
 
-  late final DatabaseReference _sensorsRef = FirebaseDatabase
-      .instanceFor(app: FirebaseDatabase.instance.app, databaseURL: _dbUrl)
-      .ref('Aquality');
+  late final DocumentReference<Map<String, dynamic>> _sensorDocRef =
+      FirebaseFirestore.instance
+          .collection(_sensorCollection)
+          .doc(_sensorDocumentId);
 
-  late final DatabaseReference _historyRef = FirebaseDatabase
-      .instanceFor(app: FirebaseDatabase.instance.app, databaseURL: _dbUrl)
-      .ref('Aquality_history');
+  late final DatabaseReference _historyRef = FirebaseDatabase.instanceFor(
+    app: FirebaseDatabase.instance.app,
+    databaseURL: _dbUrl,
+  ).ref('Aquality_history');
 
-    late final DatabaseReference _alertsRef = FirebaseDatabase
-      .instanceFor(app: FirebaseDatabase.instance.app, databaseURL: _dbUrl)
-      .ref('Aquality_alerts');
+  late final DatabaseReference _alertsRef = FirebaseDatabase.instanceFor(
+    app: FirebaseDatabase.instance.app,
+    databaseURL: _dbUrl,
+  ).ref('Aquality_alerts');
 
   // ── Public stream ────────────────────────────────────────────────────────
   /// Broadcast stream of the latest sensor reading.
   /// Emits immediately on first listen, then on every database change.
-  late final Stream<WaterQualityReading> sensorStream = _sensorsRef
-      .onValue
-      .map((event) {
-        if (event.snapshot.value == null) {
-          debugPrint('[FirebaseService] Aquality node is null – check DB path');
-          return WaterQualityReading.placeholder;
-        }
+  late final Stream<WaterQualityReading>
+  sensorStream = _sensorDocRef.snapshots().map((event) {
+    if (!event.exists || event.data() == null) {
+      debugPrint(
+        '[FirebaseService] Firestore doc is missing – check $_sensorCollection/$_sensorDocumentId',
+      );
+      return WaterQualityReading.placeholder;
+    }
+    try {
+      return WaterQualityReading.fromFirestoreDocument(event);
+    } catch (e, st) {
+      debugPrint('[FirebaseService] parse error: $e\n$st');
+      return WaterQualityReading.placeholder;
+    }
+  }).asBroadcastStream();
+
+  // ── Diagnostics ────────────────────────────────────────────────────────
+  /// Tests Firestore connectivity and returns diagnostic information.
+  Future<Map<String, dynamic>> testConnection() async {
+    final diagnostics = <String, dynamic>{
+      'timestamp': DateTime.now().toIso8601String(),
+      'collection': _sensorCollection,
+      'document': _sensorDocumentId,
+    };
+
+    try {
+      debugPrint('[FirebaseService] Testing Firestore connection...');
+      
+      final snapshot = await _sensorDocRef.get().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw TimeoutException('Firestore request timeout'),
+      );
+
+      diagnostics['firestore_reachable'] = true;
+      diagnostics['document_exists'] = snapshot.exists;
+      diagnostics['has_data'] = snapshot.data() != null;
+
+      if (snapshot.exists && snapshot.data() != null) {
+        final data = snapshot.data()!;
+        diagnostics['document_data'] = data;
+        
         try {
-          return WaterQualityReading.fromSnapshot(event.snapshot);
-        } catch (e, st) {
-          debugPrint('[FirebaseService] parse error: $e\n$st');
-          return WaterQualityReading.placeholder;
+          final reading = WaterQualityReading.fromFirestoreDocument(snapshot);
+          diagnostics['parsed_successfully'] = true;
+          diagnostics['values'] = {
+            'temperature': reading.temperature,
+            'ph': reading.ph,
+            'ammonia': reading.ammonia,
+            'turbidity': reading.turbidity,
+            'timestamp': reading.timestamp.toIso8601String(),
+          };
+        } catch (e) {
+          diagnostics['parsed_successfully'] = false;
+          diagnostics['parse_error'] = e.toString();
         }
-      })
-      .asBroadcastStream();
+      } else {
+        diagnostics['help'] = 
+          'Document not found. Check Firestore at: '
+          'Collection "$_sensorCollection", Document "$_sensorDocumentId"';
+      }
+
+      debugPrint('[FirebaseService] Diagnostics: $diagnostics');
+      return diagnostics;
+    } on TimeoutException catch (e) {
+      diagnostics['firestore_reachable'] = false;
+      diagnostics['error'] = 'Timeout: ${e.message}';
+      diagnostics['help'] = 'Firestore not responding. Check internet connection.';
+      debugPrint('[FirebaseService] Timeout: $e');
+      return diagnostics;
+    } catch (e) {
+      diagnostics['firestore_reachable'] = false;
+      diagnostics['error'] = e.toString();
+      diagnostics['help'] = 
+        'Connection failed. Verify Firebase config and Security Rules.';
+      debugPrint('[FirebaseService] Connection error: $e');
+      return diagnostics;
+    }
+  }
 
   // ── One-shot fetch ───────────────────────────────────────────────────────
   /// Fetches the latest reading once (useful for initial load).
   Future<WaterQualityReading> fetchOnce() async {
     try {
-      final snapshot = await _sensorsRef.get();
-      if (snapshot.value == null) return WaterQualityReading.placeholder;
-      return WaterQualityReading.fromSnapshot(snapshot);
+      debugPrint('[FirebaseService] Fetching latest reading...');
+      final snapshot = await _sensorDocRef.get();
+      if (!snapshot.exists || snapshot.data() == null) {
+        debugPrint(
+          '[FirebaseService] No data at $_sensorCollection/$_sensorDocumentId',
+        );
+        return WaterQualityReading.placeholder;
+      }
+      debugPrint('[FirebaseService] Got snapshot: ${snapshot.data()}');
+      return WaterQualityReading.fromFirestoreDocument(snapshot);
     } catch (e) {
       debugPrint('[FirebaseService] fetchOnce error: $e');
       return WaterQualityReading.placeholder;
@@ -153,9 +299,9 @@ class FirebaseService {
   }
 
   // ── History methods ──────────────────────────────────────────────────────
-  
+
   /// Fetches historical readings for a given time range.
-  /// 
+  ///
   /// [hours] - Number of hours to look back (e.g., 24, 168 for 7 days, 720 for 30 days)
   /// Returns list of readings sorted by timestamp (oldest to newest)
   Future<List<WaterQualityReading>> fetchHistory({required int hours}) async {
@@ -193,8 +339,10 @@ class FirebaseService {
 
       // Sort by timestamp
       readings.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-      
-      debugPrint('[FirebaseService] Fetched ${readings.length} history readings');
+
+      debugPrint(
+        '[FirebaseService] Fetched ${readings.length} history readings',
+      );
       return readings;
     } catch (e) {
       debugPrint('[FirebaseService] fetchHistory error: $e');
@@ -237,7 +385,9 @@ class FirebaseService {
             );
           }
         } catch (e) {
-          debugPrint('[FirebaseService] Error parsing ranged history entry: $e');
+          debugPrint(
+            '[FirebaseService] Error parsing ranged history entry: $e',
+          );
         }
       });
 
@@ -264,7 +414,9 @@ class FirebaseService {
   /// Automatically saves current reading to history every [intervalMinutes].
   /// Returns a StreamSubscription that can be cancelled.
   StreamSubscription<void> startAutoSaveHistory({int intervalMinutes = 5}) {
-    return Stream.periodic(Duration(minutes: intervalMinutes)).listen((_) async {
+    return Stream.periodic(Duration(minutes: intervalMinutes)).listen((
+      _,
+    ) async {
       try {
         final reading = await fetchOnce();
         if (reading.temperature != 0 || reading.ph != 0) {

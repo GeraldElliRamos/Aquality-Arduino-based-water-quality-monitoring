@@ -950,7 +950,7 @@ class _AdminViewState extends State<AdminView>
                                   Switch(
                                     value: r.enabled,
                                     onChanged: (v) => setState(() => r.enabled = v),
-                                    activeColor: Colors.green,
+                                    activeThumbColor: Colors.green,
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.delete, color: Colors.red),
@@ -1061,7 +1061,7 @@ class _AdminViewState extends State<AdminView>
                   ),
                   child: ListView.separated(
                     itemCount: _commandLog.length,
-                    separatorBuilder: (_, __) => Divider(
+                    separatorBuilder: (_, _) => Divider(
                       height: 1,
                       color: Colors.grey.shade300,
                       indent: 12,

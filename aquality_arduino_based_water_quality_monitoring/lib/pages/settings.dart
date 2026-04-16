@@ -3,6 +3,7 @@ import '../services/theme_service.dart';
 import '../services/auth_service.dart';
 import '../services/language_service.dart';
 import './faq.dart';
+import '../widgets/firestore_diagnostics.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -271,6 +272,16 @@ class _SettingsViewState extends State<SettingsView> {
                   title: t('about'),
                   isDark: isDark,
                   textColor: textColor,
+                ),
+                _buildDivider(isDark),
+                _buildSettingRow(
+                  icon: Icons.settings_input_antenna,
+                  title: 'Firestore Diagnostics',
+                  isDark: isDark,
+                  textColor: textColor,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const FirestoreDiagnostics()),
+                  ),
                 ),
                 _buildDivider(isDark),
                 _buildSettingRow(
