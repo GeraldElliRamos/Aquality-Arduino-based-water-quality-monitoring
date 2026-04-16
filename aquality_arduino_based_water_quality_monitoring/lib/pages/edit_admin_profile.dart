@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/language_service.dart';
 
-/// Edit Admin Profile Screen
 class EditAdminProfileView extends StatefulWidget {
   final String initialName;
   final String initialEmail;
@@ -57,9 +56,7 @@ class _EditAdminProfileViewState extends State<EditAdminProfileView> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF2563EB),
-            ),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFF2563EB)),
             child: Text(t('confirm')),
           ),
         ],
@@ -72,7 +69,7 @@ class _EditAdminProfileViewState extends State<EditAdminProfileView> {
         _emailController.text,
         _phoneController.text,
       );
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(t('profile_updated'))),
         );
@@ -84,114 +81,171 @@ class _EditAdminProfileViewState extends State<EditAdminProfileView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
-    
+    final blueColor = const Color(0xFF2563EB);
+
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: Text(t('edit_admin_profile')),
         titleTextStyle: TextStyle(
-          color: textColor,
+          color: isDark ? Colors.white : Colors.black,
           fontSize: 20,
           fontWeight: FontWeight.bold,
         ),
-        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: BackButton(color: textColor),
-        centerTitle: false,
-        shape: Border(
-          bottom: BorderSide(
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-            width: 1,
-          ),
-        ),
+        leading: BackButton(color: isDark ? Colors.white : Colors.black),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             const SizedBox(height: 20),
+            // Admin Shield Icon with Edit Badge
             Center(
-              child: CircleAvatar(
-                radius: 60,
-                backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.1),
-                child: const Icon(Icons.shield, size: 60, color: Color(0xFF2563EB)),
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 55,
+                    backgroundColor: blueColor.withOpacity(0.1),
+                    child: Icon(Icons.shield_rounded, size: 55, color: blueColor),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: blueColor,
+                      child: const Icon(Icons.edit, size: 16, color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 32),
-            _buildEditableTextField(
-              controller: _nameController,
-              label: 'Full Name',
-              icon: Icons.person_outline,
-            ),
-            const SizedBox(height: 16),
-            _buildEditableTextField(
-              controller: _emailController,
-              label: 'Email',
-              icon: Icons.email_outlined,
-            ),
-            const SizedBox(height: 16),
-            _buildEditableTextField(
-              controller: _phoneController,
-              label: 'Phone',
-              icon: Icons.phone_outlined,
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _showConfirmationDialog,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+
+            // Unified Information Card (Screenshot Style)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: const Text(
-                  'Save Changes',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                child: Column(
+                  children: [
+                    _buildInlineField(
+                      controller: _nameController,
+                      label: 'Admin Full Name',
+                      icon: Icons.badge_outlined,
+                      isDark: isDark,
+                      showDivider: true,
+                    ),
+                    _buildInlineField(
+                      controller: _emailController,
+                      label: 'Official Email',
+                      icon: Icons.mark_email_read_outlined,
+                      isDark: isDark,
+                      showDivider: true,
+                    ),
+                    _buildInlineField(
+                      controller: _phoneController,
+                      label: 'Direct Contact Number',
+                      icon: Icons.support_agent_outlined,
+                      isDark: isDark,
+                      showDivider: false,
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  side: const BorderSide(color: Color(0xFF2563EB)),
-                ),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2563EB),
+
+            const SizedBox(height: 40),
+
+            // Primary Action Button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _showConfirmationDialog,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: blueColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text(
+                    'SAVE CHANGES',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                    ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                t('cancel'),
+                style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildEditableTextField({
+  Widget _buildInlineField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    required bool isDark,
+    required bool showDivider,
   }) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFF2563EB)),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+    final blueColor = const Color(0xFF2563EB);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: TextField(
+            controller: controller,
+            style: TextStyle(
+              fontSize: 16,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+            decoration: InputDecoration(
+              labelText: label,
+              labelStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+              prefixIcon: Icon(icon, color: blueColor, size: 22),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
         ),
-      ),
+        if (showDivider)
+          Divider(
+            height: 1,
+            indent: 60,
+            endIndent: 20,
+            color: isDark ? Colors.white10 : Colors.grey.shade100,
+          ),
+      ],
     );
   }
 }
-
