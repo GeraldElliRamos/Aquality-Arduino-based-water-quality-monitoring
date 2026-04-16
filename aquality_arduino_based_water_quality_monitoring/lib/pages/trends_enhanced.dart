@@ -25,6 +25,10 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
   Timer? _updateTimer;
   StreamSubscription? _sensorSubscription;
   bool _isLoading = true;
+  bool _isRefreshing = false;
+  bool _isConnected = false;
+  bool _hasError = false;
+  DateTime _lastRefreshedAt = DateTime.now();
   final languageService = LanguageService();
   static const List<String> _ranges = ['6h', '24h', '7d', '30d', '90d'];
 
@@ -108,9 +112,15 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
 
   /// Load historical data from Firebase
   Future<void> _loadHistoryData() async {
-    setState(() => _isLoading = true);
+    if (!mounted) return;
+    
+    setState(() {
+      _isRefreshing = true;
+      _isLoading = _historyData.isEmpty; // Only show loading if no data yet
+    });
     
     try {
+      debugPrint('[TrendsView] Loading history data for range: $_range');
       final hours = _getHoursFromRange(_range);
       final readings = await FirebaseService.instance.fetchHistory(hours: hours);
       
@@ -119,15 +129,25 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
           _historyData = readings;
           _updateCurrentData();
           _isLoading = false;
+          _isRefreshing = false;
+          _hasError = false;
+          _isConnected = readings.isNotEmpty;
+          _lastRefreshedAt = DateTime.now();
+          debugPrint('[TrendsView] Loaded ${readings.length} readings from Firestore');
         });
       }
     } catch (e) {
       debugPrint('[TrendsView] Error loading history: $e');
       if (mounted) {
         setState(() {
-          _historyData = [];
-          _currentData = List.from(sampleData[_selectedParam] ?? []);
+          _hasError = true;
+          _isConnected = false;
+          _isRefreshing = false;
           _isLoading = false;
+          // Keep existing data if available, don't show sample data on error
+          if (_historyData.isEmpty) {
+            _currentData = List.from(sampleData[_selectedParam] ?? []);
+          }
         });
       }
     }
@@ -135,25 +155,40 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
 
   /// Subscribe to live sensor updates
   void _subscribeToLiveUpdates() {
-    _sensorSubscription = FirebaseService.instance.sensorStream.listen((reading) {
-      if (mounted && !_isLoading) {
-        // Only add if it's a new reading (not placeholder)
-        if (reading.temperature != 0 || reading.ph != 0) {
+    debugPrint('[TrendsView] Starting sensor stream listener');
+    _sensorSubscription = FirebaseService.instance.sensorStream.listen(
+      (reading) {
+        if (mounted && !_isLoading) {
+          // Only add if it's a new reading (not placeholder)
+          if (reading.temperature != 0 || reading.ph != 0) {
+            debugPrint('[TrendsView] Received live update: temp=${reading.temperature}');
+            setState(() {
+              // Add new reading to history
+              _historyData.add(reading);
+              
+              // Keep only relevant time range
+              final cutoff = DateTime.now().subtract(
+                Duration(hours: _getHoursFromRange(_range))
+              );
+              _historyData.removeWhere((r) => r.timestamp.isBefore(cutoff));
+              
+              _updateCurrentData();
+              _isConnected = true;
+              _hasError = false;
+            });
+          }
+        }
+      },
+      onError: (e) {
+        debugPrint('[TrendsView] Stream error: $e');
+        if (mounted) {
           setState(() {
-            // Add new reading to history
-            _historyData.add(reading);
-            
-            // Keep only relevant time range
-            final cutoff = DateTime.now().subtract(
-              Duration(hours: _getHoursFromRange(_range))
-            );
-            _historyData.removeWhere((r) => r.timestamp.isBefore(cutoff));
-            
-            _updateCurrentData();
+            _hasError = true;
+            _isConnected = false;
           });
         }
-      }
-    });
+      },
+    );
   }
 
   /// Extract values for the selected parameter from history
@@ -309,39 +344,52 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                 ),
                 Row(
                   children: [
-                    // Loading indicator
-                    if (_isLoading)
+                    // Refreshing indicator
+                    if (_isRefreshing)
                       const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     const SizedBox(width: 8),
+                    // Connection status badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.grey.shade800 : Colors.blue.shade50,
+                        color: _hasError 
+                          ? Colors.red.withValues(alpha: 0.1)
+                          : (_isConnected
+                            ? Colors.green.withValues(alpha: 0.1)
+                            : Colors.grey.withValues(alpha: 0.1)),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: Colors.blue.withValues(alpha: 0.3),
+                          color: _hasError
+                            ? Colors.red.withValues(alpha: 0.3)
+                            : (_isConnected
+                              ? Colors.green.withValues(alpha: 0.3)
+                              : Colors.grey.withValues(alpha: 0.3)),
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(
-                            _historyData.isEmpty 
-                              ? Icons.cloud_off 
-                              : Icons.cloud_done,
+                            _hasError
+                              ? Icons.cloud_off
+                              : (_isConnected ? Icons.cloud_done : Icons.cloud_queue),
                             size: 14,
-                            color: _historyData.isEmpty ? Colors.grey : Colors.blue,
+                            color: _hasError
+                              ? Colors.red
+                              : (_isConnected ? Colors.green : Colors.grey),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             _range,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: Colors.blue,
+                              color: _hasError
+                                ? Colors.red
+                                : (_isConnected ? Colors.green : Colors.grey),
                             ),
                           ),
                         ],
@@ -353,8 +401,46 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
             ),
             const SizedBox(height: 16),
 
+            // Error message
+            if (_hasError && _historyData.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Failed to load trend data',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.red.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Check Firestore connection in Settings → Diagnostics',
+                            style: TextStyle(fontSize: 11, color: Colors.red.shade600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             // Firebase data indicator
-            if (_historyData.isEmpty && !_isLoading)
+            if (_historyData.isEmpty && !_isLoading && !_hasError)
               Container(
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 16),

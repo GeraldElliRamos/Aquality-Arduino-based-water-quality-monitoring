@@ -19,6 +19,9 @@ class _HistoryViewState extends State<HistoryView> {
   String _range = 'week';
   DateTimeRange? _customDateRange;
   bool _isLoading = true;
+  bool _isRefreshing = false;
+  bool _isConnected = false;
+  bool _hasError = false;
   Timer? _refreshTimer;
   final languageService = LanguageService();
   List<Map<String, dynamic>> _records = [];
@@ -57,15 +60,21 @@ class _HistoryViewState extends State<HistoryView> {
 
   Future<void> _loadHistoryData() async {
     if (mounted) {
-      setState(() => _isLoading = true);
+      setState(() {
+        _isRefreshing = true;
+        _isLoading = _records.isEmpty;
+      });
     }
 
     try {
+      debugPrint('[HistoryView] Loading data for range: $_range');
       final dateRange = _effectiveDateRange();
       var readings = await FirebaseService.instance.fetchHistoryRange(
         start: dateRange.start,
         end: dateRange.end,
       );
+
+      debugPrint('[HistoryView] Got ${readings.length} readings from Firestore');
 
       if (readings.isEmpty) {
         readings = _buildSampleReadings(dateRange);
@@ -77,9 +86,13 @@ class _HistoryViewState extends State<HistoryView> {
         setState(() {
           _records = mapped;
           _isLoading = false;
+          _isRefreshing = false;
+          _hasError = false;
+          _isConnected = readings.isNotEmpty;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[HistoryView] Error loading history: $e');
       if (mounted) {
         final dateRange = _effectiveDateRange();
         final sampleReadings = _buildSampleReadings(dateRange);
@@ -88,6 +101,9 @@ class _HistoryViewState extends State<HistoryView> {
         setState(() {
           _records = mapped;
           _isLoading = false;
+          _isRefreshing = false;
+          _hasError = true;
+          _isConnected = false;
         });
       }
     }
@@ -502,11 +518,90 @@ class _HistoryViewState extends State<HistoryView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          t('historical_data'),
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              t('historical_data'),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            // Connection status badge
+            if (_isRefreshing)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            if (!_isRefreshing)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _hasError
+                    ? Colors.red.withValues(alpha: 0.1)
+                    : (_isConnected
+                      ? Colors.green.withValues(alpha: 0.1)
+                      : Colors.grey.withValues(alpha: 0.1)),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: _hasError
+                      ? Colors.red.withValues(alpha: 0.3)
+                      : (_isConnected
+                        ? Colors.green.withValues(alpha: 0.3)
+                        : Colors.grey.withValues(alpha: 0.3)),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _hasError
+                        ? Icons.cloud_off
+                        : (_isConnected ? Icons.cloud_done : Icons.cloud_queue),
+                      size: 12,
+                      color: _hasError
+                        ? Colors.red
+                        : (_isConnected ? Colors.green : Colors.grey),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      _hasError ? 'Error' : (_isConnected ? 'Live' : 'Ready'),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: _hasError
+                          ? Colors.red
+                          : (_isConnected ? Colors.green : Colors.grey),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 12),
+        // Error indicator
+        if (_hasError && _records.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(10),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber, color: Colors.red, size: 16),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Check Firestore connection in Settings',
+                    style: TextStyle(fontSize: 11, color: Colors.red.shade700),
+                  ),
+                ),
+              ],
+            ),
+          ),
         // Quick filters
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
