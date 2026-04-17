@@ -51,46 +51,30 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
       case 'Temperature':
         return {
           'primary': const Color(0xFFF59E0B), // Orange
-          'light': const Color(0xFFFCD34D),  // Light Orange
+          'light': const Color(0xFFFCD34D), // Light Orange
         };
       case 'pH Level':
         return {
           'primary': const Color(0xFF8B5CF6), // Purple
-          'light': const Color(0xFFDDD6FE),  // Light Purple
+          'light': const Color(0xFFDDD6FE), // Light Purple
         };
       case 'Turbidity':
         return {
           'primary': const Color(0xFF3B82F6), // Blue
-          'light': const Color(0xFFBFDBFE),  // Light Blue
+          'light': const Color(0xFFBFDBFE), // Light Blue
         };
       case 'Ammonia':
         return {
           'primary': const Color(0xFF10B981), // Green
-          'light': const Color(0xFFD1FAE5),  // Light Green
+          'light': const Color(0xFFD1FAE5), // Light Green
         };
       default:
         return {
           'primary': const Color(0xFF6B7280), // Gray
-          'light': const Color(0xFFE5E7EB),  // Light Gray
+          'light': const Color(0xFFE5E7EB), // Light Gray
         };
     }
   }
-
-  // Fallback sample data when no Firebase history exists
-  final Map<String, List<double>> sampleData = {
-    'Temperature': [
-      25.2, 25.8, 26.5, 27.1, 27.8, 28.5, 29.1, 29.4, 28.9, 28.2, 27.5, 26.8
-    ],
-    'pH Level': [
-      6.8, 6.75, 6.82, 6.88, 6.92, 6.98, 7.02, 7.05, 7.08, 7.04, 7.0, 6.98
-    ],
-    'Turbidity': [
-      18.0, 19.2, 17.8, 20.1, 22.5, 24.0, 23.2, 25.4, 24.8, 22.9, 21.7, 20.3
-    ],
-    'Ammonia': [
-      0.1, 0.12, 0.11, 0.13, 0.15, 0.14, 0.13, 0.12, 0.11, 0.10, 0.09, 0.08
-    ],
-  };
 
   late AnimationController _animationController;
 
@@ -103,7 +87,7 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
       duration: const Duration(milliseconds: 800),
     );
     _animationController.forward();
-    
+
     _loadHistoryData();
     _subscribeToLiveUpdates();
   }
@@ -113,17 +97,19 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
   /// Load historical data from Firebase
   Future<void> _loadHistoryData() async {
     if (!mounted) return;
-    
+
     setState(() {
       _isRefreshing = true;
       _isLoading = _historyData.isEmpty; // Only show loading if no data yet
     });
-    
+
     try {
       debugPrint('[TrendsView] Loading history data for range: $_range');
       final hours = _getHoursFromRange(_range);
-      final readings = await FirebaseService.instance.fetchHistory(hours: hours);
-      
+      final readings = await FirebaseService.instance.fetchHistory(
+        hours: hours,
+      );
+
       if (mounted) {
         setState(() {
           _historyData = readings;
@@ -133,7 +119,9 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
           _hasError = false;
           _isConnected = readings.isNotEmpty;
           _lastRefreshedAt = DateTime.now();
-          debugPrint('[TrendsView] Loaded ${readings.length} readings from Firestore');
+          debugPrint(
+            '[TrendsView] Loaded ${readings.length} readings from Firestore',
+          );
         });
       }
     } catch (e) {
@@ -144,10 +132,9 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
           _isConnected = false;
           _isRefreshing = false;
           _isLoading = false;
-          // Keep existing data if available, don't show sample data on error
-          if (_historyData.isEmpty) {
-            _currentData = List.from(sampleData[_selectedParam] ?? []);
-          }
+          _displayReadings = [];
+          _rawCurrentData = [];
+          _currentData = [];
         });
       }
     }
@@ -161,17 +148,19 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
         if (mounted && !_isLoading) {
           // Only add if it's a new reading (not placeholder)
           if (reading.temperature != 0 || reading.ph != 0) {
-            debugPrint('[TrendsView] Received live update: temp=${reading.temperature}');
+            debugPrint(
+              '[TrendsView] Received live update: temp=${reading.temperature}',
+            );
             setState(() {
               // Add new reading to history
               _historyData.add(reading);
-              
+
               // Keep only relevant time range
               final cutoff = DateTime.now().subtract(
-                Duration(hours: _getHoursFromRange(_range))
+                Duration(hours: _getHoursFromRange(_range)),
               );
               _historyData.removeWhere((r) => r.timestamp.isBefore(cutoff));
-              
+
               _updateCurrentData();
               _isConnected = true;
               _hasError = false;
@@ -195,8 +184,8 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
   void _updateCurrentData() {
     if (_historyData.isEmpty) {
       _displayReadings = [];
-      _rawCurrentData = List.from(sampleData[_selectedParam] ?? []);
-      _currentData = List.from(sampleData[_selectedParam] ?? []);
+      _rawCurrentData = [];
+      _currentData = [];
       return;
     }
 
@@ -230,12 +219,18 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
 
   int _getHoursFromRange(String range) {
     switch (range) {
-      case '6h': return 6;
-      case '24h': return 24;
-      case '7d': return 168;
-      case '30d': return 720;
-      case '90d': return 2160;
-      default: return 24;
+      case '6h':
+        return 6;
+      case '24h':
+        return 24;
+      case '7d':
+        return 168;
+      case '30d':
+        return 720;
+      case '90d':
+        return 2160;
+      default:
+        return 24;
     }
   }
 
@@ -340,7 +335,10 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
               children: [
                 Text(
                   t('parameter_trends'),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 Row(
                   children: [
@@ -354,32 +352,37 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                     const SizedBox(width: 8),
                     // Connection status badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: _hasError 
-                          ? Colors.red.withValues(alpha: 0.1)
-                          : (_isConnected
-                            ? Colors.green.withValues(alpha: 0.1)
-                            : Colors.grey.withValues(alpha: 0.1)),
+                        color: _hasError
+                            ? Colors.red.withValues(alpha: 0.1)
+                            : (_isConnected
+                                  ? Colors.green.withValues(alpha: 0.1)
+                                  : Colors.grey.withValues(alpha: 0.1)),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: _hasError
-                            ? Colors.red.withValues(alpha: 0.3)
-                            : (_isConnected
-                              ? Colors.green.withValues(alpha: 0.3)
-                              : Colors.grey.withValues(alpha: 0.3)),
+                              ? Colors.red.withValues(alpha: 0.3)
+                              : (_isConnected
+                                    ? Colors.green.withValues(alpha: 0.3)
+                                    : Colors.grey.withValues(alpha: 0.3)),
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(
                             _hasError
-                              ? Icons.cloud_off
-                              : (_isConnected ? Icons.cloud_done : Icons.cloud_queue),
+                                ? Icons.cloud_off
+                                : (_isConnected
+                                      ? Icons.cloud_done
+                                      : Icons.cloud_queue),
                             size: 14,
                             color: _hasError
-                              ? Colors.red
-                              : (_isConnected ? Colors.green : Colors.grey),
+                                ? Colors.red
+                                : (_isConnected ? Colors.green : Colors.grey),
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -388,8 +391,8 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: _hasError
-                                ? Colors.red
-                                : (_isConnected ? Colors.green : Colors.grey),
+                                  ? Colors.red
+                                  : (_isConnected ? Colors.green : Colors.grey),
                             ),
                           ),
                         ],
@@ -430,7 +433,10 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                           const SizedBox(height: 4),
                           Text(
                             'Check Firestore connection in Settings → Diagnostics',
-                            style: TextStyle(fontSize: 11, color: Colors.red.shade600),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.red.shade600,
+                            ),
                           ),
                         ],
                       ),
@@ -447,7 +453,9 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                 decoration: BoxDecoration(
                   color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -455,8 +463,11 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'No history data yet. Showing sample data. Your Arduino should write to /Aquality_history.',
-                        style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+                        'No history data yet. Waiting for Firebase history at /Aquality_history.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade700,
+                        ),
                       ),
                     ),
                   ],
@@ -482,15 +493,16 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                           ..forward();
                         _loadHistoryData();
                       },
-                      backgroundColor:
-                          isDark ? Colors.grey.shade700 : Colors.grey.shade200,
+                      backgroundColor: isDark
+                          ? Colors.grey.shade700
+                          : Colors.grey.shade200,
                       selectedColor: Colors.blue.withValues(alpha: 0.2),
                       side: BorderSide(
                         color: isSelected
                             ? Colors.blue
                             : (isDark
-                                ? Colors.grey.shade600
-                                : Colors.grey.shade400),
+                                  ? Colors.grey.shade600
+                                  : Colors.grey.shade400),
                       ),
                     ),
                   );
@@ -509,36 +521,39 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
               height: 44,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                children: ['Temperature', 'pH Level', 'Turbidity', 'Ammonia'].map((param) {
-                  final isSelected = param == _selectedParam;
-                  final paramColor = getParameterColors(param)['primary']!;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(getTranslatedParamName(param)),
-                      selected: isSelected,
-                      onSelected: (selected) {
-                        setState(() {
-                          _selectedParam = param;
-                          _updateCurrentData();
-                        });
-                        _animationController
-                          ..reset()
-                          ..forward();
-                      },
-                      backgroundColor:
-                          isDark ? Colors.grey.shade700 : Colors.grey.shade200,
-                      selectedColor: paramColor.withValues(alpha: 0.2),
-                      side: BorderSide(
-                        color: isSelected
-                            ? paramColor
-                            : (isDark
-                                ? Colors.grey.shade600
-                                : Colors.grey.shade400),
-                      ),
-                    ),
-                  );
-                }).toList(),
+                children: ['Temperature', 'pH Level', 'Turbidity', 'Ammonia']
+                    .map((param) {
+                      final isSelected = param == _selectedParam;
+                      final paramColor = getParameterColors(param)['primary']!;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text(getTranslatedParamName(param)),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedParam = param;
+                              _updateCurrentData();
+                            });
+                            _animationController
+                              ..reset()
+                              ..forward();
+                          },
+                          backgroundColor: isDark
+                              ? Colors.grey.shade700
+                              : Colors.grey.shade200,
+                          selectedColor: paramColor.withValues(alpha: 0.2),
+                          side: BorderSide(
+                            color: isSelected
+                                ? paramColor
+                                : (isDark
+                                      ? Colors.grey.shade600
+                                      : Colors.grey.shade400),
+                          ),
+                        ),
+                      );
+                    })
+                    .toList(),
               ),
             ),
             const SizedBox(height: 20),
@@ -559,7 +574,9 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                   child: _buildStatCard(
                     label: t('max'),
                     value: FormatUtils.formatParamValue(stats['max'] ?? 0),
-                    color: getParameterColors(_selectedParam)['primary']!.withValues(alpha: 0.7),
+                    color: getParameterColors(
+                      _selectedParam,
+                    )['primary']!.withValues(alpha: 0.7),
                     isDark: isDark,
                   ),
                 ),
@@ -568,7 +585,9 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                   child: _buildStatCard(
                     label: t('avg'),
                     value: FormatUtils.formatParamValue(stats['avg'] ?? 0),
-                    color: getParameterColors(_selectedParam)['primary']!.withValues(alpha: 0.4),
+                    color: getParameterColors(
+                      _selectedParam,
+                    )['primary']!.withValues(alpha: 0.4),
                     isDark: isDark,
                   ),
                 ),
@@ -591,7 +610,10 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                 children: [
                   Text(
                     '${t('trend_24h')} (${statsData.length} readings, ${_currentData.length} points, ${_intervalLabel()})',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   Row(
                     children: [
@@ -599,8 +621,8 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                         trendPercent > 0
                             ? Icons.trending_up
                             : (trendPercent < 0
-                                ? Icons.trending_down
-                                : Icons.trending_flat),
+                                  ? Icons.trending_down
+                                  : Icons.trending_flat),
                         color: ChartUtils.getTrendColor(trendPercent, isDark),
                         size: 18,
                       ),
@@ -653,9 +675,15 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                         : LineChart(
                             ChartUtils.buildLineChartData(
                               _currentData,
-                              lineColor: getParameterColors(_selectedParam)['primary']!,
-                              gradientStartColor: getParameterColors(_selectedParam)['primary']!,
-                              gradientEndColor: getParameterColors(_selectedParam)['light']!,
+                              lineColor: getParameterColors(
+                                _selectedParam,
+                              )['primary']!,
+                              gradientStartColor: getParameterColors(
+                                _selectedParam,
+                              )['primary']!,
+                              gradientEndColor: getParameterColors(
+                                _selectedParam,
+                              )['light']!,
                             ),
                           ),
                   ),
@@ -681,64 +709,62 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
                       DataColumn(label: Text(t('value'))),
                       DataColumn(label: Text(t('change'))),
                     ],
-                    rows: List.generate(
-                      min(5, _currentData.length),
-                      (index) {
-                        final dataIndex = _currentData.length - 1 - index;
-                        final value = _currentData[dataIndex];
-                        final prevValue = dataIndex > 0 ? _currentData[dataIndex - 1] : value;
-                        final change = value - prevValue;
+                    rows: List.generate(min(5, _currentData.length), (index) {
+                      final dataIndex = _currentData.length - 1 - index;
+                      final value = _currentData[dataIndex];
+                      final prevValue = dataIndex > 0
+                          ? _currentData[dataIndex - 1]
+                          : value;
+                      final change = value - prevValue;
 
-                        // Calculate time ago if we have history data
-                        String timeLabel;
-                        if (_displayReadings.isNotEmpty && dataIndex < _displayReadings.length) {
-                          final timestamp = _displayReadings[dataIndex].timestamp;
-                          timeLabel = FormatUtils.formatTimeAgo(timestamp);
-                        } else {
-                          timeLabel = '${index * 2} ${t('hours_ago')}';
-                        }
+                      // Calculate time ago if we have history data
+                      String timeLabel;
+                      if (_displayReadings.isNotEmpty &&
+                          dataIndex < _displayReadings.length) {
+                        final timestamp = _displayReadings[dataIndex].timestamp;
+                        timeLabel = FormatUtils.formatTimeAgo(timestamp);
+                      } else {
+                        timeLabel = '${index * 2} ${t('hours_ago')}';
+                      }
 
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(timeLabel)),
-                            DataCell(
-                              Text(FormatUtils.formatParamValue(value)),
-                            ),
-                            DataCell(
-                              Row(
-                                children: [
-                                  Icon(
-                                    change > 0
-                                        ? Icons.arrow_upward
-                                        : (change < 0
+                      return DataRow(
+                        cells: [
+                          DataCell(Text(timeLabel)),
+                          DataCell(Text(FormatUtils.formatParamValue(value))),
+                          DataCell(
+                            Row(
+                              children: [
+                                Icon(
+                                  change > 0
+                                      ? Icons.arrow_upward
+                                      : (change < 0
                                             ? Icons.arrow_downward
                                             : Icons.remove),
-                                    size: 14,
+                                  size: 14,
+                                  color: change > 0
+                                      ? Colors.red
+                                      : (change < 0
+                                            ? Colors.green
+                                            : Colors.grey),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  FormatUtils.formatParamValue(change.abs()),
+                                  style: TextStyle(
                                     color: change > 0
                                         ? Colors.red
                                         : (change < 0
-                                            ? Colors.green
-                                            : Colors.grey),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    FormatUtils.formatParamValue(change.abs()),
-                                    style: TextStyle(
-                                      color: change > 0
-                                          ? Colors.red
-                                          : (change < 0
                                               ? Colors.green
                                               : Colors.grey),
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          ],
-                        );
-                      },
-                    ),
+                          ),
+                        ],
+                      );
+                    }),
                   ),
                 ),
               ),
@@ -760,9 +786,7 @@ class _TrendsViewEnhancedState extends State<TrendsViewEnhanced>
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

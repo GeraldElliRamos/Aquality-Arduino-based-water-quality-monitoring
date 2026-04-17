@@ -31,6 +31,7 @@ class AuthService {
   static final ValueNotifier<bool> isLoggedIn = ValueNotifier<bool>(false);
   static final ValueNotifier<String> userRole = ValueNotifier<String>('');
   static final ValueNotifier<bool> isLGU = ValueNotifier<bool>(false);
+  static final ValueNotifier<bool> isProfileLoading = ValueNotifier<bool>(true);
   static bool _localAdminOverride = false;
 
   static void init() {
@@ -43,13 +44,16 @@ class AuthService {
           isAdmin.value = false;
           isLGU.value = false;
           userRole.value = '';
+          isProfileLoading.value = false;
         } else {
+          isProfileLoading.value = true;
           isLoggedIn.value = true;
           final doc = await _db.collection('users').doc(user.uid).get();
           final cloudAdmin = doc.data()?['isAdmin'] == true;
           isAdmin.value = _localAdminOverride || cloudAdmin;
           userRole.value = doc.data()?['userType'] ?? '';
           isLGU.value = userRole.value == 'lgu';
+          isProfileLoading.value = false;
         }
       } on FirebaseException catch (e) {
         debugPrint('Auth state profile read failed: ${e.code} ${e.message}');
@@ -62,6 +66,7 @@ class AuthService {
         isAdmin.value = false;
         isLGU.value = false;
         userRole.value = '';
+        isProfileLoading.value = false;
       } catch (e) {
         debugPrint('Auth state profile read failed: $e');
         if (user == null) {
@@ -72,6 +77,7 @@ class AuthService {
         isAdmin.value = false;
         isLGU.value = false;
         userRole.value = '';
+        isProfileLoading.value = false;
       }
     });
   }
@@ -389,5 +395,6 @@ class AuthService {
     _localAdminOverride = v;
     isAdmin.value = v;
   }
+
   static void setLoggedIn(bool v) => isLoggedIn.value = v;
 }

@@ -81,8 +81,8 @@ class WaterQualityReading {
 
     final timestamp = timestampValue is num
         ? DateTime.fromMillisecondsSinceEpoch(timestampValue.toInt())
-      : timestampValue is Timestamp
-      ? timestampValue.toDate()
+        : timestampValue is Timestamp
+        ? timestampValue.toDate()
         : timestampValue is String
         ? DateTime.tryParse(timestampValue) ?? DateTime.now()
         : DateTime.now();
@@ -92,10 +92,15 @@ class WaterQualityReading {
       0.0,
     );
     final phVal = parseValue(readingData['ph'], 0.0);
-    final ammVal = parseValue(readingData['ammonia'] ?? readingData['nh3'], 0.0);
+    final ammVal = parseValue(
+      readingData['ammonia'] ?? readingData['nh3'],
+      0.0,
+    );
     final turbVal = parseValue(readingData['turbidity'], 0.0);
 
-    debugPrint('[WaterQualityReading] Parsed values - temp: $temp, ph: $phVal, ammonia: $ammVal, turbidity: $turbVal, timestamp: $timestamp');
+    debugPrint(
+      '[WaterQualityReading] Parsed values - temp: $temp, ph: $phVal, ammonia: $ammVal, turbidity: $turbVal, timestamp: $timestamp',
+    );
 
     return WaterQualityReading(
       temperature: temp,
@@ -226,7 +231,7 @@ class FirebaseService {
 
     try {
       debugPrint('[FirebaseService] Testing Firestore connection...');
-      
+
       final snapshot = await _sensorDocRef.get().timeout(
         const Duration(seconds: 10),
         onTimeout: () => throw TimeoutException('Firestore request timeout'),
@@ -239,7 +244,7 @@ class FirebaseService {
       if (snapshot.exists && snapshot.data() != null) {
         final data = snapshot.data()!;
         diagnostics['document_data'] = data;
-        
+
         try {
           final reading = WaterQualityReading.fromFirestoreDocument(snapshot);
           diagnostics['parsed_successfully'] = true;
@@ -255,9 +260,9 @@ class FirebaseService {
           diagnostics['parse_error'] = e.toString();
         }
       } else {
-        diagnostics['help'] = 
-          'Document not found. Check Firestore at: '
-          'Collection "$_sensorCollection", Document "$_sensorDocumentId"';
+        diagnostics['help'] =
+            'Document not found. Check Firestore at: '
+            'Collection "$_sensorCollection", Document "$_sensorDocumentId"';
       }
 
       debugPrint('[FirebaseService] Diagnostics: $diagnostics');
@@ -265,14 +270,15 @@ class FirebaseService {
     } on TimeoutException catch (e) {
       diagnostics['firestore_reachable'] = false;
       diagnostics['error'] = 'Timeout: ${e.message}';
-      diagnostics['help'] = 'Firestore not responding. Check internet connection.';
+      diagnostics['help'] =
+          'Firestore not responding. Check internet connection.';
       debugPrint('[FirebaseService] Timeout: $e');
       return diagnostics;
     } catch (e) {
       diagnostics['firestore_reachable'] = false;
       diagnostics['error'] = e.toString();
-      diagnostics['help'] = 
-        'Connection failed. Verify Firebase config and Security Rules.';
+      diagnostics['help'] =
+          'Connection failed. Verify Firebase config and Security Rules.';
       debugPrint('[FirebaseService] Connection error: $e');
       return diagnostics;
     }
@@ -408,6 +414,17 @@ class FirebaseService {
       debugPrint('[FirebaseService] Saved reading to history at $timestamp');
     } catch (e) {
       debugPrint('[FirebaseService] saveToHistory error: $e');
+    }
+  }
+
+  /// Deletes all history entries.
+  Future<void> clearHistory() async {
+    try {
+      await _historyRef.remove();
+      debugPrint('[FirebaseService] Cleared all history entries');
+    } catch (e) {
+      debugPrint('[FirebaseService] clearHistory error: $e');
+      rethrow;
     }
   }
 

@@ -22,6 +22,8 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
   String _searchQuery = '';
   final languageService = LanguageService();
   final List<Alert> _alerts = [];
+  final Set<String> _selectedAlertIds = <String>{};
+  bool _isSelectionMode = false;
 
   StreamSubscription<WaterQualityReading>? _sensorSub;
   StreamSubscription<List<Alert>>? _alertsSub;
@@ -76,15 +78,17 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
   }
 
   Future<void> _processReading(WaterQualityReading reading) async {
-    final isPlaceholder = reading.temperature == 0.0 &&
+    final isPlaceholder =
+        reading.temperature == 0.0 &&
         reading.ph == 0.0 &&
         reading.ammonia == 0.0 &&
         reading.turbidity == 0.0;
     if (isPlaceholder) return;
 
     final stored = await ThresholdService.getAllThresholds();
-    final thresholds =
-        stored.isEmpty ? ThresholdService.getDefaultThresholds() : stored;
+    final thresholds = stored.isEmpty
+        ? ThresholdService.getDefaultThresholds()
+        : stored;
 
     for (final threshold in thresholds) {
       if (!threshold.enableAlerts) continue;
@@ -146,9 +150,11 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
       return null;
     }
 
-    final isCritical = (threshold.warningMinValue != null &&
+    final isCritical =
+        (threshold.warningMinValue != null &&
             value < threshold.warningMinValue!) ||
-        (threshold.warningMaxValue != null && value > threshold.warningMaxValue!);
+        (threshold.warningMaxValue != null &&
+            value > threshold.warningMaxValue!);
 
     return isCritical ? AlertLevel.critical : AlertLevel.warning;
   }
@@ -217,6 +223,100 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
     return filtered;
   }
 
+  Future<void> _removeAll(List<Alert> alerts) async {
+    if (alerts.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove all alerts'),
+        content: Text('Delete ${alerts.length} alerts? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Remove all'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    for (final alert in alerts) {
+      await FirebaseService.instance.deleteAlert(alert.id);
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _selectedAlertIds.removeWhere((id) => alerts.any((a) => a.id == id));
+      _isSelectionMode = false;
+    });
+  }
+
+  Future<void> _removeSelected(List<Alert> source) async {
+    if (_selectedAlertIds.isEmpty) return;
+
+    final selected = source
+        .where((alert) => _selectedAlertIds.contains(alert.id))
+        .toList();
+    if (selected.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove selected alerts'),
+        content: Text(
+          'Delete ${selected.length} selected alerts? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Remove selected'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    for (final alert in selected) {
+      await FirebaseService.instance.deleteAlert(alert.id);
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _selectedAlertIds.clear();
+      _isSelectionMode = false;
+    });
+  }
+
+  void _selectAll(List<Alert> alerts) {
+    if (alerts.isEmpty) return;
+    setState(() {
+      _isSelectionMode = true;
+      for (final alert in alerts) {
+        _selectedAlertIds.add(alert.id);
+      }
+    });
+  }
+
+  void _deselectAll() {
+    setState(() {
+      _selectedAlertIds.clear();
+      _isSelectionMode = false;
+    });
+  }
+
   Map<String, List<Alert>> _groupAlertsByDate(List<Alert> alerts) {
     final groups = <String, List<Alert>>{};
 
@@ -241,8 +341,11 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
 
   void _showAlertDetail(BuildContext context, Alert alert) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final levelColor = ColorUtils.getAlertLevelColor(alert.level, isDark: isDark);
-    
+    final levelColor = ColorUtils.getAlertLevelColor(
+      alert.level,
+      isDark: isDark,
+    );
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -252,7 +355,9 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
         return SingleChildScrollView(
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -288,7 +393,9 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                               decoration: BoxDecoration(
                                 color: levelColor.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: levelColor.withOpacity(0.4)),
+                                border: Border.all(
+                                  color: levelColor.withOpacity(0.4),
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -297,14 +404,18 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                                     alert.level == AlertLevel.critical
                                         ? Icons.error
                                         : alert.level == AlertLevel.warning
-                                            ? Icons.warning
-                                            : Icons.info,
+                                        ? Icons.warning
+                                        : Icons.info,
                                     color: levelColor,
                                     size: 16,
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    alert.level.toString().split('.').last.toUpperCase(),
+                                    alert.level
+                                        .toString()
+                                        .split('.')
+                                        .last
+                                        .toUpperCase(),
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
@@ -361,11 +472,7 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: levelColor,
-                          size: 20,
-                        ),
+                        Icon(Icons.info_outline, color: levelColor, size: 20),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -373,8 +480,9 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color:
-                                  isDark ? Colors.grey.shade300 : Colors.grey.shade800,
+                              color: isDark
+                                  ? Colors.grey.shade300
+                                  : Colors.grey.shade800,
                             ),
                           ),
                         ),
@@ -447,7 +555,9 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () async {
-                            await FirebaseService.instance.deleteAlert(alert.id);
+                            await FirebaseService.instance.deleteAlert(
+                              alert.id,
+                            );
                             Navigator.pop(ctx);
                           },
                           icon: const Icon(Icons.close_rounded),
@@ -455,7 +565,9 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             side: BorderSide(
-                              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                              color: isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300,
                             ),
                           ),
                         ),
@@ -464,7 +576,9 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () async {
-                            await FirebaseService.instance.deleteAlert(alert.id);
+                            await FirebaseService.instance.deleteAlert(
+                              alert.id,
+                            );
                             Navigator.pop(ctx);
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -500,6 +614,9 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final filteredAlerts = _filteredAlerts;
     final groupedAlerts = _groupAlertsByDate(filteredAlerts);
+    final allFilteredSelected =
+        filteredAlerts.isNotEmpty &&
+        filteredAlerts.every((alert) => _selectedAlertIds.contains(alert.id));
 
     return Column(
       children: [
@@ -535,21 +652,34 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
-                    _buildFilterChip('All', countBy(AlertLevel.critical) +
-                            countBy(AlertLevel.warning) +
-                            countBy(AlertLevel.info),
-                        isDark),
+                    _buildFilterChip(
+                      'All',
+                      countBy(AlertLevel.critical) +
+                          countBy(AlertLevel.warning) +
+                          countBy(AlertLevel.info),
+                      isDark,
+                    ),
                     const SizedBox(width: 8),
                     _buildFilterChip(
-                        'Critical', countBy(AlertLevel.critical), isDark,
-                        color: Colors.red),
+                      'Critical',
+                      countBy(AlertLevel.critical),
+                      isDark,
+                      color: Colors.red,
+                    ),
                     const SizedBox(width: 8),
                     _buildFilterChip(
-                        'Warning', countBy(AlertLevel.warning), isDark,
-                        color: Colors.orange),
+                      'Warning',
+                      countBy(AlertLevel.warning),
+                      isDark,
+                      color: Colors.orange,
+                    ),
                     const SizedBox(width: 8),
-                    _buildFilterChip('Info', countBy(AlertLevel.info), isDark,
-                        color: Colors.blue),
+                    _buildFilterChip(
+                      'Info',
+                      countBy(AlertLevel.info),
+                      isDark,
+                      color: Colors.blue,
+                    ),
                   ],
                 ),
               ),
@@ -586,22 +716,132 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                         horizontal: 4,
                         vertical: 8,
                       ),
-                      child: Text(
-                        groupKey,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: isDark
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade600,
-                        ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            groupKey,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
+                          if (groupIndex == 0)
+                            Row(
+                              children: [
+                                if (_isSelectionMode &&
+                                    _selectedAlertIds.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: Text(
+                                      '${_selectedAlertIds.length} selected',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? Colors.grey.shade400
+                                            : Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ),
+                                PopupMenuButton<String>(
+                                  onSelected: (value) {
+                                    switch (value) {
+                                      case 'select_all':
+                                        _selectAll(filteredAlerts);
+                                        break;
+                                      case 'deselect_all':
+                                        _deselectAll();
+                                        break;
+                                      case 'remove_selected':
+                                        _removeSelected(filteredAlerts);
+                                        break;
+                                      case 'remove_all':
+                                        _removeAll(filteredAlerts);
+                                        break;
+                                    }
+                                  },
+                                  itemBuilder: (ctx) => [
+                                    const PopupMenuItem<String>(
+                                      value: 'select_all',
+                                      child: Text('Select all'),
+                                    ),
+                                    if (_isSelectionMode)
+                                      const PopupMenuItem<String>(
+                                        value: 'deselect_all',
+                                        child: Text('Deselect all'),
+                                      ),
+                                    if (_selectedAlertIds.isNotEmpty)
+                                      const PopupMenuItem<String>(
+                                        value: 'remove_selected',
+                                        child: Text('Remove selected'),
+                                      ),
+                                    const PopupMenuItem<String>(
+                                      value: 'remove_all',
+                                      child: Text('Remove all'),
+                                    ),
+                                  ],
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        'Select',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF2563EB),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 2),
+                                      const Icon(
+                                        Icons.keyboard_arrow_down,
+                                        size: 18,
+                                        color: Color(0xFF2563EB),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
                       ),
                     ),
                     ...groupAlerts.map((alert) {
+                      final isSelected = _selectedAlertIds.contains(alert.id);
                       return _buildAlertItem(
                         alert,
                         isDark,
-                        onTap: () => _showAlertDetail(context, alert),
+                        isSelected: isSelected,
+                        isSelectionMode: _isSelectionMode,
+                        onTap: () {
+                          if (_isSelectionMode) {
+                            setState(() {
+                              if (isSelected) {
+                                _selectedAlertIds.remove(alert.id);
+                              } else {
+                                _selectedAlertIds.add(alert.id);
+                              }
+
+                              if (_selectedAlertIds.isEmpty) {
+                                _isSelectionMode = false;
+                              }
+                            });
+                            return;
+                          }
+                          _showAlertDetail(context, alert);
+                        },
+                        onLongPress: () {
+                          setState(() {
+                            _isSelectionMode = true;
+                            if (isSelected) {
+                              _selectedAlertIds.remove(alert.id);
+                            } else {
+                              _selectedAlertIds.add(alert.id);
+                            }
+                          });
+                        },
                       );
                     }),
                   ],
@@ -613,8 +853,12 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
     );
   }
 
-  Widget _buildFilterChip(String label, int count, bool isDark,
-      {Color? color}) {
+  Widget _buildFilterChip(
+    String label,
+    int count,
+    bool isDark, {
+    Color? color,
+  }) {
     final isSelected = _filter == label;
     return FilterChip(
       label: Text('$label ($count)'),
@@ -638,22 +882,32 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
     );
   }
 
-  Widget _buildAlertItem(Alert alert, bool isDark,
-      {required VoidCallback onTap}) {
+  Widget _buildAlertItem(
+    Alert alert,
+    bool isDark, {
+    required VoidCallback onTap,
+    required VoidCallback onLongPress,
+    required bool isSelected,
+    required bool isSelectionMode,
+  }) {
     final bgColor = ColorUtils.getAlertBgColor(alert.level, isDark: isDark);
-    final levelColor = ColorUtils.getAlertLevelColor(alert.level, isDark: isDark);
+    final levelColor = ColorUtils.getAlertLevelColor(
+      alert.level,
+      isDark: isDark,
+    );
 
     return RepaintBoundary(
       child: GestureDetector(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: Container(
           margin: const EdgeInsets.only(bottom: 10),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: bgColor,
+            color: isSelected ? levelColor.withOpacity(0.16) : bgColor,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: levelColor.withOpacity(0.3),
+              color: isSelected ? levelColor : levelColor.withOpacity(0.3),
               width: 1,
             ),
           ),
@@ -674,6 +928,16 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                   ),
                 ),
               ),
+              if (isSelectionMode) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                  color: isSelected
+                      ? levelColor
+                      : (isDark ? Colors.grey.shade500 : Colors.grey.shade400),
+                  size: 20,
+                ),
+              ],
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -695,8 +959,9 @@ class _AlertsViewEnhancedState extends State<AlertsViewEnhanced> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
-                        color:
-                            isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
                       ),
                     ),
                   ],

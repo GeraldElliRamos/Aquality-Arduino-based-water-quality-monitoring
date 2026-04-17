@@ -85,19 +85,27 @@ class _AqualityAppState extends State<AqualityApp> {
             return const SplashView();
           }
           if (snapshot.hasData) {
-            return ValueListenableBuilder<String>(
-              valueListenable: AuthService.userRole,
-              builder: (context, role, _) {
-                // FIX: avoid getting stuck on Splash when role is empty
-                if (role.isEmpty) return const RoleSelectionView();
-                switch (role) {
-                  case 'fishPondOwner':
-                    return const AppScreen(role: 'fishPondOwner');
-                  case 'lgu':
-                    return const AppScreen(role: 'lgu');
-                  default:
-                    return const AppScreen(role: 'tilapiaFarmer');
+            return ValueListenableBuilder<bool>(
+              valueListenable: AuthService.isProfileLoading,
+              builder: (context, isProfileLoading, _) {
+                if (isProfileLoading) {
+                  return const SplashView();
                 }
+
+                return ValueListenableBuilder<String>(
+                  valueListenable: AuthService.userRole,
+                  builder: (context, role, _) {
+                    if (role.isEmpty) return const RoleSelectionView();
+                    switch (role) {
+                      case 'fishPondOwner':
+                        return const AppScreen(role: 'fishPondOwner');
+                      case 'lgu':
+                        return const AppScreen(role: 'lgu');
+                      default:
+                        return const AppScreen(role: 'tilapiaFarmer');
+                    }
+                  },
+                );
               },
             );
           }

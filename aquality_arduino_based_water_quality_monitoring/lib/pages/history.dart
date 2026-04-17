@@ -35,12 +35,6 @@ class _HistoryViewState extends State<HistoryView> {
     _range = PreferencesService.instance.lastTimeRange;
     _customDateRange = _loadSavedDateRange();
 
-    // Seed immediate local data so History is never visually empty.
-    _records = _mapReadingsToRecords(
-      _buildSampleReadings(_effectiveDateRange()),
-    );
-    _isLoading = false;
-
     _loadHistoryData();
     _refreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
       if (mounted) {
@@ -74,10 +68,15 @@ class _HistoryViewState extends State<HistoryView> {
         end: dateRange.end,
       );
 
-      debugPrint('[HistoryView] Got ${readings.length} readings from Firestore');
+      debugPrint(
+        '[HistoryView] Got ${readings.length} readings from Firestore',
+      );
 
       if (readings.isEmpty) {
-        readings = _buildSampleReadings(dateRange);
+        final latest = await FirebaseService.instance.fetchOnce();
+        if (!_isPlaceholderReading(latest)) {
+          readings = [latest];
+        }
       }
 
       final mapped = _mapReadingsToRecords(readings);
@@ -94,12 +93,8 @@ class _HistoryViewState extends State<HistoryView> {
     } catch (e) {
       debugPrint('[HistoryView] Error loading history: $e');
       if (mounted) {
-        final dateRange = _effectiveDateRange();
-        final sampleReadings = _buildSampleReadings(dateRange);
-        final mapped = _mapReadingsToRecords(sampleReadings);
-
         setState(() {
-          _records = mapped;
+          _records = [];
           _isLoading = false;
           _isRefreshing = false;
           _hasError = true;
@@ -107,6 +102,13 @@ class _HistoryViewState extends State<HistoryView> {
         });
       }
     }
+  }
+
+  bool _isPlaceholderReading(WaterQualityReading reading) {
+    return reading.temperature == 0.0 &&
+        reading.ph == 0.0 &&
+        reading.ammonia == 0.0 &&
+        reading.turbidity == 0.0;
   }
 
   List<Map<String, dynamic>> _mapReadingsToRecords(
@@ -125,30 +127,6 @@ class _HistoryViewState extends State<HistoryView> {
         'timestamp': reading.timestamp,
       };
     }).toList();
-  }
-
-  List<WaterQualityReading> _buildSampleReadings(DateTimeRange range) {
-    final totalHours = range.end.difference(range.start).inHours;
-    final stepHours = totalHours > 72 ? 6 : 2;
-    final samples = <WaterQualityReading>[];
-
-    for (int i = 0; i < 12; i++) {
-      final ts = range.end.subtract(Duration(hours: i * stepHours));
-      if (ts.isBefore(range.start)) break;
-
-      samples.add(
-        WaterQualityReading(
-          temperature: 27.0 + (i % 4) * 0.35,
-          ph: 7.1 + (i % 3) * 0.08,
-          ammonia: 0.01 + (i % 4) * 0.002,
-          turbidity: 18.0 + (i % 5) * 2.2,
-          timestamp: ts,
-        ),
-      );
-    }
-
-    samples.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-    return samples;
   }
 
   DateTimeRange _effectiveDateRange() {
@@ -315,6 +293,47 @@ class _HistoryViewState extends State<HistoryView> {
   void _exportCsv() {
     final csv = _buildCsv(_records);
     SuccessSnackBar.show(context, 'Data exported (${csv.length} chars)');
+  }
+
+  Future<void> _clearHistory() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Clear history'),
+          content: const Text(
+            'This will delete all saved history records. This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Clear'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await FirebaseService.instance.clearHistory();
+      if (!mounted) return;
+      setState(() {
+        _records = [];
+        _isConnected = true;
+        _hasError = false;
+      });
+      SuccessSnackBar.show(context, 'History cleared');
+    } catch (e) {
+      if (!mounted) return;
+      ErrorSnackBar.show(context, 'Failed to clear history: $e');
+    }
   }
 
   Map<String, Object> _fieldMeta(String field) {
@@ -511,9 +530,7 @@ class _HistoryViewState extends State<HistoryView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final visibleRecords = (!_isLoading && _records.isEmpty)
-        ? _mapReadingsToRecords(_buildSampleReadings(_effectiveDateRange()))
-        : _records;
+    final visibleRecords = _records;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -537,17 +554,17 @@ class _HistoryViewState extends State<HistoryView> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: _hasError
-                    ? Colors.red.withValues(alpha: 0.1)
-                    : (_isConnected
-                      ? Colors.green.withValues(alpha: 0.1)
-                      : Colors.grey.withValues(alpha: 0.1)),
+                      ? Colors.red.withValues(alpha: 0.1)
+                      : (_isConnected
+                            ? Colors.green.withValues(alpha: 0.1)
+                            : Colors.grey.withValues(alpha: 0.1)),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: _hasError
-                      ? Colors.red.withValues(alpha: 0.3)
-                      : (_isConnected
-                        ? Colors.green.withValues(alpha: 0.3)
-                        : Colors.grey.withValues(alpha: 0.3)),
+                        ? Colors.red.withValues(alpha: 0.3)
+                        : (_isConnected
+                              ? Colors.green.withValues(alpha: 0.3)
+                              : Colors.grey.withValues(alpha: 0.3)),
                   ),
                 ),
                 child: Row(
@@ -555,12 +572,14 @@ class _HistoryViewState extends State<HistoryView> {
                   children: [
                     Icon(
                       _hasError
-                        ? Icons.cloud_off
-                        : (_isConnected ? Icons.cloud_done : Icons.cloud_queue),
+                          ? Icons.cloud_off
+                          : (_isConnected
+                                ? Icons.cloud_done
+                                : Icons.cloud_queue),
                       size: 12,
                       color: _hasError
-                        ? Colors.red
-                        : (_isConnected ? Colors.green : Colors.grey),
+                          ? Colors.red
+                          : (_isConnected ? Colors.green : Colors.grey),
                     ),
                     const SizedBox(width: 3),
                     Text(
@@ -569,8 +588,8 @@ class _HistoryViewState extends State<HistoryView> {
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: _hasError
-                          ? Colors.red
-                          : (_isConnected ? Colors.green : Colors.grey),
+                            ? Colors.red
+                            : (_isConnected ? Colors.green : Colors.grey),
                       ),
                     ),
                   ],
@@ -671,27 +690,57 @@ class _HistoryViewState extends State<HistoryView> {
               valueListenable: AuthService.isLGU,
               builder: (context, isLGU, _) {
                 if (!isAdmin && !isLGU) return const SizedBox.shrink();
-                return SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _exportCsv,
-                    icon: const Icon(
-                      Icons.download,
-                      size: 18,
-                      color: Colors.white,
-                    ),
-                    label: Text(
-                      t('export_csv'),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 34, 96, 231),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                return Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _exportCsv,
+                        icon: const Icon(
+                          Icons.download,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                        label: Text(
+                          t('export_csv'),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color.fromARGB(
+                            255,
+                            34,
+                            96,
+                            231,
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: visibleRecords.isEmpty
+                            ? null
+                            : _clearHistory,
+                        icon: const Icon(Icons.delete_sweep, size: 18),
+                        label: const Text('Clear history'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: BorderSide(
+                            color: visibleRecords.isEmpty
+                                ? Colors.grey.withValues(alpha: 0.35)
+                                : Colors.red.withValues(alpha: 0.45),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             );
